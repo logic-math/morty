@@ -18,11 +18,12 @@ Morty 是一个精简的 AI 开发系统,帮助你:
 - 维护模块化知识库(specs/ 目录)
 - 可选的项目结构生成
 
-### 🔄 开发循环
+### 🔄 开发循环(集成监控)
 - 自主 AI 开发迭代
 - 简单生命周期: 初始化 → 循环 → 错误/完成
 - 带上下文更新的退出钩子
-- 使用 tmux 实时监控
+- 集成 tmux 三面板监控(自动启动)
+- 后台运行支持(循环不受终端关闭影响)
 
 ### 📁 项目管理
 - 在现有项目中启用 Morty
@@ -88,8 +89,15 @@ morty fix prd.md
 ### 步骤 3: 开始开发
 
 ```bash
-morty monitor
+morty loop
 ```
+
+这会自动在 tmux 中启动三面板监控:
+- 左侧: Loop 循环执行
+- 右上: 实时日志
+- 右下: 状态监控 + 交互式 bash
+
+使用 `Ctrl+B D` 可以分离会话,循环将在后台继续运行。
 
 ## 命令
 
@@ -99,78 +107,46 @@ morty monitor
 **功能:**
 1. 使用 fix 模式系统提示词启动 Claude Code
 2. 通过对话改进需求
-3. Generates `problem_description.md` (refined PRD)
-4. Creates complete project structure:
-   - `.morty/PROMPT.md` - Development instructions
-   - `.morty/fix_plan.md` - Task breakdown
-   - `.morty/AGENT.md` - Build/test commands
-   - `.morty/specs/problem_description.md` - Refined PRD
+3. 生成改进版 prd.md
+4. 创建完整项目结构:
+   - `.morty/PROMPT.md` - 开发指令
+   - `.morty/fix_plan.md` - 任务分解
+   - `.morty/AGENT.md` - 构建/测试命令
+   - `.morty/specs/*.md` - 模块规范
 
-**Example:**
+**示例:**
 ```bash
-morty plan requirements.md
-morty plan docs/prd.md my-app
+morty fix requirements.md
+morty fix docs/prd.md
 ```
 
-### `morty enable`
-Enable Morty in existing project.
+### `morty loop [options]`
+启动开发循环(集成 tmux 监控)。
 
-**Example:**
+**功能:**
+- 默认在 tmux 中启动三面板监控
+- 左侧: Loop 循环执行
+- 右上: 实时日志
+- 右下: 状态监控 + 交互式 bash
+- 循环在后台运行,不受终端关闭影响
+
+**选项:**
+- `--max-loops N` - 最大循环次数(默认: 50)
+- `--delay N` - 循环间延迟秒数(默认: 5)
+- `--no-monitor` - 不启动监控,直接运行循环
+
+**示例:**
 ```bash
-cd existing-project
-morty enable
+morty loop                      # 启动带监控的循环(推荐)
+morty loop --max-loops 100      # 自定义最大循环次数
+morty loop --no-monitor         # 不启动监控
 ```
 
-### `morty start`
-Start development loop.
-
-**Example:**
-```bash
-morty start
-morty start --max-loops 100 --delay 10
-```
-
-### `morty monitor`
-Start with tmux monitoring (recommended).
-
-**Example:**
-```bash
-morty monitor
-```
-
-### `morty status`
-Show current status.
-
-**Example:**
-```bash
-morty status
-```
-
-### `morty rollback <loop-number>`
-Rollback to a specific loop iteration.
-
-**What it does:**
-- Finds the git commit for the specified loop number
-- Resets the working directory to that state
-- Allows you to undo changes from problematic loops
-
-**Example:**
-```bash
-morty rollback 5    # Rollback to loop #5
-```
-
-### `morty history`
-Show loop history from git commits.
-
-**What it does:**
-- Displays the last 20 loop commits
-- Shows loop numbers, timestamps, and summaries
-- Helps identify which loop to rollback to
-
-**Example:**
-```bash
-morty history
-```
+**tmux 快捷键:**
+- `Ctrl+B D` - 分离会话(后台运行)
+- `Ctrl+B 方向键` - 切换面板
+- `Ctrl+B [` - 进入滚动模式(查看历史)
+- `Ctrl+B X` - 关闭当前面板
 
 ## Git Auto-Commit
 
@@ -359,27 +335,34 @@ init → loop → [error | done]
 - Completion signal detected
 - Maximum loops reached
 
-## Monitoring
+## 监控
 
-Use tmux monitoring for best experience:
+`morty loop` 默认启动集成 tmux 监控:
 
-```bash
-morty monitor
+**三面板布局:**
+```
+┌─────────────────┬──────────────┐
+│                 │  实时日志    │
+│  Loop 执行      ├──────────────┤
+│                 │  状态 + Bash │
+└─────────────────┴──────────────┘
 ```
 
-**3-pane layout:**
-```
-┌─────────────────┬─────────────────┐
-│                 │  Live Logs      │
-│  Morty Loop     ├─────────────────┤
-│                 │  Status Monitor │
-└─────────────────┴─────────────────┘
-```
+**特性:**
+- 左侧 (60%): Loop 循环执行
+- 右上: 实时日志尾随
+- 右下: 状态监控 + 交互式 bash 终端
+- 后台运行: 分离会话后循环继续执行
 
-**tmux Controls:**
-- `Ctrl+B` then `D` - Detach
-- `Ctrl+B` then `←/→` - Switch panes
-- `Ctrl+B` then `[` - Scroll mode (q to exit)
+**便捷命令(在右下 bash 面板中):**
+- `status` - 刷新状态显示
+- `logs` - 查看最新日志
+- `plan` - 查看任务计划
+
+**tmux 控制:**
+- `Ctrl+B` 然后 `D` - 分离会话
+- `Ctrl+B` 然后 `←/→` - 切换面板
+- `Ctrl+B` 然后 `[` - 滚动模式(q 退出)
 
 ## Configuration
 
@@ -468,7 +451,7 @@ morty plan api_prd.md blog-api
 
 # After dialogue, project is generated
 cd blog-api
-morty monitor
+morty loop
 ```
 
 ### Example 2: CLI Tool
@@ -487,18 +470,19 @@ Organize files automatically based on rules.
 - Dry-run mode
 EOF
 
-morty plan cli_prd.md file-organizer
+morty fix cli_prd.md
 cd file-organizer
-morty start
+morty loop
 ```
 
 ## Tips
 
-1. **Start with a rough PRD** - Plan mode will help refine it
+1. **Start with a rough PRD** - Fix mode will help refine it
 2. **Be specific in dialogue** - Answer Claude's questions thoughtfully
 3. **Review generated files** - Customize `.morty/PROMPT.md` as needed
-4. **Use monitoring** - `morty monitor` for real-time visibility
+4. **Use integrated monitoring** - `morty loop` automatically starts tmux monitoring
 5. **Check logs** - `.morty/logs/` for detailed execution history
+6. **Detach when needed** - Use `Ctrl+B D` to let loop run in background
 
 ## Troubleshooting
 
@@ -521,12 +505,11 @@ Check if Claude created `problem_description.md` in the working directory during
 
 **Core Components:**
 - `morty` - Main command router
-- `morty_plan.sh` - Plan mode implementation
-- `morty_enable.sh` - Project enablement
-- `morty_loop.sh` - Development loop
-- `morty_monitor.sh` - tmux monitoring
+- `morty_fix.sh` - Fix mode implementation
+- `morty_loop.sh` - Development loop (with integrated monitoring)
 - `lib/common.sh` - Shared utilities
-- `prompts/plan_mode_system.md` - Plan mode system prompt
+- `lib/loop_monitor.sh` - tmux monitoring integration
+- `prompts/fix_mode_system.md` - Fix mode system prompt
 
 **Design Principles:**
 - Simplicity over complexity
@@ -553,5 +536,5 @@ Inspired by [Ralph for Claude Code](https://github.com/frankbria/ralph-claude-co
 
 ---
 
-**Version**: 0.2.1 (Git Auto-Commit)
+**Version**: 0.3.0 (Integrated Monitoring)
 **Status**: Production Ready
