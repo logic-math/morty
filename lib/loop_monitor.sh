@@ -281,113 +281,13 @@ sed -i "s/LOOP_DELAY:-5/LOOP_DELAY:-$LOOP_DELAY/" "$LOOP_RUNNER"
 
 chmod +x "$LOOP_RUNNER"
 
-# 左侧面板(面板 0): Claude Code 监控
-log INFO "配置左侧面板: Claude Code 监控"
+# 左侧面板(面板 0): 循环实时日志(项目进度)
+log INFO "配置左侧面板: 循环实时日志"
 tmux send-keys -t "$SESSION_NAME:${BASE_WIN}.0" "clear" Enter
 tmux send-keys -t "$SESSION_NAME:${BASE_WIN}.0" "echo '╔════════════════════════════════════════════════════════════╗'" Enter
-tmux send-keys -t "$SESSION_NAME:${BASE_WIN}.0" "echo '║              CLAUDE CODE 监控                              ║'" Enter
+tmux send-keys -t "$SESSION_NAME:${BASE_WIN}.0" "echo '║              循环实时日志 - 项目进度                       ║'" Enter
 tmux send-keys -t "$SESSION_NAME:${BASE_WIN}.0" "echo '╚════════════════════════════════════════════════════════════╝'" Enter
-tmux send-keys -t "$SESSION_NAME:${BASE_WIN}.0" "echo ''" Enter
-
-# Claude 监控脚本
-CLAUDE_MONITOR_SCRIPT=$(cat << 'SCRIPT'
-monitor_claude() {
-    while true; do
-        clear
-        echo "╔════════════════════════════════════════════════════════════╗"
-        echo "║              CLAUDE CODE 监控                              ║"
-        echo "╚════════════════════════════════════════════════════════════╝"
-        echo ""
-
-        # 显示当前循环信息
-        if [[ -f ".morty/status.json" ]]; then
-            echo "📊 循环状态:"
-            state=$(jq -r '.state // "unknown"' ".morty/status.json" 2>/dev/null)
-            loop_count=$(jq -r '.loop_count // 0' ".morty/status.json" 2>/dev/null)
-            max_loops=$(jq -r '.max_loops // 50' ".morty/status.json" 2>/dev/null)
-            echo "  状态: $state"
-            echo "  循环: $loop_count / $max_loops"
-            echo ""
-        fi
-
-        # 显示最新的循环日志文件信息
-        latest_log=$(ls -t .morty/logs/loop_*_output.log 2>/dev/null | head -1)
-        if [[ -n "$latest_log" ]]; then
-            echo "📝 当前日志: $(basename "$latest_log")"
-            echo ""
-
-            # 统计 token 使用(从日志中提取)
-            echo "🔢 Token 使用情况:"
-
-            # 查找包含 token 信息的行
-            # Claude Code 通常输出类似: "Token usage: 1234/200000"
-            token_info=$(grep -i "token" "$latest_log" | tail -5)
-            if [[ -n "$token_info" ]]; then
-                echo "$token_info" | while read -r line; do
-                    echo "  $line"
-                done
-            else
-                echo "  等待 token 信息..."
-            fi
-            echo ""
-
-            # 显示日志文件大小
-            log_size=$(du -h "$latest_log" | cut -f1)
-            echo "📦 日志大小: $log_size"
-            echo ""
-
-            # 显示最近的错误(如果有)
-            echo "⚠️  最近错误:"
-            recent_errors=$(grep -i "error\|failed\|exception" "$latest_log" 2>/dev/null | tail -3)
-            if [[ -n "$recent_errors" ]]; then
-                echo "$recent_errors" | while read -r line; do
-                    echo "  ${line:0:70}..."
-                done
-            else
-                echo "  无错误"
-            fi
-            echo ""
-        else
-            echo "⏳ 等待循环启动..."
-            echo ""
-        fi
-
-        # 显示会话信息
-        if [[ -f ".morty/.session_id" ]]; then
-            session_id=$(cat ".morty/.session_id")
-            echo "🔗 Claude 会话 ID:"
-            echo "  ${session_id:0:50}..."
-            echo ""
-        fi
-
-        # 显示系统资源
-        echo "💻 系统资源:"
-        echo "  CPU: $(top -bn1 | grep "Cpu(s)" | awk '{print $2}' | cut -d'%' -f1)%"
-        echo "  内存: $(free -h | awk '/^Mem:/ {print $3 "/" $2}')"
-        echo ""
-
-        echo "═══════════════════════════════════════════════════════════"
-        echo "刷新: 每 5 秒"
-        echo ""
-
-        sleep 5
-    done
-}
-
-# 启动监控
-monitor_claude
-SCRIPT
-)
-
-tmux send-keys -t "$SESSION_NAME:${BASE_WIN}.0" "$CLAUDE_MONITOR_SCRIPT" Enter
-
-# 右上面板(面板 1): 循环实时日志 (30% 高度)
-log INFO "配置右上面板: 循环实时日志"
-tmux send-keys -t "$SESSION_NAME:${BASE_WIN}.1" "clear" Enter
-tmux send-keys -t "$SESSION_NAME:${BASE_WIN}.1" "echo '╔════════════════════════════════════════════════════════════╗'" Enter
-tmux send-keys -t "$SESSION_NAME:${BASE_WIN}.1" "echo '║              循环实时日志 (30%)                            ║'" Enter
-tmux send-keys -t "$SESSION_NAME:${BASE_WIN}.1" "echo '╚════════════════════════════════════════════════════════════╝'" Enter
-tmux send-keys -t "$SESSION_NAME:${BASE_WIN}.1" "echo '等待日志...'\" Enter
+tmux send-keys -t "$SESSION_NAME:${BASE_WIN}.0" "echo '等待日志...'\" Enter
 
 # 在后台启动循环,然后监控日志
 LOOP_STARTER_SCRIPT=$(cat << 'SCRIPT'
@@ -410,7 +310,93 @@ SCRIPT
 # 替换 LOOP_RUNNER_PATH
 LOOP_STARTER_SCRIPT="${LOOP_STARTER_SCRIPT//LOOP_RUNNER_PATH/$LOOP_RUNNER}"
 
-tmux send-keys -t "$SESSION_NAME:${BASE_WIN}.1" "$LOOP_STARTER_SCRIPT" Enter
+tmux send-keys -t "$SESSION_NAME:${BASE_WIN}.0" "$LOOP_STARTER_SCRIPT" Enter
+
+# 右上面板(面板 1): Claude Code 监控 (30% 高度)
+log INFO "配置右上面板: Claude Code 监控"
+tmux send-keys -t "$SESSION_NAME:${BASE_WIN}.1" "clear" Enter
+
+# Claude 监控脚本
+CLAUDE_MONITOR_SCRIPT=$(cat << 'SCRIPT'
+monitor_claude() {
+    while true; do
+        clear
+        echo "╔════════════════════════════════════════════════════════════╗"
+        echo "║              CLAUDE CODE 监控 (30%)                        ║"
+        echo "╚════════════════════════════════════════════════════════════╝"
+        echo ""
+
+        # 显示当前循环信息
+        if [[ -f ".morty/status.json" ]]; then
+            echo "📊 循环状态:"
+            state=$(jq -r '.state // "unknown"' ".morty/status.json" 2>/dev/null)
+            loop_count=$(jq -r '.loop_count // 0' ".morty/status.json" 2>/dev/null)
+            max_loops=$(jq -r '.max_loops // 50' ".morty/status.json" 2>/dev/null)
+            echo "  状态: $state | 循环: $loop_count/$max_loops"
+        fi
+
+        # 显示最新的循环日志文件信息
+        latest_log=$(ls -t .morty/logs/loop_*_output.log 2>/dev/null | head -1)
+        if [[ -n "$latest_log" ]]; then
+            # 统计 token 使用(从日志中提取)
+            echo ""
+            echo "🔢 Token 使用:"
+
+            # 查找包含 token 信息的行
+            token_info=$(grep -i "token" "$latest_log" | tail -3)
+            if [[ -n "$token_info" ]]; then
+                echo "$token_info" | while read -r line; do
+                    echo "  ${line:0:60}"
+                done
+            else
+                echo "  等待 token 信息..."
+            fi
+
+            # 显示日志文件大小
+            log_size=$(du -h "$latest_log" | cut -f1)
+            echo ""
+            echo "📦 日志: $log_size"
+
+            # 显示最近的错误(如果有)
+            echo ""
+            echo "⚠️  错误:"
+            recent_errors=$(grep -i "error\|failed\|exception" "$latest_log" 2>/dev/null | tail -2)
+            if [[ -n "$recent_errors" ]]; then
+                echo "$recent_errors" | while read -r line; do
+                    echo "  ${line:0:55}..."
+                done
+            else
+                echo "  无错误"
+            fi
+        else
+            echo ""
+            echo "⏳ 等待循环启动..."
+        fi
+
+        # 显示会话信息
+        if [[ -f ".morty/.session_id" ]]; then
+            session_id=$(cat ".morty/.session_id")
+            echo ""
+            echo "🔗 会话: ${session_id:0:40}..."
+        fi
+
+        # 显示系统资源
+        echo ""
+        echo "💻 资源: CPU $(top -bn1 | grep "Cpu(s)" | awk '{print $2}' | cut -d'%' -f1)% | 内存 $(free -h | awk '/^Mem:/ {print $3 "/" $2}')"
+
+        echo ""
+        echo "刷新: 5s"
+
+        sleep 5
+    done
+}
+
+# 启动监控
+monitor_claude
+SCRIPT
+)
+
+tmux send-keys -t "$SESSION_NAME:${BASE_WIN}.1" "$CLAUDE_MONITOR_SCRIPT" Enter
 
 # 右下面板(面板 2): 交互式终端 (70% 高度)
 log INFO "配置右下面板: 交互式终端"
@@ -512,8 +498,8 @@ SCRIPT
 tmux send-keys -t "$SESSION_NAME:${BASE_WIN}.2" "$TERMINAL_INIT_SCRIPT" Enter
 
 # 设置面板标题
-tmux select-pane -t "$SESSION_NAME:${BASE_WIN}.0" -T "Claude 监控"
-tmux select-pane -t "$SESSION_NAME:${BASE_WIN}.1" -T "循环日志(30%)"
+tmux select-pane -t "$SESSION_NAME:${BASE_WIN}.0" -T "循环日志(项目进度)"
+tmux select-pane -t "$SESSION_NAME:${BASE_WIN}.1" -T "Claude监控(30%)"
 tmux select-pane -t "$SESSION_NAME:${BASE_WIN}.2" -T "交互终端(70%)"
 
 # 聚焦到右下面板(交互式终端)
@@ -525,9 +511,10 @@ log INFO "会话名称: $SESSION_NAME"
 log INFO ""
 log INFO "面板布局:"
 log INFO "  ┌──────────────────┬───────────────┐"
-log INFO "  │                  │ 循环日志(30%) │"
-log INFO "  │  Claude 监控     ├───────────────┤"
-log INFO "  │  (Token 使用)    │ 交互终端(70%) │"
+log INFO "  │                  │ Claude监控    │"
+log INFO "  │  循环日志        │ (Token/30%)   │"
+log INFO "  │  (项目进度)      ├───────────────┤"
+log INFO "  │                  │ 交互终端(70%) │"
 log INFO "  └──────────────────┴───────────────┘"
 log INFO ""
 log INFO "快捷键:"

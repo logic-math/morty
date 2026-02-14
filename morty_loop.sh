@@ -38,8 +38,8 @@ Morty Loop - 开发循环(集成可观察性监控)
 
 描述:
     默认情况下,loop 会在 tmux 中启动并提供三面板监控:
-    - 左侧(50%): Claude Code 监控(Token 使用、错误、资源)
-    - 右上(30%): 循环实时日志
+    - 左侧(50%): 循环实时日志(项目进度、任务执行)
+    - 右上(30%): Claude Code 监控(Token 使用、错误、资源)
     - 右下(70%): 交互式命令行(便捷命令: status, progress, logs, plan)
 
     使用 --no-monitor 可以直接运行循环而不启动 tmux。

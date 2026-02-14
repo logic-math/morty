@@ -39,8 +39,8 @@ Morty - 简化的 AI 开发循环
 
 监控功能:
     默认情况下,loop 会在 tmux 中启动三面板监控:
-    - 左侧(50%): Claude Code 监控(Token 使用、错误、资源)
-    - 右上(30%): 循环实时日志
+    - 左侧(50%): 循环实时日志(项目进度)
+    - 右上(30%): Claude Code 监控(Token 使用、错误、资源)
     - 右下(70%): 交互式命令行
 
     便捷命令: status, progress, logs, plan, help
