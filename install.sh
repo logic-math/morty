@@ -44,6 +44,7 @@ log INFO "复制文件..."
 # Copy main scripts
 cp morty_fix.sh "$INSTALL_DIR/"
 cp morty_loop.sh "$INSTALL_DIR/"
+cp morty_reset.sh "$INSTALL_DIR/"
 
 # Copy library and prompts
 cp -r lib "$INSTALL_DIR/"
@@ -81,6 +82,7 @@ Morty - 简化的 AI 开发循环
 命令:
     fix <prd.md>            迭代式 PRD 改进(问题修复/功能增强/架构优化)
     loop [options]          启动开发循环(集成监控)
+    reset [options]         版本回滚和循环管理
     version                 显示版本
 
 示例:
@@ -89,11 +91,17 @@ Morty - 简化的 AI 开发循环
     morty loop                         # 启动带监控的开发循环(推荐)
     morty loop --max-loops 100         # 自定义最大循环次数
     morty loop --no-monitor            # 不启动监控,直接运行
+    morty reset -l                     # 查看循环提交历史
+    morty reset -c abc123              # 回滚到指定 commit
 
 工作流程:
     1. morty fix <prd.md>              # 迭代式 PRD 改进
     2. 查看生成的 .morty/specs/*.md    # 检查模块规范
     3. morty loop                      # 启动循环(自动启动 tmux 监控)
+    4. morty reset -l                  # 查看循环历史
+    5. morty reset -c <commit>         # 回滚到指定版本
+    6. 人工干预修改代码(可选)
+    7. morty loop                      # 从当前状态继续
 
 监控功能:
     默认情况下,loop 会在 tmux 中启动三面板监控:
@@ -120,6 +128,10 @@ case "${1:-}" in
     loop)
         shift
         exec "$MORTY_HOME/morty_loop.sh" "$@"
+        ;;
+    reset)
+        shift
+        exec "$MORTY_HOME/morty_reset.sh" "$@"
         ;;
     version|--version|-v)
         show_version

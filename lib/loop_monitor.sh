@@ -77,6 +77,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$SCRIPT_DIR"
 
 source "$SCRIPT_DIR/.morty/lib/common.sh" 2>/dev/null || source "$(dirname "$0")/../lib/common.sh"
+source "$SCRIPT_DIR/.morty/lib/git_manager.sh" 2>/dev/null || source "$(dirname "$0")/../lib/git_manager.sh"
 
 # 配置
 MORTY_DIR=".morty"
@@ -93,6 +94,11 @@ MAX_LOOPS="${MAX_LOOPS:-50}"
 LOOP_DELAY="${LOOP_DELAY:-5}"
 
 LOG_FILE="$LOG_DIR/loop_$(date +%Y%m%d_%H%M%S).log"
+
+# 初始化 git(如果需要)
+echo "检查 git 仓库..."
+init_git_if_needed
+echo ""
 
 # 更新状态
 update_status() {
@@ -225,8 +231,22 @@ while [[ $LOOP_COUNT -lt $MAX_LOOPS ]]; do
     if [[ $CLAUDE_EXIT_CODE -ne 0 ]]; then
         echo "ERROR: Claude Code 执行失败"
         update_status "error" "$LOOP_COUNT" "Claude 执行失败"
+        # 即使失败也创建提交(记录错误状态)
+        echo ""
+        echo "创建错误状态提交..."
+        create_loop_commit "$LOOP_COUNT" "error"
         exit 1
     fi
+
+    # 创建循环提交
+    echo ""
+    echo "创建循环提交..."
+    if create_loop_commit "$LOOP_COUNT" "completed"; then
+        echo "✓ 循环 #$LOOP_COUNT 已提交到 git"
+    else
+        echo "⚠ 循环 #$LOOP_COUNT 提交失败(继续执行)"
+    fi
+    echo ""
 
     # 检查是否完成
     # 查找 EXIT_SIGNAL: true

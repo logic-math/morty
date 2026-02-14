@@ -28,6 +28,13 @@ Morty 是一个精简的 AI 开发系统,帮助你:
   - 交互式命令行
 - 后台运行支持(循环不受终端关闭影响)
 
+### 🔄 版本管理(Git 自动提交)
+- 自动 Git 初始化(首次运行时)
+- 每次循环自动创建 commit
+- 完整的变更历史记录
+- 支持回滚到任意循环状态
+- 支持人工干预和代码修改
+
 ### 📁 项目管理
 - 在现有项目中启用 Morty
 - 自动检测项目类型
@@ -150,6 +157,35 @@ morty loop --no-monitor         # 不启动监控
 - `Ctrl+B 方向键` - 切换面板
 - `Ctrl+B [` - 进入滚动模式(查看历史)
 - `Ctrl+B X` - 关闭当前面板
+
+### `morty reset [options]`
+版本回滚和循环管理。
+
+**功能:**
+- 查看循环提交历史
+- 回滚到指定 commit
+- 关闭运行中的 tmux 会话
+- 保留所有日志文件
+- 支持人工干预后继续循环
+
+**选项:**
+- `-l, --list [N]` - 显示最近 N 次循环提交(默认: 20)
+- `-c, --commit <id>` - 回滚到指定 commit
+- `-s, --status` - 显示当前状态
+
+**示例:**
+```bash
+morty reset -l              # 查看循环提交历史
+morty reset -c abc123       # 回滚到 commit abc123
+morty reset -s              # 查看当前状态
+```
+
+**工作流程:**
+1. 运行 `morty reset -l` 查看历史
+2. 找到目标 commit ID
+3. 运行 `morty reset -c <commit-id>` 回滚
+4. 可选: 手动修改代码进行干预
+5. 运行 `morty loop` 从当前状态继续
 
 ## Git Auto-Commit
 
