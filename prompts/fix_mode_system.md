@@ -355,9 +355,11 @@ cp -r .morty_fix_work/specs .morty/
 cp -r .morty_fix_work/specs/* .morty/specs/
 ```
 
+#### 5. 创建 `.morty/logs` (直接重建)
+
 ### 阶段 5: 验证输出目录结构
 验证生成的 .morty/ 项目结构是否完整,不完整择需要改进
-.morty/lib/common.sh 的 `morty_check_project_structure` 函数可以验证
+~/.morty/lib/common.sh 的 `morty_check_project_structure` 函数可以验证
 
 ### 阶段 6: 输出完成信号
 

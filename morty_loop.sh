@@ -1,67 +1,52 @@
 #!/bin/bash
-# Morty Loop - Main development loop
+# Morty Loop - 主开发循环
 
 set -e
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "$SCRIPT_DIR/lib/common.sh"
 
-# Configuration
+# 配置
 MORTY_DIR=".morty"
 PROMPT_FILE="$MORTY_DIR/PROMPT.md"
+AGENT_FILE="$MORTY_DIR/AGENT.md"
+FIX_PLAN_FILE="$MORTY_DIR/fix_plan.md"
+SPECS_DIR="$MORTY_DIR/specs"
 LOG_DIR="$MORTY_DIR/logs"
 STATUS_FILE="$MORTY_DIR/status.json"
-LOOP_STATE_FILE="$MORTY_DIR/.loop_state"
 SESSION_FILE="$MORTY_DIR/.session_id"
-LOG_FILE="$LOG_DIR/morty.log"
 
 CLAUDE_CMD="${CLAUDE_CODE_CLI:-claude}"
 MAX_LOOPS="${MAX_LOOPS:-50}"
 LOOP_DELAY="${LOOP_DELAY:-5}"
-USE_TMUX=false
 
-# Initialize
+# 初始化
 mkdir -p "$LOG_DIR"
+LOG_FILE="$LOG_DIR/loop_$(date +%Y%m%d_%H%M%S).log"
 
 show_help() {
     cat << 'EOF'
-Morty Loop - Start development loop
+Morty Loop - 开发循环
 
-Usage: morty start [options]
-       morty monitor [options]
+用法: morty loop [options]
 
-Options:
-    -h, --help          Show this help message
-    -m, --monitor       Start with tmux monitoring
-    -s, --status        Show current status and exit
-    --max-loops N       Maximum number of loops (default: 50)
-    --delay N           Delay between loops in seconds (default: 5)
+选项:
+    -h, --help          显示帮助信息
+    --max-loops N       最大循环次数(默认: 50)
+    --delay N           循环间延迟秒数(默认: 5)
 
-Examples:
-    morty start
-    morty monitor
-    morty start --max-loops 100
+示例:
+    morty loop
+    morty loop --max-loops 100
 
 EOF
 }
 
-# Parse arguments
+# 解析参数
 while [[ $# -gt 0 ]]; do
     case $1 in
         -h|--help)
             show_help
-            exit 0
-            ;;
-        -m|--monitor)
-            USE_TMUX=true
-            shift
-            ;;
-        -s|--status)
-            if [[ -f "$STATUS_FILE" ]]; then
-                cat "$STATUS_FILE"
-            else
-                echo "No status file found. Morty may not be running."
-            fi
             exit 0
             ;;
         --max-loops)
@@ -73,24 +58,85 @@ while [[ $# -gt 0 ]]; do
             shift 2
             ;;
         *)
-            log ERROR "Unknown argument: $1"
+            log ERROR "未知参数: $1"
             exit 1
             ;;
     esac
 done
 
-# Check if this is a Morty project
-if [[ ! -f "$PROMPT_FILE" ]]; then
-    log ERROR "Not a Morty project (missing $PROMPT_FILE)"
+log INFO "╔════════════════════════════════════════════════════════════╗"
+log INFO "║              MORTY LOOP - 开发循环                         ║"
+log INFO "╚════════════════════════════════════════════════════════════╝"
+log INFO ""
+
+# 检查 .morty/ 目录是否存在
+if [[ ! -d "$MORTY_DIR" ]]; then
+    log ERROR ".morty/ 目录不存在"
     log INFO ""
-    log INFO "To fix this:"
-    log INFO "  1. Create new project: morty init my-project"
-    log INFO "  2. Import from PRD: morty import requirements.md"
-    log INFO "  3. Enable in existing project: morty enable"
+    log INFO "请先运行 'morty fix prd.md' 初始化项目"
     exit 1
 fi
 
-# Update status
+# 检查必需文件
+log INFO "检查项目结构..."
+MISSING_FILES=()
+
+if [[ ! -f "$PROMPT_FILE" ]]; then
+    MISSING_FILES+=("$PROMPT_FILE")
+fi
+
+if [[ ! -f "$AGENT_FILE" ]]; then
+    MISSING_FILES+=("$AGENT_FILE")
+fi
+
+if [[ ! -f "$FIX_PLAN_FILE" ]]; then
+    MISSING_FILES+=("$FIX_PLAN_FILE")
+fi
+
+if [[ ! -d "$SPECS_DIR" ]]; then
+    MISSING_FILES+=("$SPECS_DIR")
+fi
+
+if [[ ${#MISSING_FILES[@]} -gt 0 ]]; then
+    log ERROR "缺少必需文件/目录:"
+    for file in "${MISSING_FILES[@]}"; do
+        log ERROR "  - $file"
+    done
+    log INFO ""
+    log INFO "请先运行 'morty fix prd.md' 初始化项目"
+    exit 1
+fi
+
+log SUCCESS "✓ 项目结构完整"
+log INFO ""
+
+# 读取必要文件
+log INFO "读取项目文件..."
+
+PROMPT_CONTENT=$(cat "$PROMPT_FILE")
+log SUCCESS "✓ 读取 PROMPT.md"
+
+AGENT_CONTENT=$(cat "$AGENT_FILE")
+log SUCCESS "✓ 读取 AGENT.md"
+
+FIX_PLAN_CONTENT=$(cat "$FIX_PLAN_FILE")
+log SUCCESS "✓ 读取 fix_plan.md"
+
+# 列出 specs 文件
+SPEC_FILES=$(find "$SPECS_DIR" -name "*.md" -type f 2>/dev/null | sort)
+SPEC_COUNT=$(echo "$SPEC_FILES" | wc -l)
+log SUCCESS "✓ 找到 $SPEC_COUNT 个模块规范"
+
+log INFO ""
+
+# 显示配置
+log INFO "循环配置:"
+log INFO "  - 最大循环次数: $MAX_LOOPS"
+log INFO "  - 循环间延迟: ${LOOP_DELAY}s"
+log INFO "  - 日志文件: $LOG_FILE"
+log INFO ""
+
+# 更新状态
 update_status() {
     local state=$1
     local loop_count=$2
@@ -98,214 +144,167 @@ update_status() {
 
     cat > "$STATUS_FILE" << EOF
 {
-    "state": "$state",
-    "loop_count": $loop_count,
-    "timestamp": "$(get_iso_timestamp)",
-    "message": "$message"
+  "state": "$state",
+  "loop_count": $loop_count,
+  "max_loops": $MAX_LOOPS,
+  "message": "$message",
+  "timestamp": "$(date -u +"%Y-%m-%dT%H:%M:%SZ")"
 }
 EOF
 }
 
-# Check if should exit
-should_exit() {
-    local fix_plan="$MORTY_DIR/fix_plan.md"
-
-    if [[ ! -f "$fix_plan" ]]; then
-        return 1  # Don't exit
-    fi
-
-    # Check if all tasks are complete
-    local total_tasks=$(grep -cE "^[[:space:]]*-[[:space:]]*\[[ xX]\]" "$fix_plan" 2>/dev/null || echo "0")
-    local completed_tasks=$(grep -cE "^[[:space:]]*-[[:space:]]*\[[xX]\]" "$fix_plan" 2>/dev/null || echo "0")
-
-    if [[ $total_tasks -gt 0 ]] && [[ $completed_tasks -eq $total_tasks ]]; then
-        return 0  # Exit
-    fi
-
-    return 1  # Don't exit
-}
-
-# Execute Claude Code
-execute_claude() {
+# 构建循环提示词
+build_loop_prompt() {
     local loop_count=$1
-    local timestamp=$(date '+%Y-%m-%d_%H-%M-%S')
-    local output_file="$LOG_DIR/loop_${loop_count}_${timestamp}.log"
 
-    log LOOP "Executing Claude Code (Loop #$loop_count)"
+    cat << EOF
+$PROMPT_CONTENT
 
-    # Build command
-    local prompt_content=$(cat "$PROMPT_FILE")
+---
 
-    # Add loop context
-    local loop_context="Loop #$loop_count. "
+# 当前循环状态
 
-    # Add task count
-    if [[ -f "$MORTY_DIR/fix_plan.md" ]]; then
-        local incomplete=$(grep -cE "^[[:space:]]*-[[:space:]]*\[ \]" "$MORTY_DIR/fix_plan.md" 2>/dev/null || echo "0")
-        loop_context+="Remaining tasks: $incomplete. "
+**循环次数**: $loop_count / $MAX_LOOPS
+
+## 当前任务列表
+
+\`\`\`markdown
+$FIX_PLAN_CONTENT
+\`\`\`
+
+## 可用的模块规范
+
+以下模块规范可供参考(按需读取):
+
+$(echo "$SPEC_FILES" | while read -r spec_file; do
+    echo "- \`$spec_file\`"
+done)
+
+## 构建和测试命令
+
+\`\`\`markdown
+$AGENT_CONTENT
+\`\`\`
+
+---
+
+**指令**:
+1. 查看 fix_plan.md 中的任务列表
+2. 选择下一个未完成的任务
+3. 如需要,读取相关的模块规范文件
+4. 实现任务
+5. 测试代码
+6. 更新文档
+7. 在 fix_plan.md 中标记任务完成
+8. 输出 RALPH_STATUS 块
+
+开始工作!
+EOF
+}
+
+# 主循环
+log INFO "开始开发循环..."
+log INFO ""
+
+LOOP_COUNT=0
+
+while [[ $LOOP_COUNT -lt $MAX_LOOPS ]]; do
+    LOOP_COUNT=$((LOOP_COUNT + 1))
+
+    log INFO "════════════════════════════════════════════════════════════"
+    log LOOP "循环 #$LOOP_COUNT"
+    log INFO "════════════════════════════════════════════════════════════"
+    log INFO ""
+
+    # 更新状态
+    update_status "running" "$LOOP_COUNT" "执行循环 $LOOP_COUNT"
+
+    # 构建提示词
+    LOOP_PROMPT=$(build_loop_prompt "$LOOP_COUNT")
+    PROMPT_FILE_TEMP="$LOG_DIR/loop_${LOOP_COUNT}_prompt.md"
+    echo "$LOOP_PROMPT" > "$PROMPT_FILE_TEMP"
+
+    log INFO "提示词已保存: $PROMPT_FILE_TEMP"
+    log INFO ""
+
+    # 构建 Claude 命令
+    CLAUDE_ARGS=(
+        "$CLAUDE_CMD"
+        "--continue"
+        "--dangerously-skip-permissions"
+    )
+
+    # 如果有 session ID,使用它
+    if [[ -f "$SESSION_FILE" ]]; then
+        SESSION_ID=$(cat "$SESSION_FILE")
+        CLAUDE_ARGS+=("--session-id" "$SESSION_ID")
+        log INFO "使用会话 ID: $SESSION_ID"
     fi
 
-    # Execute Claude (with timeout)
-    local exit_code=0
-    if timeout 600s $CLAUDE_CMD -p "$loop_context$prompt_content" > "$output_file" 2>&1; then
-        log SUCCESS "Claude Code execution completed"
-        exit_code=0
+    # 执行 Claude
+    LOOP_LOG="$LOG_DIR/loop_${LOOP_COUNT}_output.log"
+    log INFO "执行 Claude Code..."
+    log INFO ""
+
+    if cat "$PROMPT_FILE_TEMP" | "${CLAUDE_ARGS[@]}" 2>&1 | tee "$LOOP_LOG"; then
+        CLAUDE_EXIT_CODE=0
     else
-        exit_code=$?
-        if [[ $exit_code -eq 124 ]]; then
-            log ERROR "Claude Code execution timed out (10 minutes)"
-        else
-            log ERROR "Claude Code execution failed (exit code: $exit_code)"
-        fi
+        CLAUDE_EXIT_CODE=$?
     fi
 
-    # Analyze output for errors
-    if grep -qiE "(error|exception|failed)" "$output_file" 2>/dev/null; then
-        log WARN "Errors detected in output"
-        return 2  # Error state
-    fi
+    log INFO ""
+    log INFO "循环 #$LOOP_COUNT 完成(退出码: $CLAUDE_EXIT_CODE)"
+    log INFO ""
 
-    # Check for completion signals
-    if grep -qiE "(done|complete|finished|all tasks complete)" "$output_file" 2>/dev/null; then
-        log INFO "Completion signal detected"
-        return 3  # Done state
-    fi
-
-    return $exit_code
-}
-
-# Cleanup and exit
-cleanup() {
-    local reason=$1
-    local context=${2:-"Loop interrupted"}
-
-    log INFO "Cleaning up and exiting..."
-
-    # Update PROMPT.md with exit context (hook)
-    update_prompt_context "$reason" "$context"
-
-    # Update status
-    update_status "$reason" "${loop_count:-0}" "$context"
-
-    # Remove loop state
-    rm -f "$LOOP_STATE_FILE"
-
-    log SUCCESS "Cleanup complete"
-}
-
-# Signal handlers
-trap 'cleanup "interrupted" "User interrupted (Ctrl+C)"; exit 130' SIGINT SIGTERM
-
-# Setup tmux if requested
-if [[ "$USE_TMUX" == "true" ]]; then
-    if ! command -v tmux &> /dev/null; then
-        log ERROR "tmux is not installed"
-        log INFO "Install: sudo apt-get install tmux (Ubuntu) or brew install tmux (macOS)"
+    # 检查退出码
+    if [[ $CLAUDE_EXIT_CODE -ne 0 ]]; then
+        log ERROR "Claude Code 执行失败"
+        update_status "error" "$LOOP_COUNT" "Claude 执行失败"
         exit 1
     fi
 
-    log INFO "Starting tmux monitoring session..."
-    exec "$SCRIPT_DIR/morty_monitor.sh"
-fi
-
-# Main loop
-main() {
-    log SUCCESS "Starting Morty development loop"
-    log INFO "Project: $(basename "$(pwd)")"
-    log INFO "Max loops: $MAX_LOOPS"
-    log INFO "Delay between loops: ${LOOP_DELAY}s"
-    log INFO ""
-
-    local loop_count=0
-    local state="init"
-
-    # Save initial state
-    update_status "init" 0 "Initializing"
-
-    while [[ $loop_count -lt $MAX_LOOPS ]]; do
-        loop_count=$((loop_count + 1))
-
-        log LOOP "=== Loop #$loop_count ==="
-
-        # Save loop state
-        echo "$loop_count" > "$LOOP_STATE_FILE"
-
-        # Update status
-        update_status "running" "$loop_count" "Executing loop"
-
-        # Check for exit conditions
-        if should_exit; then
-            state="done"
-            log SUCCESS "All tasks completed!"
-            cleanup "done" "All tasks in fix_plan.md completed"
-            update_status "done" "$loop_count" "All tasks completed"
-            break
-        fi
-
-        # Execute Claude
-        execute_claude "$loop_count"
-        local exec_result=$?
-
-        case $exec_result in
-            0)
-                # Success
-                state="running"
-                log SUCCESS "Loop #$loop_count completed successfully"
-
-                # Auto-commit changes after successful loop
-                git_auto_commit "$loop_count" "Loop iteration completed"
-                ;;
-            2)
-                # Error detected
-                state="error"
-                log ERROR "Error detected in loop #$loop_count"
-                cleanup "error" "Error detected in Claude output"
-                update_status "error" "$loop_count" "Error detected"
-                break
-                ;;
-            3)
-                # Done signal
-                state="done"
-                log SUCCESS "Completion signal received"
-
-                # Auto-commit final state
-                git_auto_commit "$loop_count" "Project completion"
-
-                cleanup "done" "Claude indicated completion"
-                update_status "done" "$loop_count" "Completion signal received"
-                break
-                ;;
-            *)
-                # Other failure
-                state="error"
-                log ERROR "Unexpected error in loop #$loop_count"
-                cleanup "error" "Unexpected error (exit code: $exec_result)"
-                update_status "error" "$loop_count" "Unexpected error"
-                break
-                ;;
-        esac
-
-        # Delay between loops
-        if [[ $loop_count -lt $MAX_LOOPS ]]; then
-            log INFO "Waiting ${LOOP_DELAY}s before next loop..."
-            sleep "$LOOP_DELAY"
-        fi
-
-        log LOOP "=== End Loop #$loop_count ==="
+    # 检查是否完成
+    # 查找 EXIT_SIGNAL: true
+    if grep -q "EXIT_SIGNAL: true" "$LOOP_LOG"; then
         log INFO ""
-    done
-
-    # Check if max loops reached
-    if [[ $loop_count -ge $MAX_LOOPS ]]; then
-        log WARN "Maximum loops ($MAX_LOOPS) reached"
-        cleanup "max_loops" "Reached maximum loop count"
-        update_status "max_loops" "$loop_count" "Maximum loops reached"
+        log SUCCESS "检测到退出信号 - 项目完成!"
+        update_status "completed" "$LOOP_COUNT" "项目完成"
+        break
     fi
 
-    log SUCCESS "Morty loop finished"
-    log INFO "Final state: $state"
-    log INFO "Total loops: $loop_count"
-}
+    # 检查是否所有任务完成
+    UNCHECKED_TASKS=$(grep -c "\- \[ \]" "$FIX_PLAN_FILE" 2>/dev/null || echo "0")
+    if [[ $UNCHECKED_TASKS -eq 0 ]]; then
+        log INFO ""
+        log SUCCESS "所有任务已完成!"
+        update_status "completed" "$LOOP_COUNT" "所有任务完成"
+        break
+    fi
 
-# Run main loop
-main
+    log INFO "剩余任务: $UNCHECKED_TASKS"
+    log INFO ""
+
+    # 延迟
+    if [[ $LOOP_COUNT -lt $MAX_LOOPS ]]; then
+        log INFO "等待 ${LOOP_DELAY}s 后继续..."
+        sleep "$LOOP_DELAY"
+        log INFO ""
+    fi
+done
+
+# 循环结束
+log INFO ""
+log INFO "════════════════════════════════════════════════════════════"
+
+if [[ $LOOP_COUNT -ge $MAX_LOOPS ]]; then
+    log WARN "达到最大循环次数: $MAX_LOOPS"
+    update_status "max_loops_reached" "$LOOP_COUNT" "达到最大循环次数"
+else
+    log SUCCESS "开发循环正常结束"
+fi
+
+log INFO ""
+log INFO "总循环次数: $LOOP_COUNT"
+log INFO "日志文件: $LOG_FILE"
+log INFO ""
+log SUCCESS "循环完成! 🎉"

@@ -1,10 +1,10 @@
 #!/bin/bash
-# Morty - Simplified AI Development Loop
-# Unified command interface
+# Morty - 简化的 AI 开发循环
+# 统一命令接口
 
 set -e
 
-VERSION="0.1.0"
+VERSION="0.3.0"
 MORTY_HOME="${MORTY_HOME:-$HOME/.morty}"
 
 # Colors
@@ -16,34 +16,25 @@ NC='\033[0m'
 
 show_help() {
     cat << 'EOF'
-Morty - Simplified AI Development Loop
+Morty - 简化的 AI 开发循环
 
-Usage: morty <command> [options]
+用法: morty <command> [options]
 
-Commands:
+命令:
     fix <prd.md>            迭代式 PRD 改进(问题修复/功能增强/架构优化)
-    enable                  在现有项目中启用 Morty
-    start                   启动开发循环
-    monitor                 启动并带 tmux 监控
-    status                  显示当前状态
-    rollback <loop-number>  回滚到特定循环迭代
-    history                 显示 git 提交中的循环历史
+    loop                    启动开发循环
     version                 显示版本
 
 示例:
-    morty fix prd.md                   # 改进 PRD 并更新规范
+    morty fix prd.md                   # 改进 PRD 并生成 .morty/ 目录
     morty fix docs/requirements.md     # 指定 PRD 文件路径
-    morty enable                       # 在现有项目中启用
-    morty start                        # 启动开发循环
-    morty monitor                      # 启动并监控
-    morty rollback 5                   # 回滚到循环 #5
-    morty history                      # 显示循环提交历史
+    morty loop                         # 启动开发循环
+    morty loop --max-loops 100         # 自定义最大循环次数
 
 工作流程:
-    1. morty fix <prd.md>             # 迭代式 PRD 改进
-    2. 查看生成的 specs/*.md           # 检查模块规范
-    3. morty monitor                   # 启动开发并监控
-    4. morty rollback <N>              # 必要时回滚
+    1. morty fix <prd.md>              # 迭代式 PRD 改进
+    2. 查看生成的 .morty/specs/*.md    # 检查模块规范
+    3. morty loop                      # 启动开发循环
 
 EOF
 }
@@ -58,38 +49,9 @@ case "${1:-}" in
         shift
         exec "$MORTY_HOME/morty_fix.sh" "$@"
         ;;
-    enable)
-        shift
-        exec "$MORTY_HOME/morty_enable.sh" "$@"
-        ;;
-    start)
+    loop)
         shift
         exec "$MORTY_HOME/morty_loop.sh" "$@"
-        ;;
-    monitor)
-        shift
-        exec "$MORTY_HOME/morty_loop.sh" --monitor "$@"
-        ;;
-    status)
-        shift
-        exec "$MORTY_HOME/morty_loop.sh" --status "$@"
-        ;;
-    rollback)
-        shift
-        # Source common.sh for git functions
-        source "$MORTY_HOME/lib/common.sh"
-        if [[ -z "${1:-}" ]]; then
-            echo -e "${RED}Error: Loop number required${NC}"
-            echo "Usage: morty rollback <loop-number>"
-            exit 1
-        fi
-        git_rollback "$1"
-        ;;
-    history)
-        shift
-        # Source common.sh for git functions
-        source "$MORTY_HOME/lib/common.sh"
-        git_loop_history
         ;;
     version|--version|-v)
         show_version
@@ -98,7 +60,7 @@ case "${1:-}" in
         show_help
         ;;
     *)
-        echo -e "${RED}Error: Unknown command '$1'${NC}"
+        echo -e "${RED}错误: 未知命令 '$1'${NC}"
         echo ""
         show_help
         exit 1

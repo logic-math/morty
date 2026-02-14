@@ -205,6 +205,7 @@ log INFO ""
 CLAUDE_ARGS=(
     "$CLAUDE_CMD"
     "--continue"
+    "--dangerously-skip-permissions"
     "--allowedTools" "Read" "Write" "Glob" "Grep" "WebSearch" "WebFetch" "Edit"
 )
 
@@ -240,24 +241,15 @@ log INFO ""
 if morty_check_project_structure "."; then
     log INFO ""
     log SUCCESS "╔════════════════════════════════════════════════════════════╗"
-    log SUCCESS "║              FIX 会话完成!                                 ║"
+    log SUCCESS "║              循环初始化成功!                               ║"
     log SUCCESS "╚════════════════════════════════════════════════════════════╝"
     log INFO ""
-    log INFO "生成/更新的文件:"
-    log INFO "  ✓ .morty/PROMPT.md           开发指令"
-    log INFO "  ✓ .morty/fix_plan.md         任务分解"
-    log INFO "  ✓ .morty/AGENT.md            构建/测试命令"
-    log INFO "  ✓ .morty/specs/*.md          模块规范"
+    log INFO "现在可以进入循环阶段:"
+    log INFO "  运行 'morty start' 开始开发循环"
+    log INFO "  或运行 'morty monitor' 使用监控模式"
     log INFO ""
-    log INFO "下一步:"
-    log INFO "  1. 查看 .morty/specs/ 目录中的模块规范"
-    log INFO "  2. 查看 .morty/fix_plan.md 了解任务"
-    log INFO "  3. 运行 'morty start' 开始开发循环"
-    log INFO ""
-    log SUCCESS "持续改进! 🔧"
-
+    
     # 清理工作目录
-    log INFO ""
     log INFO "清理工作目录..."
     rm -rf "$WORK_DIR"
     log INFO "工作目录已清理"
