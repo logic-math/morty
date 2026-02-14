@@ -174,20 +174,24 @@ read -r
 #   -p: Initial prompt with PRD content
 log INFO "Launching Claude Code in Plan Mode..."
 log INFO ""
-echo "CLAUDE_CMD: $CLAUDE_CMD"
-# Save prompt to file for Claude
+
+# Save prompt to file for Claude (avoids command-line argument length issues)
 PROMPT_FILE="$PLAN_WORK_DIR/plan_prompt.md"
+echo "$INTERACTIVE_PROMPT" > "$PROMPT_FILE"
+
+log INFO "Prompt saved to: $PROMPT_FILE"
+log INFO "CLAUDE_CMD: $CLAUDE_CMD"
 
 # Build Claude command with proper flags for plan mode
+# Use stdin to pass the prompt (more reliable than -p with long content)
 CLAUDE_ARGS=(
     "$CLAUDE_CMD"
-    "-p" "$INTERACTIVE_PROMPT"
     "--continue"
     "--allowedTools" "Read" "Write" "Glob" "Grep" "WebSearch" "WebFetch"
 )
 
-# Execute Claude Code interactively
-"${CLAUDE_ARGS[@]}"
+# Execute Claude Code interactively with prompt from stdin
+cat "$PROMPT_FILE" | "${CLAUDE_ARGS[@]}"
 
 CLAUDE_EXIT_CODE=$?
 
