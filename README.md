@@ -404,12 +404,15 @@ export LOOP_DELAY=10        # Seconds between loops (default: 5)
 ## Testing
 
 ```bash
-# Test plan mode structure
-./test_plan_mode.sh
+# Run all tests
+./tests/run_all_tests.sh
 
-# Test existing project enablement
-./test_morty.sh
+# Or run individual tests
+./tests/test_plan_mode.sh          # Plan mode tests (10 tests)
+./tests/test_git_autocommit.sh     # Git auto-commit tests (9 tests)
 ```
+
+See [tests/README.md](tests/README.md) for detailed test documentation.
 
 ## Examples
 
@@ -517,11 +520,19 @@ Check if Claude created `problem_description.md` in the working directory during
 
 MIT License
 
+## Documentation
+
+For detailed documentation, see the `docs/` directory:
+
+- **[Plan Mode Guide](docs/PLAN_MODE_GUIDE.md)** - Comprehensive guide to interactive PRD refinement
+- **[Git Auto-Commit Feature](docs/GIT_AUTOCOMMIT_FEATURE.md)** - Loop rollback and history management
+- **[Changelog](docs/CHANGELOG.md)** - Version history and migration guides
+
 ## Acknowledgments
 
 Inspired by [Ralph for Claude Code](https://github.com/frankbria/ralph-claude-code) by Frank Bria.
 
 ---
 
-**Version**: 0.2.0 (Plan Mode Edition)
+**Version**: 0.2.1 (Git Auto-Commit)
 **Status**: Production Ready

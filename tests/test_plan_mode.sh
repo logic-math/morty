@@ -24,8 +24,11 @@ error() {
     echo -e "${RED}✗${NC} $*"
 }
 
-# Save script directory
+# Save script directory (tests/ directory)
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
+# Morty root directory (parent of tests/)
+MORTY_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 
 # Test directory
 TEST_DIR="/tmp/morty_plan_test_$(date +%s)"
@@ -36,8 +39,8 @@ log INFO "Test directory: $TEST_DIR"
 log INFO ""
 
 # Set MORTY_HOME for testing
-export MORTY_HOME="$SCRIPT_DIR"
-MORTY_CMD="$SCRIPT_DIR/morty"
+export MORTY_HOME="$MORTY_ROOT"
+MORTY_CMD="$MORTY_ROOT/morty"
 
 log INFO "Using morty command: $MORTY_CMD"
 log INFO ""
@@ -74,14 +77,14 @@ log INFO ""
 # Test 2: Verify plan mode script exists
 log INFO "Test 2: Verifying plan mode components..."
 
-if [[ -f "$SCRIPT_DIR/morty_plan.sh" ]]; then
+if [[ -f "$MORTY_ROOT/morty_plan.sh" ]]; then
     success "  morty_plan.sh exists"
 else
     error "  morty_plan.sh missing"
     exit 1
 fi
 
-if [[ -f "$SCRIPT_DIR/prompts/plan_mode_system.md" ]]; then
+if [[ -f "$MORTY_ROOT/prompts/plan_mode_system.md" ]]; then
     success "  plan_mode_system.md exists"
 else
     error "  plan_mode_system.md missing"
@@ -131,7 +134,7 @@ log INFO ""
 # Test 5: Verify system prompt content
 log INFO "Test 5: Verifying system prompt content..."
 
-SYSTEM_PROMPT="$SCRIPT_DIR/prompts/plan_mode_system.md"
+SYSTEM_PROMPT="$MORTY_ROOT/prompts/plan_mode_system.md"
 
 # Check for key sections
 if grep -q "Deep Exploration" "$SYSTEM_PROMPT"; then
@@ -163,7 +166,7 @@ log INFO ""
 # Test 6: Verify plan script structure
 log INFO "Test 6: Verifying plan script structure..."
 
-PLAN_SCRIPT="$SCRIPT_DIR/morty_plan.sh"
+PLAN_SCRIPT="$MORTY_ROOT/morty_plan.sh"
 
 if grep -q "CLAUDE_CMD=" "$PLAN_SCRIPT"; then
     success "  Defines CLAUDE_CMD"

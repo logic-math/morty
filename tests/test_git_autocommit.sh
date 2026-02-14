@@ -24,8 +24,11 @@ error() {
     echo -e "${RED}✗${NC} $*"
 }
 
-# Save script directory
+# Save script directory (tests/ directory)
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
+# Morty root directory (parent of tests/)
+MORTY_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 
 # Test directory
 TEST_DIR="/tmp/morty_git_test_$(date +%s)"
@@ -36,10 +39,10 @@ log INFO "Test directory: $TEST_DIR"
 log INFO ""
 
 # Set MORTY_HOME for testing
-export MORTY_HOME="$SCRIPT_DIR"
+export MORTY_HOME="$MORTY_ROOT"
 
-# Source common.sh
-source "$SCRIPT_DIR/lib/common.sh"
+# Source common.sh from morty root
+source "$MORTY_ROOT/lib/common.sh"
 
 # Test 1: Initialize git repository
 log INFO "Test 1: Initializing git repository..."
