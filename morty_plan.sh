@@ -139,7 +139,7 @@ $SYSTEM_PROMPT_CONTENT
 
 # Initial PRD to Refine
 
-You are now in **Plan Mode**. Your mission is to help refine and expand this initial PRD through interactive dialogue.
+Project Name: **$PROJECT_NAME**
 
 ## Initial PRD Content
 
@@ -147,86 +147,11 @@ You are now in **Plan Mode**. Your mission is to help refine and expand this ini
 $INITIAL_PRD_CONTENT
 \`\`\`
 
-## Your Task
+---
 
-1. **Analyze** the initial PRD thoroughly
-2. **Ask clarifying questions** to understand:
-   - Project goals and objectives
-   - Target users and use cases
-   - Technical constraints and requirements
-   - Success criteria and metrics
-   - Timeline and priorities
+**Instructions**: Follow the dialogue framework in the system prompt above. Start with Phase 1 (Understanding) by analyzing this PRD and asking your first round of clarifying questions.
 
-3. **Engage in dialogue** with the user to:
-   - Identify gaps and ambiguities
-   - Explore edge cases
-   - Understand dependencies
-   - Clarify technical decisions
-
-4. **Refine iteratively** through conversation until you have:
-   - Clear problem statement
-   - Comprehensive requirements
-   - Detailed user stories
-   - Technical specifications
-   - Acceptance criteria
-
-5. **Generate artifacts** when refinement is complete:
-   - problem_description.md (refined PRD)
-   - Project structure recommendations
-   - Task breakdown
-   - Development approach
-
-## Dialogue Guidelines
-
-- Ask **open-ended questions** to explore deeply
-- **Challenge assumptions** constructively
-- **Propose alternatives** when appropriate
-- **Summarize understanding** regularly
-- **Confirm decisions** before moving forward
-- Use **"What if..."** scenarios to explore edge cases
-- Ask **"Why..."** to understand motivations
-
-## Output Format
-
-During dialogue, use this format:
-
-**Understanding**: [Your current understanding]
-**Questions**: [Numbered list of questions]
-**Observations**: [Insights or concerns]
-**Next Steps**: [What should we explore next]
-
-## Completion Signal
-
-When the PRD is comprehensive and clear, output:
-
-\`\`\`markdown
-<!-- PLAN_MODE_COMPLETE -->
-
-# Refined Problem Description
-
-[Complete refined PRD content here]
-
-## Project Metadata
-- Project Name: $PROJECT_NAME
-- Type: [detected or specified type]
-- Complexity: [low/medium/high]
-- Timeline: [estimated]
-
-## Recommended Structure
-[Suggested project organization]
-
-## Task Breakdown
-[High-level tasks with priorities]
-
-## Technical Approach
-[Recommended technologies and patterns]
-\`\`\`
-
-## Ready?
-
-Let's begin! I'll start by analyzing the initial PRD and asking my first round of questions.
-
-What would you like to know first, or should I begin with my analysis?
+When the PRD is comprehensive and ready, output the completion signal with the refined problem_description.md content as specified in the system prompt.
 EOF
 )
 
