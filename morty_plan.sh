@@ -9,7 +9,6 @@ source "$SCRIPT_DIR/lib/common.sh"
 # Configuration
 CLAUDE_CMD="${CLAUDE_CODE_CLI:-claude}"
 PLAN_SYSTEM_PROMPT="$SCRIPT_DIR/prompts/plan_mode_system.md"
-
 show_help() {
     cat << 'EOF'
 Morty Plan Mode - Interactive PRD Refinement
@@ -129,9 +128,16 @@ cp "$PRD_FILE" "$PLAN_WORK_DIR/initial_prd.md"
 # Read initial PRD content
 INITIAL_PRD_CONTENT=$(cat "$PRD_FILE")
 
-# Build the interactive prompt
+# Read system prompt
+SYSTEM_PROMPT_CONTENT=$(cat "$PLAN_SYSTEM_PROMPT")
+
+# Build the interactive prompt (combining system prompt + PRD)
 INTERACTIVE_PROMPT=$(cat << EOF
-# Morty Plan Mode - PRD Refinement Session
+$SYSTEM_PROMPT_CONTENT
+
+---
+
+# Initial PRD to Refine
 
 You are now in **Plan Mode**. Your mission is to help refine and expand this initial PRD through interactive dialogue.
 
@@ -243,17 +249,15 @@ read -r
 #   -p: Initial prompt with PRD content
 log INFO "Launching Claude Code in Plan Mode..."
 log INFO ""
-
+echo "CLAUDE_CMD: $CLAUDE_CMD"
 # Save prompt to file for Claude
 PROMPT_FILE="$PLAN_WORK_DIR/plan_prompt.md"
-echo "$INTERACTIVE_PROMPT" > "$PROMPT_FILE"
 
 # Build Claude command with proper flags for plan mode
 CLAUDE_ARGS=(
     "$CLAUDE_CMD"
     "-p" "$INTERACTIVE_PROMPT"
     "--continue"
-    "--dangerously-skip-permissions"
     "--allowedTools" "Read" "Write" "Glob" "Grep" "WebSearch" "WebFetch"
 )
 
