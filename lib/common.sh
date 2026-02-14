@@ -308,6 +308,7 @@ morty_check_project_structure() {
         ".morty"
         ".morty/specs"
         ".morty/logs"
+        ".morty/notes"
     )
 
     for dir in "${required_dirs[@]}"; do

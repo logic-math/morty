@@ -322,8 +322,10 @@ my-project/
 │   ├── PROMPT.md              # Development instructions
 │   ├── fix_plan.md            # Task breakdown
 │   ├── AGENT.md               # Build/test commands
-│   ├── specs/
-│   │   └── problem_description.md  # Refined PRD
+│   ├── specs/                 # Module specifications
+│   │   └── *.md               # Module spec files
+│   ├── notes/                 # Claude generated notes
+│   │   └── *.md               # Summary and decision notes
 │   └── logs/                  # Execution logs
 ├── src/                       # Source code
 ├── README.md
@@ -349,10 +351,16 @@ my-project/
 - Development commands
 - Supports: Python, Node.js, Rust, Go
 
-**`.morty/specs/problem_description.md`**
-- Comprehensive refined PRD
-- Generated through plan mode dialogue
-- Includes: goals, requirements, user stories, technical specs
+**`.morty/specs/*.md`**
+- Module specifications (one file per functional module)
+- Generated through fix mode dialogue
+- Includes: module purpose, scope, technical details, evolution history
+
+**`.morty/notes/*.md`**
+- Claude generated notes and summaries
+- Created during loop iterations
+- Includes: implementation summaries, decisions, lessons learned
+- File naming: `YYYYMMDD_HHMMSS_topic.md`
 
 ## Development Loop Lifecycle
 

@@ -164,7 +164,12 @@ $agent_content
 5. 测试代码
 6. 更新文档
 7. 在 fix_plan.md 中标记任务完成
-8. 输出 RALPH_STATUS 块
+8. **创建总结笔记** - 将本次循环的总结、决策、经验教训等写入 \`.morty/notes/\` 目录
+   - 文件命名格式: \`YYYYMMDD_HHMMSS_主题.md\` (例如: \`20240115_103045_auth_implementation.md\`)
+   - 内容包括: 实现的功能、遇到的问题、解决方案、技术决策、经验教训
+9. 输出 RALPH_STATUS 块
+
+**重要**: 所有总结性的笔记文件都必须放在 \`.morty/notes/\` 目录下,不要放在其他位置。
 
 开始工作!
 EOF

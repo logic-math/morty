@@ -355,7 +355,25 @@ cp -r .morty_fix_work/specs .morty/
 cp -r .morty_fix_work/specs/* .morty/specs/
 ```
 
-#### 5. 创建 `.morty/logs` (不存在则创建,存在就跳过)
+#### 5. 创建 `.morty/logs` 和 `.morty/notes` 目录
+
+**首次运行:**
+```bash
+mkdir -p .morty/logs
+mkdir -p .morty/notes
+```
+
+**再次运行:**
+```bash
+# 确保目录存在
+mkdir -p .morty/logs
+mkdir -p .morty/notes
+```
+
+**notes 目录说明:**
+- `.morty/notes/` 目录用于存放 Claude 生成的所有笔记和总结文件
+- 在 fix 阶段和 loop 阶段,所有总结性的笔记都应该放在这里
+- 文件命名格式: `YYYYMMDD_HHMMSS_主题.md` (例如: `20240115_103045_auth_implementation.md`)
 
 ### 阶段 5: 验证输出目录结构
 验证生成的 .morty/ 项目结构是否完整,不完整择需要改进
@@ -378,7 +396,8 @@ cp -r .morty_fix_work/specs/* .morty/specs/
 - `.morty/PROMPT.md` - 开发指令
 - `.morty/fix_plan.md` - 任务分解
 - `.morty/AGENT.md` - 构建/测试命令
-- `.morty/logs` - loop 循环的运行日志
+- `.morty/logs/` - loop 循环的运行日志
+- `.morty/notes/` - Claude 生成的笔记和总结
 - `.morty/specs/` - 模块规范目录
   - [列出所有模块文件]
 
