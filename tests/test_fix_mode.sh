@@ -1,5 +1,5 @@
 #!/bin/bash
-# Test script for Morty Plan Mode
+# Test script for Morty Fix Mode
 
 set -e
 
@@ -31,7 +31,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 MORTY_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 
 # Test directory
-TEST_DIR="/tmp/morty_plan_test_$(date +%s)"
+TEST_DIR="/tmp/morty_fix_test_$(date +%s)"
 mkdir -p "$TEST_DIR"
 cd "$TEST_DIR"
 
@@ -46,7 +46,7 @@ log INFO "Using morty command: $MORTY_CMD"
 log INFO ""
 
 # Test 1: Create sample PRD
-log INFO "Test 1: Creating sample PRD for plan mode..."
+log INFO "Test 1: Creating sample PRD for fix mode..."
 
 cat > simple_prd.md << 'EOF'
 # Simple Calculator App
@@ -74,20 +74,20 @@ EOF
 success "Created simple_prd.md"
 log INFO ""
 
-# Test 2: Verify plan mode script exists
-log INFO "Test 2: Verifying plan mode components..."
+# Test 2: Verify fix mode script exists
+log INFO "Test 2: Verifying fix mode components..."
 
-if [[ -f "$MORTY_ROOT/morty_plan.sh" ]]; then
-    success "  morty_plan.sh exists"
+if [[ -f "$MORTY_ROOT/morty_fix.sh" ]]; then
+    success "  morty_fix.sh exists"
 else
-    error "  morty_plan.sh missing"
+    error "  morty_fix.sh missing"
     exit 1
 fi
 
-if [[ -f "$MORTY_ROOT/prompts/plan_mode_system.md" ]]; then
-    success "  plan_mode_system.md exists"
+if [[ -f "$MORTY_ROOT/prompts/fix_mode_system.md" ]]; then
+    success "  fix_mode_system.md exists"
 else
-    error "  plan_mode_system.md missing"
+    error "  fix_mode_system.md missing"
     exit 1
 fi
 
@@ -96,10 +96,10 @@ log INFO ""
 # Test 3: Verify morty command routing
 log INFO "Test 3: Verifying morty command routing..."
 
-if grep -q "plan)" "$MORTY_CMD"; then
-    success "  'plan' command registered in morty"
+if grep -q "fix)" "$MORTY_CMD"; then
+    success "  'fix' command registered in morty"
 else
-    error "  'plan' command not found in morty"
+    error "  'fix' command not found in morty"
     exit 1
 fi
 
@@ -110,10 +110,10 @@ log INFO "Test 4: Checking help text..."
 
 HELP_OUTPUT=$("$MORTY_CMD" --help 2>&1 || true)
 
-if echo "$HELP_OUTPUT" | grep -q "plan"; then
-    success "  'plan' command in help text"
+if echo "$HELP_OUTPUT" | grep -q "fix"; then
+    success "  'fix' command in help text"
 else
-    error "  'plan' command not in help text"
+    error "  'fix' command not in help text"
     exit 1
 fi
 
@@ -134,7 +134,7 @@ log INFO ""
 # Test 5: Verify system prompt content
 log INFO "Test 5: Verifying system prompt content..."
 
-SYSTEM_PROMPT="$MORTY_ROOT/prompts/plan_mode_system.md"
+SYSTEM_PROMPT="$MORTY_ROOT/prompts/fix_mode_system.md"
 
 # Check for key sections
 if grep -q "Deep Exploration" "$SYSTEM_PROMPT"; then
@@ -163,10 +163,10 @@ fi
 
 log INFO ""
 
-# Test 6: Verify plan script structure
-log INFO "Test 6: Verifying plan script structure..."
+# Test 6: Verify fix script structure
+log INFO "Test 6: Verifying fix script structure..."
 
-PLAN_SCRIPT="$MORTY_ROOT/morty_plan.sh"
+PLAN_SCRIPT="$MORTY_ROOT/morty_fix.sh"
 
 if grep -q "CLAUDE_CMD=" "$PLAN_SCRIPT"; then
     success "  Defines CLAUDE_CMD"
@@ -198,10 +198,10 @@ else
     error "  Missing PROMPT.md generation"
 fi
 
-if grep -q "fix_plan.md" "$PLAN_SCRIPT"; then
-    success "  Generates fix_plan.md"
+if grep -q "fix_fix.md" "$PLAN_SCRIPT"; then
+    success "  Generates fix_fix.md"
 else
-    error "  Missing fix_plan.md generation"
+    error "  Missing fix_fix.md generation"
 fi
 
 if grep -q "AGENT.md" "$PLAN_SCRIPT"; then
@@ -329,10 +329,10 @@ log INFO "All tests passed! ✨"
 log INFO ""
 log INFO "Test artifacts in: $TEST_DIR"
 log INFO ""
-log INFO "Note: This test verifies the plan mode structure."
+log INFO "Note: This test verifies the fix mode structure."
 log INFO "To test the actual interactive session, run:"
 log INFO "  cd $TEST_DIR"
-log INFO "  morty plan simple_prd.md"
+log INFO "  morty fix simple_prd.md"
 log INFO ""
 log INFO "This will launch Claude Code for interactive PRD refinement."
 log INFO ""

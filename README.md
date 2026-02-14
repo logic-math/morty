@@ -1,33 +1,34 @@
 # Morty
 
-Simplified AI Development Loop with Interactive PRD Refinement
+简化的 AI 开发循环与迭代式 PRD 改进
 
-## Overview
+## 概述
 
-Morty is a streamlined AI development system that helps you:
-1. **Refine PRDs** through interactive dialogue with Claude Code
-2. **Generate projects** with comprehensive context
-3. **Execute development loops** autonomously
+Morty 是一个精简的 AI 开发系统,帮助你:
+1. **迭代改进 PRD** - 通过与 Claude Code 的交互式对话
+2. **管理模块知识** - 在 specs/ 目录中维护功能模块规范
+3. **自主执行开发循环** - 基于改进的需求文档
 
-## Key Features
+## 核心特性
 
-### 🎯 Plan Mode - Interactive PRD Refinement
-- Launch interactive Claude Code session
-- Refine requirements through dialogue
-- Generate comprehensive problem descriptions
-- Auto-create project structure with context
+### 🔧 Fix 模式 - 迭代式 PRD 改进
+- 启动交互式 Claude Code 会话
+- 三种改进方向:问题诊断、功能迭代、架构优化
+- 生成改进版 PRD 文档
+- 维护模块化知识库(specs/ 目录)
+- 可选的项目结构生成
 
-### 🔄 Development Loop
-- Autonomous AI development iterations
-- Simple lifecycle: init → loop → error/done
-- Exit hooks with context updates
-- Real-time monitoring with tmux
+### 🔄 开发循环
+- 自主 AI 开发迭代
+- 简单生命周期: 初始化 → 循环 → 错误/完成
+- 带上下文更新的退出钩子
+- 使用 tmux 实时监控
 
-### 📁 Project Management
-- Enable Morty in existing projects
-- Auto-detect project types
-- Generate build/test commands
-- Maintain context in `.morty/` directory
+### 📁 项目管理
+- 在现有项目中启用 Morty
+- 自动检测项目类型
+- 生成构建/测试命令
+- 在 `.morty/` 目录中维护上下文
 
 ## Installation
 
@@ -41,63 +42,63 @@ Ensure `~/.local/bin` is in your PATH:
 export PATH="$HOME/.local/bin:$PATH"
 ```
 
-## Quick Start
+## 快速开始
 
-### Step 1: Create Initial PRD
+### 步骤 1: 创建初始 PRD
 
 ```bash
-cat > requirements.md << 'EOF'
-# Todo Application
+cat > prd.md << 'EOF'
+# Todo 应用
 
-## Overview
-A simple command-line todo app for managing tasks.
+## 概述
+一个简单的命令行 todo 应用,用于管理任务。
 
-## Features
-- Add tasks
-- List tasks
-- Mark tasks complete
-- Delete tasks
+## 功能
+- 添加任务
+- 列出任务
+- 标记任务完成
+- 删除任务
 
-## Users
-- Developers who prefer CLI tools
-- People who want simple task management
+## 用户
+- 偏好 CLI 工具的开发者
+- 需要简单任务管理的人
 
-## Requirements
-- Fast and responsive
-- Data persistence
-- Easy to use
+## 需求
+- 快速响应
+- 数据持久化
+- 易于使用
 EOF
 ```
 
-### Step 2: Launch Plan Mode
+### 步骤 2: 启动 Fix 模式
 
 ```bash
-morty plan requirements.md
+morty fix prd.md
 ```
 
-This launches an **interactive Claude Code session** where:
-- Claude analyzes your initial PRD
-- Asks clarifying questions
-- Explores requirements deeply
-- Refines through dialogue
-- Generates comprehensive `problem_description.md`
-- Auto-creates project structure
+这会启动一个 **交互式 Claude Code 会话**:
+- Claude 分析你的 PRD
+- 提出澄清问题
+- 深入探索需求
+- 通过对话改进
+- 生成改进版 `prd.md`
+- 创建/更新 `specs/*.md` 模块规范
+- 可选:生成项目结构
 
-### Step 3: Start Development
+### 步骤 3: 开始开发
 
 ```bash
-cd todo-application
 morty monitor
 ```
 
-## Commands
+## 命令
 
-### `morty plan <prd.md> [project-name]`
-Interactive PRD refinement mode.
+### `morty fix <prd.md>`
+迭代式 PRD 改进模式。
 
-**What it does:**
-1. Launches Claude Code with plan mode system prompt
-2. Engages in dialogue to refine requirements
+**功能:**
+1. 使用 fix 模式系统提示词启动 Claude Code
+2. 通过对话改进需求
 3. Generates `problem_description.md` (refined PRD)
 4. Creates complete project structure:
    - `.morty/PROMPT.md` - Development instructions

@@ -42,7 +42,7 @@ mkdir -p "$BIN_DIR"
 log INFO "Copying files..."
 
 # Copy main scripts
-cp morty_plan.sh "$INSTALL_DIR/"
+cp morty_fix.sh "$INSTALL_DIR/"
 cp morty_enable.sh "$INSTALL_DIR/"
 cp morty_loop.sh "$INSTALL_DIR/"
 cp morty_monitor.sh "$INSTALL_DIR/"
@@ -73,28 +73,28 @@ NC='\033[0m'
 
 show_help() {
     cat << 'HELP'
-Morty - Simplified AI Development Loop
+Morty - 简化的 AI 开发循环
 
-Usage: morty <command> [options]
+用法: morty <command> [options]
 
-Commands:
-    plan <prd.md> [name]    Interactive PRD refinement (generates project)
-    enable                  Enable Morty in existing project
-    start                   Start the development loop
-    monitor                 Start with tmux monitoring
-    status                  Show current status
-    rollback <loop-number>  Rollback to specific loop iteration
-    history                 Show loop history from git commits
-    version                 Show version
+命令:
+    fix <prd.md>            迭代式 PRD 改进(问题修复/功能增强/架构优化)
+    enable                  在现有项目中启用 Morty
+    start                   启动开发循环
+    monitor                 启动并带 tmux 监控
+    status                  显示当前状态
+    rollback <loop-number>  回滚到特定循环迭代
+    history                 显示 git 提交中的循环历史
+    version                 显示版本
 
-Examples:
-    morty plan requirements.md         # Refine PRD and generate project
-    morty plan docs/prd.md my-app      # With custom project name
-    morty enable                       # Enable in existing project
-    morty start                        # Start development loop
-    morty monitor                      # Start with monitoring
-    morty rollback 5                   # Rollback to loop #5
-    morty history                      # Show loop commit history
+示例:
+    morty fix prd.md                   # 改进 PRD 并更新规范
+    morty fix docs/requirements.md     # 指定 PRD 文件路径
+    morty enable                       # 在现有项目中启用
+    morty start                        # 启动开发循环
+    morty monitor                      # 启动并监控
+    morty rollback 5                   # 回滚到循环 #5
+    morty history                      # 显示循环提交历史
 
 HELP
 }
@@ -105,9 +105,9 @@ show_version() {
 
 # Command routing
 case "${1:-}" in
-    plan)
+    fix)
         shift
-        exec "$MORTY_HOME/morty_plan.sh" "$@"
+        exec "$MORTY_HOME/morty_fix.sh" "$@"
         ;;
     enable)
         shift
@@ -173,8 +173,8 @@ if [[ ":$PATH:" != *":$BIN_DIR:"* ]]; then
     log INFO ""
 fi
 
-log INFO "Quick start:"
-log INFO "  morty plan requirements.md # Refine PRD and generate project"
-log INFO "  morty enable               # Enable in existing project"
+log INFO "快速开始:"
+log INFO "  morty fix prd.md  # 改进 PRD 并更新规范"
+log INFO "  morty enable      # 在现有项目中启用"
 log INFO ""
-log SUCCESS "Happy coding with Morty! 🚀"
+log SUCCESS "使用 Morty 愉快编码! 🚀"
