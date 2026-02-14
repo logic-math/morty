@@ -83,6 +83,8 @@ Commands:
     start                   Start the development loop
     monitor                 Start with tmux monitoring
     status                  Show current status
+    rollback <loop-number>  Rollback to specific loop iteration
+    history                 Show loop history from git commits
     version                 Show version
 
 Examples:
@@ -91,6 +93,8 @@ Examples:
     morty enable                       # Enable in existing project
     morty start                        # Start development loop
     morty monitor                      # Start with monitoring
+    morty rollback 5                   # Rollback to loop #5
+    morty history                      # Show loop commit history
 
 HELP
 }
@@ -120,6 +124,23 @@ case "${1:-}" in
     status)
         shift
         exec "$MORTY_HOME/morty_loop.sh" --status "$@"
+        ;;
+    rollback)
+        shift
+        # Source common.sh for git functions
+        source "$MORTY_HOME/lib/common.sh"
+        if [[ -z "${1:-}" ]]; then
+            echo -e "${RED}Error: Loop number required${NC}"
+            echo "Usage: morty rollback <loop-number>"
+            exit 1
+        fi
+        git_rollback "$1"
+        ;;
+    history)
+        shift
+        # Source common.sh for git functions
+        source "$MORTY_HOME/lib/common.sh"
+        git_loop_history
         ;;
     version|--version|-v)
         show_version

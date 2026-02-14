@@ -251,6 +251,9 @@ main() {
                 # Success
                 state="running"
                 log SUCCESS "Loop #$loop_count completed successfully"
+
+                # Auto-commit changes after successful loop
+                git_auto_commit "$loop_count" "Loop iteration completed"
                 ;;
             2)
                 # Error detected
@@ -264,6 +267,10 @@ main() {
                 # Done signal
                 state="done"
                 log SUCCESS "Completion signal received"
+
+                # Auto-commit final state
+                git_auto_commit "$loop_count" "Project completion"
+
                 cleanup "done" "Claude indicated completion"
                 update_status "done" "$loop_count" "Completion signal received"
                 break

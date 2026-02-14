@@ -1,5 +1,39 @@
 # Morty Changelog
 
+## v0.2.1 - Git Auto-Commit (2026-02-14)
+
+### Added
+- **Git Auto-Commit**: Automatic commit after each successful loop
+  - `git_auto_commit()` function in `lib/common.sh`
+  - Auto-commits changes with loop metadata
+  - Creates restore points for easy rollback
+
+- **Rollback Command**: `morty rollback <loop-number>`
+  - Rollback to any previous loop iteration
+  - Interactive confirmation before reset
+  - Finds commits by loop number
+
+- **History Command**: `morty history`
+  - Shows last 20 loop commits
+  - Displays loop numbers and timestamps
+  - Helps identify rollback targets
+
+### Changed
+- `morty_loop.sh`: Integrated git_auto_commit() calls
+  - Commits after successful loops (case 0)
+  - Commits on completion (case 3)
+- `morty`: Added rollback and history command routing
+- `install.sh`: Updated help text with new commands
+- `README.md`: Added Git Auto-Commit section
+
+### Benefits
+- **Safety**: Every loop creates a restore point
+- **Debugging**: Track when issues were introduced
+- **Experimentation**: Try changes with confidence
+- **Transparency**: Clear history of loop actions
+
+---
+
 ## v0.2.0 - Plan Mode Edition (2026-02-14)
 
 ### Major Changes

@@ -145,6 +145,75 @@ Show current status.
 morty status
 ```
 
+### `morty rollback <loop-number>`
+Rollback to a specific loop iteration.
+
+**What it does:**
+- Finds the git commit for the specified loop number
+- Resets the working directory to that state
+- Allows you to undo changes from problematic loops
+
+**Example:**
+```bash
+morty rollback 5    # Rollback to loop #5
+```
+
+### `morty history`
+Show loop history from git commits.
+
+**What it does:**
+- Displays the last 20 loop commits
+- Shows loop numbers, timestamps, and summaries
+- Helps identify which loop to rollback to
+
+**Example:**
+```bash
+morty history
+```
+
+## Git Auto-Commit
+
+Morty automatically commits changes after each successful loop iteration:
+
+**Features:**
+- **Auto-commit after each loop**: Creates a snapshot with loop metadata
+- **Rollback capability**: Use `morty rollback <N>` to revert to any loop
+- **Loop history**: Use `morty history` to view all loop commits
+- **Commit metadata**: Each commit includes:
+  - Loop number
+  - Timestamp (ISO format)
+  - Work summary
+  - Auto-commit marker
+
+**Example commit message:**
+```
+morty: Loop #5 - Loop iteration completed
+
+Auto-committed by Morty development loop.
+
+Loop: 5
+Timestamp: 2024-01-15T10:30:45Z
+Summary: Loop iteration completed
+
+This commit represents the state after loop iteration 5.
+You can rollback to this point using: git reset --hard HEAD~N
+```
+
+**Benefits:**
+- **Safety**: Every loop creates a restore point
+- **Debugging**: Easily identify when issues were introduced
+- **Experimentation**: Try changes knowing you can rollback
+- **Transparency**: Clear history of what Morty did in each loop
+
+**Requirements:**
+- Project must be a git repository
+- Git must be installed and available
+
+**Notes:**
+- Only commits if there are changes (doesn't create empty commits)
+- Commits are local (not pushed to remote)
+- Uses `git add -A` to stage all changes
+
 ## Plan Mode Deep Dive
 
 ### How Plan Mode Works

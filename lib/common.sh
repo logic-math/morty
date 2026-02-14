@@ -152,3 +152,110 @@ $update_marker
 
     log INFO "Updated PROMPT.md with exit context"
 }
+
+# Git auto-commit after each loop
+# Creates a snapshot of changes for easy rollback
+git_auto_commit() {
+    local loop_count=$1
+    local work_summary=${2:-"Loop iteration"}
+
+    # Check if git is available
+    if ! command -v git &> /dev/null; then
+        return 0
+    fi
+
+    # Check if this is a git repository
+    if ! git rev-parse --git-dir > /dev/null 2>&1; then
+        return 0
+    fi
+
+    # Stage all changes first (including untracked files)
+    git add -A
+
+    # Check if there are any staged changes
+    if git diff --cached --quiet; then
+        log INFO "No changes to commit in loop #$loop_count"
+        return 0
+    fi
+
+    # Create commit message
+    local commit_msg="morty: Loop #$loop_count - $work_summary
+
+Auto-committed by Morty development loop.
+
+Loop: $loop_count
+Timestamp: $(get_iso_timestamp)
+Summary: $work_summary
+
+This commit represents the state after loop iteration $loop_count.
+You can rollback to this point using: git reset --hard HEAD~N"
+
+    # Commit changes
+    if git commit -m "$commit_msg" > /dev/null 2>&1; then
+        local commit_hash=$(git rev-parse --short HEAD)
+        log SUCCESS "Auto-committed changes: $commit_hash (Loop #$loop_count)"
+        return 0
+    else
+        log WARN "Failed to auto-commit changes in loop #$loop_count"
+        return 1
+    fi
+}
+
+# Rollback to a specific loop
+git_rollback() {
+    local target_loop=$1
+
+    if ! command -v git &> /dev/null; then
+        log ERROR "Git is not installed"
+        return 1
+    fi
+
+    if ! git rev-parse --git-dir > /dev/null 2>&1; then
+        log ERROR "Not a git repository"
+        return 1
+    fi
+
+    # Find the commit for the target loop
+    local commit_hash=$(git log --grep="Loop #$target_loop" --format="%H" -n 1)
+
+    if [[ -z "$commit_hash" ]]; then
+        log ERROR "No commit found for Loop #$target_loop"
+        return 1
+    fi
+
+    log INFO "Rolling back to Loop #$target_loop (commit: ${commit_hash:0:8})"
+
+    # Confirm with user
+    echo -n "This will reset your working directory. Continue? [y/N] "
+    read -r response
+
+    if [[ "$response" =~ ^[Yy]$ ]]; then
+        git reset --hard "$commit_hash"
+        log SUCCESS "Rolled back to Loop #$target_loop"
+        return 0
+    else
+        log INFO "Rollback cancelled"
+        return 1
+    fi
+}
+
+# Show loop history from git commits
+git_loop_history() {
+    if ! command -v git &> /dev/null; then
+        log ERROR "Git is not installed"
+        return 1
+    fi
+
+    if ! git rev-parse --git-dir > /dev/null 2>&1; then
+        log ERROR "Not a git repository"
+        return 1
+    fi
+
+    log INFO "Loop History (from git commits):"
+    echo ""
+
+    git log --grep="morty: Loop" --format="%C(yellow)%h%C(reset) - %C(green)%ad%C(reset) - %s" --date=relative -20
+
+    echo ""
+    log INFO "To rollback: morty rollback <loop-number>"
+}
