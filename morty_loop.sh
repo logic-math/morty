@@ -230,7 +230,6 @@ while [[ $LOOP_COUNT -lt $MAX_LOOPS ]]; do
     # 构建 Claude 命令
     CLAUDE_ARGS=(
         "$CLAUDE_CMD"
-        "--continue"
         "--dangerously-skip-permissions"
     )
 

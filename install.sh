@@ -44,6 +44,7 @@ log INFO "复制文件..."
 # Copy main scripts
 cp morty_fix.sh "$INSTALL_DIR/"
 cp morty_loop.sh "$INSTALL_DIR/"
+cp morty_obs.sh "$INSTALL_DIR/"
 
 # Copy library and prompts
 cp -r lib "$INSTALL_DIR/"
@@ -78,18 +79,21 @@ Morty - 简化的 AI 开发循环
 命令:
     fix <prd.md>            迭代式 PRD 改进(问题修复/功能增强/架构优化)
     loop                    启动开发循环
+    obs                     可观察性监控(tmux 面板)
     version                 显示版本
 
 示例:
     morty fix prd.md                   # 改进 PRD 并生成 .morty/ 目录
     morty fix docs/requirements.md     # 指定 PRD 文件路径
     morty loop                         # 启动开发循环
+    morty obs                          # 启动监控面板
     morty loop --max-loops 100         # 自定义最大循环次数
 
 工作流程:
     1. morty fix <prd.md>              # 迭代式 PRD 改进
     2. 查看生成的 .morty/specs/*.md    # 检查模块规范
-    3. morty loop                      # 启动开发循环
+    3. morty obs                       # 启动监控面板(推荐)
+       或 morty loop                   # 直接启动循环
 
 HELP
 }
@@ -107,6 +111,10 @@ case "${1:-}" in
     loop)
         shift
         exec "$MORTY_HOME/morty_loop.sh" "$@"
+        ;;
+    obs)
+        shift
+        exec "$MORTY_HOME/morty_obs.sh" "$@"
         ;;
     version|--version|-v)
         show_version
@@ -141,6 +149,7 @@ fi
 
 log INFO "快速开始:"
 log INFO "  morty fix prd.md  # 改进 PRD 并生成 .morty/ 目录"
-log INFO "  morty loop        # 启动开发循环"
+log INFO "  morty obs         # 启动监控面板(推荐)"
+log INFO "  morty loop        # 直接启动循环"
 log INFO ""
 log SUCCESS "使用 Morty 愉快编码! 🚀"
