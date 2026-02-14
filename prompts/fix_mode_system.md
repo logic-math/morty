@@ -355,21 +355,9 @@ cp -r .morty_fix_work/specs .morty/
 cp -r .morty_fix_work/specs/* .morty/specs/
 ```
 
-### 阶段 5: 运行项目结构验证
-
-生成 `.morty/` 后,调用验证函数:
-
-```bash
-# 在你的代码中调用(通过 Write 工具创建验证脚本)
-morty_check_project_structure .
-```
-
-验证会检查:
-- ✅ `.morty/PROMPT.md` 存在且非空
-- ✅ `.morty/fix_plan.md` 存在且有复选框任务
-- ✅ `.morty/AGENT.md` 存在且有构建/测试命令
-- ✅ `.morty/specs/` 目录存在且至少有一个 .md 文件
-- ✅ 模块规范包含必要部分(目的、范围、技术规范)
+### 阶段 5: 验证输出目录结构
+验证生成的 .morty/ 项目结构是否完整,不完整择需要改进
+.morty/lib/common.sh 的 `morty_check_project_structure` 函数可以验证
 
 ### 阶段 6: 输出完成信号
 
@@ -388,6 +376,7 @@ morty_check_project_structure .
 - `.morty/PROMPT.md` - 开发指令
 - `.morty/fix_plan.md` - 任务分解
 - `.morty/AGENT.md` - 构建/测试命令
+- `.morty/logs` - loop 循环的运行日志
 - `.morty/specs/` - 模块规范目录
   - [列出所有模块文件]
 
