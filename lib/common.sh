@@ -266,12 +266,12 @@ morty_check_project_structure() {
     local project_dir="${1:-.}"
     local errors=0
 
-    log INFO "Validating Morty project structure: $project_dir"
+    log INFO "验证 Morty 项目结构: $project_dir"
     echo ""
 
     # Check if project directory exists
     if [[ ! -d "$project_dir" ]]; then
-        log ERROR "Project directory does not exist: $project_dir"
+        log ERROR "项目目录不存在: $project_dir"
         return 1
     fi
 
@@ -279,24 +279,21 @@ morty_check_project_structure() {
 
     # Required files
     local required_files=(
-        ".morty/specs/problem_description.md"
         ".morty/PROMPT.md"
         ".morty/fix_plan.md"
         ".morty/AGENT.md"
-        "README.md"
-        ".gitignore"
     )
 
     # Check required files exist
-    log INFO "Checking required files..."
+    log INFO "检查必需文件..."
     for file in "${required_files[@]}"; do
         if [[ ! -f "$file" ]]; then
-            log ERROR "Missing required file: $file"
+            log ERROR "缺少必需文件: $file"
             ((errors++))
         else
             # Check if file is not empty
             if [[ ! -s "$file" ]]; then
-                log ERROR "File is empty: $file"
+                log ERROR "文件为空: $file"
                 ((errors++))
             else
                 log SUCCESS "✓ $file"
@@ -306,59 +303,78 @@ morty_check_project_structure() {
     echo ""
 
     # Check required directories
-    log INFO "Checking required directories..."
+    log INFO "检查必需目录..."
     local required_dirs=(
         ".morty"
         ".morty/specs"
         ".morty/logs"
-        "src"
-        "tests"
     )
 
     for dir in "${required_dirs[@]}"; do
         if [[ ! -d "$dir" ]]; then
-            log WARN "Missing directory: $dir (will be created)"
-            mkdir -p "$dir"
+            log ERROR "缺少必需目录: $dir"
+            ((errors++))
         else
             log SUCCESS "✓ $dir/"
         fi
     done
     echo ""
 
-    # Validate problem_description.md content
-    if [[ -f ".morty/specs/problem_description.md" ]]; then
-        log INFO "Validating problem_description.md content..."
-        local prd=".morty/specs/problem_description.md"
-
-        # Check for key sections
-        local required_sections=(
-            "Problem Description"
-            "Executive Summary"
-            "Goals and Objectives"
-            "Functional Requirements"
-            "Technical Specifications"
-        )
-
-        for section in "${required_sections[@]}"; do
-            if grep -qi "$section" "$prd"; then
-                log SUCCESS "✓ Contains section: $section"
-            else
-                log WARN "Missing section: $section"
-            fi
+    # Check specs/ directory has at least one module file
+    log INFO "检查 specs/ 目录内容..."
+    local specs_count=$(find ".morty/specs" -name "*.md" -type f 2>/dev/null | wc -l)
+    if [[ $specs_count -eq 0 ]]; then
+        log ERROR "specs/ 目录中没有模块规范文件(.md)"
+        ((errors++))
+    else
+        log SUCCESS "✓ 找到 $specs_count 个模块规范文件"
+        # List the module files
+        find ".morty/specs" -name "*.md" -type f -exec basename {} \; | while read -r spec_file; do
+            log INFO "  - $spec_file"
         done
+    fi
+    echo ""
+
+    # Validate module specs content (sample check on first spec file)
+    local first_spec=$(find ".morty/specs" -name "*.md" -type f 2>/dev/null | head -1)
+    if [[ -n "$first_spec" ]]; then
+        log INFO "验证模块规范内容(示例: $(basename "$first_spec"))..."
+
+        # Check for key sections in module spec
+        local has_purpose=$(grep -qi "目的\|Purpose" "$first_spec" && echo "yes" || echo "no")
+        local has_scope=$(grep -qi "范围\|Scope" "$first_spec" && echo "yes" || echo "no")
+        local has_tech=$(grep -qi "技术\|Technical" "$first_spec" && echo "yes" || echo "no")
+
+        if [[ "$has_purpose" == "yes" ]]; then
+            log SUCCESS "✓ 包含模块目的说明"
+        else
+            log WARN "建议添加模块目的说明"
+        fi
+
+        if [[ "$has_scope" == "yes" ]]; then
+            log SUCCESS "✓ 包含范围定义"
+        else
+            log WARN "建议添加范围定义"
+        fi
+
+        if [[ "$has_tech" == "yes" ]]; then
+            log SUCCESS "✓ 包含技术规范"
+        else
+            log WARN "建议添加技术规范"
+        fi
         echo ""
     fi
 
     # Validate fix_plan.md has checkboxes
     if [[ -f ".morty/fix_plan.md" ]]; then
-        log INFO "Validating fix_plan.md content..."
+        log INFO "验证 fix_plan.md 内容..."
         local fix_plan=".morty/fix_plan.md"
 
         local checkbox_count=$(grep -c "\- \[ \]" "$fix_plan" 2>/dev/null || echo "0")
         if [[ $checkbox_count -gt 0 ]]; then
-            log SUCCESS "✓ Contains $checkbox_count unchecked tasks"
+            log SUCCESS "✓ 包含 $checkbox_count 个未完成任务"
         else
-            log ERROR "No checkbox tasks found in fix_plan.md"
+            log ERROR "fix_plan.md 中没有找到复选框任务"
             ((errors++))
         fi
         echo ""
@@ -366,32 +382,32 @@ morty_check_project_structure() {
 
     # Validate PROMPT.md has RALPH_STATUS format
     if [[ -f ".morty/PROMPT.md" ]]; then
-        log INFO "Validating PROMPT.md content..."
+        log INFO "验证 PROMPT.md 内容..."
         local prompt=".morty/PROMPT.md"
 
         if grep -q "RALPH_STATUS" "$prompt"; then
-            log SUCCESS "✓ Contains RALPH_STATUS format"
+            log SUCCESS "✓ 包含 RALPH_STATUS 格式"
         else
-            log WARN "Missing RALPH_STATUS format"
+            log WARN "缺少 RALPH_STATUS 格式"
         fi
         echo ""
     fi
 
     # Validate AGENT.md has build/test commands
     if [[ -f ".morty/AGENT.md" ]]; then
-        log INFO "Validating AGENT.md content..."
+        log INFO "验证 AGENT.md 内容..."
         local agent=".morty/AGENT.md"
 
-        if grep -qi "build\|setup\|install" "$agent"; then
-            log SUCCESS "✓ Contains build/setup commands"
+        if grep -qi "build\|setup\|install\|构建\|安装" "$agent"; then
+            log SUCCESS "✓ 包含构建/安装命令"
         else
-            log WARN "Missing build/setup commands"
+            log WARN "缺少构建/安装命令"
         fi
 
-        if grep -qi "test" "$agent"; then
-            log SUCCESS "✓ Contains test commands"
+        if grep -qi "test\|测试" "$agent"; then
+            log SUCCESS "✓ 包含测试命令"
         else
-            log WARN "Missing test commands"
+            log WARN "缺少测试命令"
         fi
         echo ""
     fi
@@ -399,12 +415,12 @@ morty_check_project_structure() {
     # Summary
     log INFO "================================"
     if [[ $errors -eq 0 ]]; then
-        log SUCCESS "Project structure validation: PASSED ✓"
-        log INFO "All required files and structure are present"
+        log SUCCESS "项目结构验证: 通过 ✓"
+        log INFO "所有必需文件和结构都存在"
         return 0
     else
-        log ERROR "Project structure validation: FAILED ✗"
-        log ERROR "Found $errors critical error(s)"
+        log ERROR "项目结构验证: 失败 ✗"
+        log ERROR "发现 $errors 个关键错误"
         return 1
     fi
 }

@@ -1,5 +1,5 @@
 #!/bin/bash
-# Morty Fix Mode - 迭代式 PRD 改进与知识捕获
+# Morty Fix Mode - 迭代式 PRD 改进与知识积累
 
 set -e
 
@@ -9,6 +9,7 @@ source "$SCRIPT_DIR/lib/common.sh"
 # 配置
 CLAUDE_CMD="${CLAUDE_CODE_CLI:-claude}"
 FIX_SYSTEM_PROMPT="$SCRIPT_DIR/prompts/fix_mode_system.md"
+WORK_DIR=".morty_fix_work"
 
 show_help() {
     cat << 'EOF'
@@ -17,34 +18,30 @@ Morty Fix 模式 - 迭代式 PRD 改进
 用法: morty fix <prd.md>
 
 参数:
-    prd.md          现有的 PRD/需求文档 (Markdown)
+    prd.md          现有的 PRD/需求文档 (Markdown,只读)
 
 描述:
     Fix 模式启动一个交互式 Claude Code 会话来:
-    1. 阅读现有的 PRD
-    2. 通过对话引导需求改进(问题诊断/功能迭代/架构优化)
-    3. 生成改进版的 prd.md
-    4. 更新或创建 specs/ 目录下的模块规范文档
-    5. 可选:生成/更新项目结构
-
-示例:
-    morty fix prd.md
-    morty fix docs/requirements.md
-
-特性:
-    - 与 Claude Code 的交互式对话
-    - 三种改进方向:问题修复、功能增强、架构重构
-    - 模块化知识管理(specs/ 目录)
-    - 迭代式知识积累
-    - 可选的项目结构生成
+    1. 阅读现有的 prd.md (不会修改)
+    2. 在工作目录中进行对话和知识积累
+    3. 根据工作目录内容生成/更新 .morty/ 目录
+    4. 验证 .morty/ 目录结构正确
 
 工作流程:
-    1. 阅读现有 prd.md
-    2. 对话式需求改进
-    3. 生成改进版 prd.md
-    4. 更新 specs/*.md 模块规范
-    5. 询问是否生成项目结构
-    6. 手动运行 'morty start' 开始开发循环
+    - 首次运行: 创建 .morty/ 目录和所有文件
+    - 再次运行: 合并修改到已有文件
+      - fix_plan.md, AGENT.md, PROMPT.md: 直接重建
+      - specs/*.md: 合并修改(不重建)
+
+示例:
+    morty fix prd.md              # 首次运行
+    morty fix prd.md              # 再次运行,合并修改
+
+特性:
+    - prd.md 只读,用户权威信息来源
+    - 工作目录隔离对话过程
+    - 智能合并 specs/ 模块规范
+    - 自动验证项目结构
 
 EOF
 }
@@ -96,27 +93,44 @@ log INFO "╔══════════════════════�
 log INFO "║            MORTY FIX 模式 - PRD 迭代改进                  ║"
 log INFO "╚════════════════════════════════════════════════════════════╝"
 log INFO ""
-log INFO "PRD 文件: $PRD_FILE"
+log INFO "PRD 文件(只读): $PRD_FILE"
 log INFO ""
 
 # 检查系统提示词是否存在
 if [[ ! -f "$FIX_SYSTEM_PROMPT" ]]; then
     log ERROR "Fix 模式系统提示词未找到: $FIX_SYSTEM_PROMPT"
-    log INFO "创建系统提示词..."
-    mkdir -p "$(dirname "$FIX_SYSTEM_PROMPT")"
-    log ERROR "请先运行安装以创建系统提示词"
+    log ERROR "请先运行安装: ./install.sh"
     exit 1
 fi
 
-# 创建工作目录
-FIX_WORK_DIR=".morty_fix_$$"
-mkdir -p "$FIX_WORK_DIR"
-
-log INFO "工作目录: $FIX_WORK_DIR"
+# 检查是否首次运行
+IS_FIRST_RUN=false
+if [[ ! -d ".morty" ]]; then
+    IS_FIRST_RUN=true
+    log INFO "检测到首次运行 - 将创建 .morty/ 目录"
+else
+    log INFO "检测到已有 .morty/ 目录 - 将合并修改"
+    log INFO "  - fix_plan.md, AGENT.md, PROMPT.md: 直接重建"
+    log INFO "  - specs/*.md: 合并修改"
+fi
 log INFO ""
 
-# 复制 PRD 到工作目录
-cp "$PRD_FILE" "$FIX_WORK_DIR/current_prd.md"
+# 创建工作目录
+if [[ -d "$WORK_DIR" ]]; then
+    log WARN "工作目录已存在,清理中: $WORK_DIR"
+    rm -rf "$WORK_DIR"
+fi
+mkdir -p "$WORK_DIR"
+
+log INFO "工作目录: $WORK_DIR"
+log INFO ""
+
+# 如果是再次运行,复制现有 specs/ 到工作目录
+if [[ "$IS_FIRST_RUN" == false ]] && [[ -d ".morty/specs" ]]; then
+    log INFO "复制现有 specs/ 到工作目录..."
+    cp -r .morty/specs "$WORK_DIR/"
+    log INFO ""
+fi
 
 # 读取当前 PRD 内容
 CURRENT_PRD_CONTENT=$(cat "$PRD_FILE")
@@ -124,9 +138,17 @@ CURRENT_PRD_CONTENT=$(cat "$PRD_FILE")
 # 读取系统提示词
 SYSTEM_PROMPT_CONTENT=$(cat "$FIX_SYSTEM_PROMPT")
 
-# 构建交互式提示词(结合系统提示词 + PRD)
+# 构建交互式提示词
 INTERACTIVE_PROMPT=$(cat << EOF
 $SYSTEM_PROMPT_CONTENT
+
+---
+
+# 当前运行状态
+
+**运行模式**: $(if [[ "$IS_FIRST_RUN" == true ]]; then echo "首次运行"; else echo "再次运行(合并模式)"; fi)
+**工作目录**: \`$WORK_DIR/\`
+**PRD 文件**: \`$PRD_FILE\` (只读,不要修改)
 
 ---
 
@@ -134,55 +156,59 @@ $SYSTEM_PROMPT_CONTENT
 
 PRD 文件名: **$PRD_FILENAME**
 
-## PRD 内容
-
 \`\`\`markdown
 $CURRENT_PRD_CONTENT
 \`\`\`
 
 ---
 
-**指令**: 遵循上述系统提示词中的对话框架。从阶段 1(上下文收集)开始,分析这个 PRD 并提出你的第一轮澄清问题。
+# 工作目录说明
 
-当 PRD 改进完成,模块规范已更新,并且(可选)项目结构已生成后,输出系统提示词中指定的完成信号。
+你的所有工作文件都应该在 \`$WORK_DIR/\` 中创建:
+- 对话中的临时文件
+- 知识积累文件
+- specs/ 模块规范(如果是再次运行,已有的 specs/ 已复制到工作目录)
+
+**重要**: 不要修改用户的 prd.md 文件,它是只读的权威信息来源。
+
+---
+
+**指令**:
+1. 分析 PRD 内容
+2. 在工作目录中进行对话和知识积累
+3. 最后生成 .morty/ 目录结构(从工作目录)
+4. 运行项目结构验证
+
+开始对话!
 EOF
 )
 
 log INFO "启动交互式 Fix 模式会话..."
 log INFO ""
 log INFO "使用说明:"
-log INFO "  - Claude 会提问以改进 PRD"
-log INFO "  - 深思熟虑地回答以帮助澄清需求"
-log INFO "  - 自然地输入你的回应"
-log INFO "  - Claude 会迭代直到 PRD 完善"
+log INFO "  - Claude 会在工作目录 $WORK_DIR/ 中工作"
+log INFO "  - prd.md 是只读的,不会被修改"
+log INFO "  - 对话结束后会生成/更新 .morty/ 目录"
 log INFO "  - 会话在 Claude 输出时结束: <!-- FIX_MODE_COMPLETE -->"
 log INFO ""
 log INFO "按 Enter 开始交互式会话..."
 read -r
 
-# 在交互模式下启动 Claude Code 与 fix 系统提示词
-# 关键标志:
-#   --continue: 启用会话连续性以保持上下文
-#   --allowedTools: 允许完整工具访问
+# 将提示词保存到文件
+PROMPT_FILE="$WORK_DIR/fix_prompt.md"
+echo "$INTERACTIVE_PROMPT" > "$PROMPT_FILE"
+
 log INFO "在 Fix 模式下启动 Claude Code..."
 log INFO ""
 
-# 将提示词保存到文件供 Claude 使用(避免命令行参数长度问题)
-PROMPT_FILE="$FIX_WORK_DIR/fix_prompt.md"
-echo "$INTERACTIVE_PROMPT" > "$PROMPT_FILE"
-
-log INFO "提示词已保存到: $PROMPT_FILE"
-log INFO "CLAUDE_CMD: $CLAUDE_CMD"
-
-# 为 fix 模式构建带有适当标志的 Claude 命令
-# 使用 stdin 传递提示词(对于长内容更可靠)
+# 构建 Claude 命令
 CLAUDE_ARGS=(
     "$CLAUDE_CMD"
     "--continue"
-    "--allowedTools" "Read" "Write" "Glob" "Grep" "WebSearch" "WebFetch"
+    "--allowedTools" "Read" "Write" "Glob" "Grep" "WebSearch" "WebFetch" "Edit"
 )
 
-# 从 stdin 交互式执行 Claude Code 与提示词
+# 交互式执行 Claude Code
 cat "$PROMPT_FILE" | "${CLAUDE_ARGS[@]}"
 
 CLAUDE_EXIT_CODE=$?
@@ -194,29 +220,57 @@ log INFO ""
 # 检查 Claude 是否成功完成
 if [[ $CLAUDE_EXIT_CODE -ne 0 ]]; then
     log ERROR "Claude Code 以错误码退出: $CLAUDE_EXIT_CODE"
-    log INFO "Fix 模式会话未成功完成"
+    log ERROR "Fix 模式会话未成功完成"
+    log INFO "工作目录保留在: $WORK_DIR"
     exit 1
 fi
 
-log INFO ""
-log SUCCESS "╔════════════════════════════════════════════════════════════╗"
-log SUCCESS "║              FIX 会话完成!                                 ║"
-log SUCCESS "╚════════════════════════════════════════════════════════════╝"
-log INFO ""
-log INFO "生成的文件:"
-log INFO "  ✓ prd.md (改进版)            产品需求文档"
-log INFO "  ✓ specs/*.md                 模块规范文档"
-log INFO "  ✓ .morty/PROMPT.md (可选)    开发指令"
-log INFO "  ✓ .morty/fix_plan.md (可选)  任务分解"
-log INFO "  ✓ .morty/AGENT.md (可选)     构建/测试命令"
-log INFO ""
-log INFO "下一步:"
-log INFO "  1. 查看改进的 prd.md"
-log INFO "  2. 查看 specs/ 目录中的模块规范"
-log INFO "  3. 如果生成了项目结构,查看 .morty/fix_plan.md"
-log INFO "  4. 运行 'morty start' 开始开发循环(手动步骤)"
-log INFO ""
-log SUCCESS "持续改进! 🔧"
+# 验证 .morty/ 目录是否已生成
+if [[ ! -d ".morty" ]]; then
+    log ERROR ".morty/ 目录未生成"
+    log ERROR "Claude 应该在对话结束时创建此目录"
+    log INFO "工作目录保留在: $WORK_DIR"
+    exit 1
+fi
 
-# 清理工作目录
-rm -rf "$FIX_WORK_DIR"
+log INFO "验证 .morty/ 目录结构..."
+log INFO ""
+
+# 运行项目结构检查
+if morty_check_project_structure "."; then
+    log INFO ""
+    log SUCCESS "╔════════════════════════════════════════════════════════════╗"
+    log SUCCESS "║              FIX 会话完成!                                 ║"
+    log SUCCESS "╚════════════════════════════════════════════════════════════╝"
+    log INFO ""
+    log INFO "生成/更新的文件:"
+    log INFO "  ✓ .morty/PROMPT.md           开发指令"
+    log INFO "  ✓ .morty/fix_plan.md         任务分解"
+    log INFO "  ✓ .morty/AGENT.md            构建/测试命令"
+    log INFO "  ✓ .morty/specs/*.md          模块规范"
+    log INFO ""
+    log INFO "下一步:"
+    log INFO "  1. 查看 .morty/specs/ 目录中的模块规范"
+    log INFO "  2. 查看 .morty/fix_plan.md 了解任务"
+    log INFO "  3. 运行 'morty start' 开始开发循环"
+    log INFO ""
+    log SUCCESS "持续改进! 🔧"
+
+    # 清理工作目录
+    log INFO ""
+    log INFO "清理工作目录..."
+    rm -rf "$WORK_DIR"
+    log INFO "工作目录已清理"
+else
+    log INFO ""
+    log ERROR "╔════════════════════════════════════════════════════════════╗"
+    log ERROR "║          项目结构验证失败!                                 ║"
+    log ERROR "╚════════════════════════════════════════════════════════════╝"
+    log INFO ""
+    log ERROR ".morty/ 目录结构不符合要求"
+    log INFO "请查看上述验证错误"
+    log INFO ""
+    log INFO "工作目录保留在: $WORK_DIR"
+    log INFO "你可以手动检查和修复问题"
+    exit 1
+fi
