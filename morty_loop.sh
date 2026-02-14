@@ -15,7 +15,7 @@ LOOP_STATE_FILE="$MORTY_DIR/.loop_state"
 SESSION_FILE="$MORTY_DIR/.session_id"
 LOG_FILE="$LOG_DIR/morty.log"
 
-CLAUDE_CMD="claude"
+CLAUDE_CMD="${CLAUDE_CODE_CLI:-claude}"
 MAX_LOOPS="${MAX_LOOPS:-50}"
 LOOP_DELAY="${LOOP_DELAY:-5}"
 USE_TMUX=false

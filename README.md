@@ -384,8 +384,25 @@ morty monitor
 
 **Environment Variables:**
 ```bash
-export MAX_LOOPS=100        # Maximum iterations (default: 50)
-export LOOP_DELAY=10        # Seconds between loops (default: 5)
+# Custom Claude Code CLI command (default: "claude")
+export CLAUDE_CODE_CLI="ai_cli"     # Use your custom CLI wrapper
+
+# Loop configuration
+export MAX_LOOPS=100                # Maximum iterations (default: 50)
+export LOOP_DELAY=10                # Seconds between loops (default: 5)
+```
+
+**Example: Using Custom CLI Wrapper**
+```bash
+# If you have a custom enterprise CLI wrapper
+export CLAUDE_CODE_CLI="/path/to/ai_cli"
+
+# Or with additional configuration
+export CLAUDE_CODE_CLI="ai_cli --config enterprise"
+
+# Then use Morty normally
+morty plan requirements.md
+morty monitor
 ```
 
 **Project Files:**
@@ -524,6 +541,7 @@ MIT License
 
 For detailed documentation, see the `docs/` directory:
 
+- **[Configuration Guide](docs/CONFIGURATION.md)** - Environment variables and project configuration
 - **[Plan Mode Guide](docs/PLAN_MODE_GUIDE.md)** - Comprehensive guide to interactive PRD refinement
 - **[Git Auto-Commit Feature](docs/GIT_AUTOCOMMIT_FEATURE.md)** - Loop rollback and history management
 - **[Changelog](docs/CHANGELOG.md)** - Version history and migration guides

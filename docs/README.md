@@ -7,6 +7,16 @@ Complete documentation for the Morty AI Development Loop system.
 ### Getting Started
 - **[Main README](../README.md)** - Project overview, installation, and quick start guide
 
+### Configuration
+- **[Configuration Guide](CONFIGURATION.md)** - Complete configuration reference
+  - Environment variables (`CLAUDE_CODE_CLI`, `MAX_LOOPS`, `LOOP_DELAY`)
+  - Custom CLI wrappers (enterprise authentication, custom scripts)
+  - Project configuration files (`.morty/PROMPT.md`, etc.)
+  - Enterprise setup examples
+
+**Quick Summary:**
+Morty can be configured through environment variables. Use `CLAUDE_CODE_CLI` to specify a custom Claude Code command or wrapper (e.g., `export CLAUDE_CODE_CLI="ai_cli"` for enterprise setups).
+
 ### Core Features
 
 #### 1. Plan Mode - Interactive PRD Refinement
