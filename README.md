@@ -1,14 +1,33 @@
 # Morty
 
-Simplified AI Development Loop - A streamlined version inspired by Ralph for Claude Code.
+Simplified AI Development Loop with Interactive PRD Refinement
 
-## Features
+## Overview
 
-- **Project Initialization**: Create new projects or import from PRD documents
-- **Project Enablement**: Add Morty to existing projects
-- **Development Loop**: Autonomous AI development with lifecycle management
-- **tmux Monitoring**: Real-time monitoring with split-pane dashboard
-- **Exit Hooks**: Automatic context updates to PROMPT.md on exit
+Morty is a streamlined AI development system that helps you:
+1. **Refine PRDs** through interactive dialogue with Claude Code
+2. **Generate projects** with comprehensive context
+3. **Execute development loops** autonomously
+
+## Key Features
+
+### 🎯 Plan Mode - Interactive PRD Refinement
+- Launch interactive Claude Code session
+- Refine requirements through dialogue
+- Generate comprehensive problem descriptions
+- Auto-create project structure with context
+
+### 🔄 Development Loop
+- Autonomous AI development iterations
+- Simple lifecycle: init → loop → error/done
+- Exit hooks with context updates
+- Real-time monitoring with tmux
+
+### 📁 Project Management
+- Enable Morty in existing projects
+- Auto-detect project types
+- Generate build/test commands
+- Maintain context in `.morty/` directory
 
 ## Installation
 
@@ -17,104 +36,413 @@ cd morty
 ./install.sh
 ```
 
-This installs Morty to `~/.morty` and adds the `morty` command to `~/.local/bin/`.
-
-Make sure `~/.local/bin` is in your PATH:
+Ensure `~/.local/bin` is in your PATH:
 ```bash
 export PATH="$HOME/.local/bin:$PATH"
 ```
 
 ## Quick Start
 
-### Option 1: Create New Project
+### Step 1: Create Initial PRD
+
 ```bash
-morty init my-project
-cd my-project
-# Edit .morty/PROMPT.md and .morty/fix_plan.md
-morty start
+cat > requirements.md << 'EOF'
+# Todo Application
+
+## Overview
+A simple command-line todo app for managing tasks.
+
+## Features
+- Add tasks
+- List tasks
+- Mark tasks complete
+- Delete tasks
+
+## Users
+- Developers who prefer CLI tools
+- People who want simple task management
+
+## Requirements
+- Fast and responsive
+- Data persistence
+- Easy to use
+EOF
 ```
 
-### Option 2: Import from PRD
+### Step 2: Launch Plan Mode
+
 ```bash
-morty import requirements.md my-project
-cd my-project
-morty start
+morty plan requirements.md
 ```
 
-### Option 3: Enable in Existing Project
+This launches an **interactive Claude Code session** where:
+- Claude analyzes your initial PRD
+- Asks clarifying questions
+- Explores requirements deeply
+- Refines through dialogue
+- Generates comprehensive `problem_description.md`
+- Auto-creates project structure
+
+### Step 3: Start Development
+
 ```bash
-cd existing-project
-morty enable
-morty start
+cd todo-application
+morty monitor
 ```
 
 ## Commands
 
-- `morty init <project>` - Create new project from scratch
-- `morty import <prd.md> [name]` - Import PRD and create project
-- `morty enable` - Enable Morty in existing project
-- `morty start` - Start development loop
-- `morty monitor` - Start with tmux monitoring (recommended)
-- `morty status` - Show current status
-- `morty version` - Show version
+### `morty plan <prd.md> [project-name]`
+Interactive PRD refinement mode.
+
+**What it does:**
+1. Launches Claude Code with plan mode system prompt
+2. Engages in dialogue to refine requirements
+3. Generates `problem_description.md` (refined PRD)
+4. Creates complete project structure:
+   - `.morty/PROMPT.md` - Development instructions
+   - `.morty/fix_plan.md` - Task breakdown
+   - `.morty/AGENT.md` - Build/test commands
+   - `.morty/specs/problem_description.md` - Refined PRD
+
+**Example:**
+```bash
+morty plan requirements.md
+morty plan docs/prd.md my-app
+```
+
+### `morty enable`
+Enable Morty in existing project.
+
+**Example:**
+```bash
+cd existing-project
+morty enable
+```
+
+### `morty start`
+Start development loop.
+
+**Example:**
+```bash
+morty start
+morty start --max-loops 100 --delay 10
+```
+
+### `morty monitor`
+Start with tmux monitoring (recommended).
+
+**Example:**
+```bash
+morty monitor
+```
+
+### `morty status`
+Show current status.
+
+**Example:**
+```bash
+morty status
+```
+
+## Plan Mode Deep Dive
+
+### How Plan Mode Works
+
+Plan mode uses a sophisticated system prompt that enables Claude Code to:
+
+1. **Deep Exploration**
+   - Ask probing questions
+   - Challenge assumptions
+   - Explore edge cases
+   - Identify dependencies
+
+2. **Structured Thinking**
+   - Break down complex problems
+   - Identify patterns
+   - Recognize gaps
+   - Map relationships
+
+3. **Technical Insight**
+   - Assess feasibility
+   - Suggest technologies
+   - Identify challenges
+   - Recommend architectures
+
+4. **User-Centric Analysis**
+   - Understand user personas
+   - Identify core features
+   - Prioritize by value
+   - Consider accessibility
+
+### Dialogue Phases
+
+**Phase 1: Understanding**
+- Claude summarizes initial PRD
+- Identifies ambiguities
+- Lists assumptions
+- Asks critical questions
+
+**Phase 2: Deep Dive**
+- Explores functional requirements
+- Discusses non-functional requirements
+- Develops user stories
+- Defines acceptance criteria
+
+**Phase 3: Validation**
+- Summarizes all requirements
+- Confirms priorities
+- Validates approach
+- Checks for gaps
+
+**Phase 4: Synthesis**
+- Generates `problem_description.md`
+- Creates project structure
+- Outputs completion signal
+
+### Claude Command Configuration
+
+Plan mode launches Claude with these flags:
+
+```bash
+claude \
+  -p "<interactive prompt>" \
+  --continue \
+  --dangerously-skip-permissions \
+  --allowedTools Read Write Glob Grep WebSearch WebFetch
+```
+
+**Why these flags:**
+- `--continue`: Maintains context across the dialogue
+- `--dangerously-skip-permissions`: Full tool access for exploration
+- `--allowedTools`: Enables research and file operations
+
+### System Prompt Highlights
+
+The plan mode system prompt (`prompts/plan_mode_system.md`) includes:
+
+- **Dialogue Framework**: 4-phase refinement process
+- **Question Patterns**: "What if...", "Why...", "How..."
+- **Exploration Techniques**: 5 Whys, scenario mapping, constraint exploration
+- **Output Template**: Comprehensive problem_description.md structure
+- **Completion Signal**: `<!-- PLAN_MODE_COMPLETE -->` marker
 
 ## Project Structure
+
+After running `morty plan`, you get:
 
 ```
 my-project/
 ├── .morty/
-│   ├── PROMPT.md          # Development instructions
-│   ├── fix_plan.md        # Task list with checkboxes
-│   ├── AGENT.md           # Build/test commands
-│   ├── specs/             # Specifications
-│   └── logs/              # Execution logs
-├── src/                   # Source code
-└── README.md
+│   ├── PROMPT.md              # Development instructions
+│   ├── fix_plan.md            # Task breakdown
+│   ├── AGENT.md               # Build/test commands
+│   ├── specs/
+│   │   └── problem_description.md  # Refined PRD
+│   └── logs/                  # Execution logs
+├── src/                       # Source code
+├── README.md
+└── .gitignore
 ```
 
-## Loop Lifecycle
+### Key Files
 
-The development loop follows a simple state machine:
+**`.morty/PROMPT.md`**
+- Development instructions for Claude
+- References problem description
+- Defines workflow and quality standards
+- Includes RALPH_STATUS block format
 
-1. **init** - Initialize from new or existing project
-2. **loop** - Execute development iterations
-3. **error** - Exit on error (updates PROMPT.md)
-4. **done** - Exit on completion (updates PROMPT.md)
+**`.morty/fix_plan.md`**
+- Prioritized task list
+- Checkbox format: `- [ ] Task`
+- Extracted from problem description
 
-Exit hooks automatically update PROMPT.md with context for debugging or resuming.
+**`.morty/AGENT.md`**
+- Build commands (auto-detected by project type)
+- Test commands
+- Development commands
+- Supports: Python, Node.js, Rust, Go
+
+**`.morty/specs/problem_description.md`**
+- Comprehensive refined PRD
+- Generated through plan mode dialogue
+- Includes: goals, requirements, user stories, technical specs
+
+## Development Loop Lifecycle
+
+```
+init → loop → [error | done]
+       ↑  |
+       └──┘
+```
+
+**States:**
+- **init**: Project initialized
+- **loop**: Execute development iterations
+- **error**: Exit on error (updates PROMPT.md)
+- **done**: Exit on completion (updates PROMPT.md)
+
+**Exit Conditions:**
+- All tasks in `fix_plan.md` completed
+- Error detected in Claude output
+- Completion signal detected
+- Maximum loops reached
 
 ## Monitoring
 
-Use tmux monitoring for the best experience:
+Use tmux monitoring for best experience:
 
 ```bash
 morty monitor
 ```
 
-This creates a 3-pane layout:
-- **Left**: Morty loop execution
-- **Right-top**: Live logs
-- **Right-bottom**: Status monitor
+**3-pane layout:**
+```
+┌─────────────────┬─────────────────┐
+│                 │  Live Logs      │
+│  Morty Loop     ├─────────────────┤
+│                 │  Status Monitor │
+└─────────────────┴─────────────────┘
+```
 
-**tmux Controls**:
-- `Ctrl+B` then `D` - Detach from session
+**tmux Controls:**
+- `Ctrl+B` then `D` - Detach
 - `Ctrl+B` then `←/→` - Switch panes
-- `tmux attach -t <session>` - Reattach
+- `Ctrl+B` then `[` - Scroll mode (q to exit)
 
 ## Configuration
 
-Edit `.morty/PROMPT.md` to customize development instructions.
+**Environment Variables:**
+```bash
+export MAX_LOOPS=100        # Maximum iterations (default: 50)
+export LOOP_DELAY=10        # Seconds between loops (default: 5)
+```
 
-Environment variables:
-- `MAX_LOOPS` - Maximum loop iterations (default: 50)
-- `LOOP_DELAY` - Delay between loops in seconds (default: 5)
+**Project Files:**
+- `.morty/PROMPT.md` - Customize development instructions
+- `.morty/fix_plan.md` - Add/modify tasks
+- `.morty/AGENT.md` - Update build/test commands
 
 ## Requirements
 
 - Bash 4.0+
 - Claude Code CLI (`claude` command)
-- tmux (for monitoring, optional)
-- jq (for status display, optional)
+- tmux (optional, for monitoring)
+- jq (optional, for status display)
+- Git
+
+## Testing
+
+```bash
+# Test plan mode structure
+./test_plan_mode.sh
+
+# Test existing project enablement
+./test_morty.sh
+```
+
+## Examples
+
+### Example 1: Web API Project
+
+```bash
+# Create initial PRD
+cat > api_prd.md << 'EOF'
+# REST API for Blog
+
+## Overview
+A RESTful API for a blogging platform.
+
+## Features
+- User authentication
+- Create/edit/delete posts
+- Comments
+- Tags and categories
+
+## Technical Requirements
+- Node.js + Express
+- MongoDB database
+- JWT authentication
+- API documentation
+EOF
+
+# Refine through plan mode
+morty plan api_prd.md blog-api
+
+# Claude will ask questions like:
+# - What's the expected load?
+# - How should comments be moderated?
+# - What's the permission model?
+# - Should we support markdown?
+
+# After dialogue, project is generated
+cd blog-api
+morty monitor
+```
+
+### Example 2: CLI Tool
+
+```bash
+cat > cli_prd.md << 'EOF'
+# File Organizer CLI
+
+## Overview
+Organize files automatically based on rules.
+
+## Features
+- Scan directories
+- Apply rules (by extension, date, size)
+- Move/copy files
+- Dry-run mode
+EOF
+
+morty plan cli_prd.md file-organizer
+cd file-organizer
+morty start
+```
+
+## Tips
+
+1. **Start with a rough PRD** - Plan mode will help refine it
+2. **Be specific in dialogue** - Answer Claude's questions thoughtfully
+3. **Review generated files** - Customize `.morty/PROMPT.md` as needed
+4. **Use monitoring** - `morty monitor` for real-time visibility
+5. **Check logs** - `.morty/logs/` for detailed execution history
+
+## Troubleshooting
+
+### "Claude command not found"
+Install Claude Code CLI:
+```bash
+npm install -g @anthropic-ai/claude-code
+```
+
+### Plan mode doesn't start
+Ensure:
+- PRD file exists and is Markdown (.md)
+- Claude CLI is installed
+- `prompts/plan_mode_system.md` exists
+
+### Project not generated
+Check if Claude created `problem_description.md` in the working directory during plan mode.
+
+## Architecture
+
+**Core Components:**
+- `morty` - Main command router
+- `morty_plan.sh` - Plan mode implementation
+- `morty_enable.sh` - Project enablement
+- `morty_loop.sh` - Development loop
+- `morty_monitor.sh` - tmux monitoring
+- `lib/common.sh` - Shared utilities
+- `prompts/plan_mode_system.md` - Plan mode system prompt
+
+**Design Principles:**
+- Simplicity over complexity
+- Interactive over automated
+- Context-rich over minimal
+- Dialogue-driven refinement
 
 ## License
 
@@ -123,3 +451,8 @@ MIT License
 ## Acknowledgments
 
 Inspired by [Ralph for Claude Code](https://github.com/frankbria/ralph-claude-code) by Frank Bria.
+
+---
+
+**Version**: 0.2.0 (Plan Mode Edition)
+**Status**: Production Ready

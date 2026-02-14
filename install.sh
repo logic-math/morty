@@ -42,14 +42,14 @@ mkdir -p "$BIN_DIR"
 log INFO "Copying files..."
 
 # Copy main scripts
-cp morty_init.sh "$INSTALL_DIR/"
-cp morty_import.sh "$INSTALL_DIR/"
+cp morty_plan.sh "$INSTALL_DIR/"
 cp morty_enable.sh "$INSTALL_DIR/"
 cp morty_loop.sh "$INSTALL_DIR/"
 cp morty_monitor.sh "$INSTALL_DIR/"
 
-# Copy library
+# Copy library and prompts
 cp -r lib "$INSTALL_DIR/"
+cp -r prompts "$INSTALL_DIR/"
 
 # Make scripts executable
 chmod +x "$INSTALL_DIR"/*.sh
@@ -78,8 +78,7 @@ Morty - Simplified AI Development Loop
 Usage: morty <command> [options]
 
 Commands:
-    init <project>          Create new project from scratch
-    import <prd.md> [name]  Import PRD and create project
+    plan <prd.md> [name]    Interactive PRD refinement (generates project)
     enable                  Enable Morty in existing project
     start                   Start the development loop
     monitor                 Start with tmux monitoring
@@ -87,10 +86,10 @@ Commands:
     version                 Show version
 
 Examples:
-    morty init my-project              # Create new project
-    morty import requirements.md       # Import from PRD
-    morty enable                       # Enable in current project
-    morty start                        # Start loop
+    morty plan requirements.md         # Refine PRD and generate project
+    morty plan docs/prd.md my-app      # With custom project name
+    morty enable                       # Enable in existing project
+    morty start                        # Start development loop
     morty monitor                      # Start with monitoring
 
 HELP
@@ -102,13 +101,9 @@ show_version() {
 
 # Command routing
 case "${1:-}" in
-    init)
+    plan)
         shift
-        exec "$MORTY_HOME/morty_init.sh" "$@"
-        ;;
-    import)
-        shift
-        exec "$MORTY_HOME/morty_import.sh" "$@"
+        exec "$MORTY_HOME/morty_plan.sh" "$@"
         ;;
     enable)
         shift
@@ -158,8 +153,7 @@ if [[ ":$PATH:" != *":$BIN_DIR:"* ]]; then
 fi
 
 log INFO "Quick start:"
-log INFO "  morty init my-project      # Create new project"
-log INFO "  morty import prd.md        # Import from PRD"
+log INFO "  morty plan requirements.md # Refine PRD and generate project"
 log INFO "  morty enable               # Enable in existing project"
 log INFO ""
 log SUCCESS "Happy coding with Morty! 🚀"

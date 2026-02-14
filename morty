@@ -21,8 +21,7 @@ Morty - Simplified AI Development Loop
 Usage: morty <command> [options]
 
 Commands:
-    init <project>          Create new project from scratch
-    import <prd.md> [name]  Import PRD and create project
+    plan <prd.md> [name]    Interactive PRD refinement (generates project)
     enable                  Enable Morty in existing project
     start                   Start the development loop
     monitor                 Start with tmux monitoring
@@ -30,11 +29,16 @@ Commands:
     version                 Show version
 
 Examples:
-    morty init my-project              # Create new project
-    morty import requirements.md       # Import from PRD
-    morty enable                       # Enable in current project
-    morty start                        # Start loop
+    morty plan requirements.md         # Refine PRD and generate project
+    morty plan docs/prd.md my-app      # With custom project name
+    morty enable                       # Enable in existing project
+    morty start                        # Start development loop
     morty monitor                      # Start with monitoring
+
+Workflow:
+    1. morty plan <prd.md>            # Interactive PRD refinement
+    2. cd <generated-project>          # Enter project directory
+    3. morty monitor                   # Start development with monitoring
 
 EOF
 }
@@ -45,13 +49,9 @@ show_version() {
 
 # Command routing
 case "${1:-}" in
-    init)
+    plan)
         shift
-        exec "$MORTY_HOME/morty_init.sh" "$@"
-        ;;
-    import)
-        shift
-        exec "$MORTY_HOME/morty_import.sh" "$@"
+        exec "$MORTY_HOME/morty_plan.sh" "$@"
         ;;
     enable)
         shift
