@@ -53,14 +53,17 @@ log INFO ""
 # 创建新的 tmux 会话(分离模式)
 tmux new-session -d -s "$SESSION_NAME" -c "$PROJECT_DIR"
 
-# 水平分割窗口(左: loop, 右: 监控)
+# 水平分割窗口(左: Claude 监控, 右: 日志和终端)
 tmux split-window -h -t "$SESSION_NAME" -c "$PROJECT_DIR"
 
-# 垂直分割右侧面板(上: 日志, 下: bash + 状态)
+# 垂直分割右侧面板(上: 日志 30%, 下: bash 70%)
 tmux split-window -v -t "$SESSION_NAME:${BASE_WIN}.1" -c "$PROJECT_DIR"
 
-# 设置面板大小(左侧 60%, 右侧 40%)
-tmux resize-pane -t "$SESSION_NAME:${BASE_WIN}.0" -x 60%
+# 设置面板大小
+# 左侧 Claude 监控 50%
+tmux resize-pane -t "$SESSION_NAME:${BASE_WIN}.0" -x 50%
+# 右上日志 30%
+tmux resize-pane -t "$SESSION_NAME:${BASE_WIN}.1" -y 30%
 
 # 创建循环执行脚本(在后台运行,不受 tmux 影响)
 LOOP_RUNNER="$LOG_DIR/loop_runner_$(date +%s).sh"
@@ -278,51 +281,168 @@ sed -i "s/LOOP_DELAY:-5/LOOP_DELAY:-$LOOP_DELAY/" "$LOOP_RUNNER"
 
 chmod +x "$LOOP_RUNNER"
 
-# 左侧面板(面板 0): Morty loop 执行
-log INFO "配置左侧面板: Loop 执行"
+# 左侧面板(面板 0): Claude Code 监控
+log INFO "配置左侧面板: Claude Code 监控"
 tmux send-keys -t "$SESSION_NAME:${BASE_WIN}.0" "clear" Enter
 tmux send-keys -t "$SESSION_NAME:${BASE_WIN}.0" "echo '╔════════════════════════════════════════════════════════════╗'" Enter
-tmux send-keys -t "$SESSION_NAME:${BASE_WIN}.0" "echo '║              MORTY LOOP - 开发循环                         ║'" Enter
+tmux send-keys -t "$SESSION_NAME:${BASE_WIN}.0" "echo '║              CLAUDE CODE 监控                              ║'" Enter
 tmux send-keys -t "$SESSION_NAME:${BASE_WIN}.0" "echo '╚════════════════════════════════════════════════════════════╝'" Enter
 tmux send-keys -t "$SESSION_NAME:${BASE_WIN}.0" "echo ''" Enter
-tmux send-keys -t "$SESSION_NAME:${BASE_WIN}.0" "$LOOP_RUNNER" Enter
 
-# 右上面板(面板 1): 实时日志
-log INFO "配置右上面板: 实时日志"
+# Claude 监控脚本
+CLAUDE_MONITOR_SCRIPT=$(cat << 'SCRIPT'
+monitor_claude() {
+    while true; do
+        clear
+        echo "╔════════════════════════════════════════════════════════════╗"
+        echo "║              CLAUDE CODE 监控                              ║"
+        echo "╚════════════════════════════════════════════════════════════╝"
+        echo ""
+
+        # 显示当前循环信息
+        if [[ -f ".morty/status.json" ]]; then
+            echo "📊 循环状态:"
+            state=$(jq -r '.state // "unknown"' ".morty/status.json" 2>/dev/null)
+            loop_count=$(jq -r '.loop_count // 0' ".morty/status.json" 2>/dev/null)
+            max_loops=$(jq -r '.max_loops // 50' ".morty/status.json" 2>/dev/null)
+            echo "  状态: $state"
+            echo "  循环: $loop_count / $max_loops"
+            echo ""
+        fi
+
+        # 显示最新的循环日志文件信息
+        latest_log=$(ls -t .morty/logs/loop_*_output.log 2>/dev/null | head -1)
+        if [[ -n "$latest_log" ]]; then
+            echo "📝 当前日志: $(basename "$latest_log")"
+            echo ""
+
+            # 统计 token 使用(从日志中提取)
+            echo "🔢 Token 使用情况:"
+
+            # 查找包含 token 信息的行
+            # Claude Code 通常输出类似: "Token usage: 1234/200000"
+            token_info=$(grep -i "token" "$latest_log" | tail -5)
+            if [[ -n "$token_info" ]]; then
+                echo "$token_info" | while read -r line; do
+                    echo "  $line"
+                done
+            else
+                echo "  等待 token 信息..."
+            fi
+            echo ""
+
+            # 显示日志文件大小
+            log_size=$(du -h "$latest_log" | cut -f1)
+            echo "📦 日志大小: $log_size"
+            echo ""
+
+            # 显示最近的错误(如果有)
+            echo "⚠️  最近错误:"
+            recent_errors=$(grep -i "error\|failed\|exception" "$latest_log" 2>/dev/null | tail -3)
+            if [[ -n "$recent_errors" ]]; then
+                echo "$recent_errors" | while read -r line; do
+                    echo "  ${line:0:70}..."
+                done
+            else
+                echo "  无错误"
+            fi
+            echo ""
+        else
+            echo "⏳ 等待循环启动..."
+            echo ""
+        fi
+
+        # 显示会话信息
+        if [[ -f ".morty/.session_id" ]]; then
+            session_id=$(cat ".morty/.session_id")
+            echo "🔗 Claude 会话 ID:"
+            echo "  ${session_id:0:50}..."
+            echo ""
+        fi
+
+        # 显示系统资源
+        echo "💻 系统资源:"
+        echo "  CPU: $(top -bn1 | grep "Cpu(s)" | awk '{print $2}' | cut -d'%' -f1)%"
+        echo "  内存: $(free -h | awk '/^Mem:/ {print $3 "/" $2}')"
+        echo ""
+
+        echo "═══════════════════════════════════════════════════════════"
+        echo "刷新: 每 5 秒"
+        echo ""
+
+        sleep 5
+    done
+}
+
+# 启动监控
+monitor_claude
+SCRIPT
+)
+
+tmux send-keys -t "$SESSION_NAME:${BASE_WIN}.0" "$CLAUDE_MONITOR_SCRIPT" Enter
+
+# 右上面板(面板 1): 循环实时日志 (30% 高度)
+log INFO "配置右上面板: 循环实时日志"
 tmux send-keys -t "$SESSION_NAME:${BASE_WIN}.1" "clear" Enter
 tmux send-keys -t "$SESSION_NAME:${BASE_WIN}.1" "echo '╔════════════════════════════════════════════════════════════╗'" Enter
-tmux send-keys -t "$SESSION_NAME:${BASE_WIN}.1" "echo '║              实时日志                                      ║'" Enter
+tmux send-keys -t "$SESSION_NAME:${BASE_WIN}.1" "echo '║              循环实时日志 (30%)                            ║'" Enter
 tmux send-keys -t "$SESSION_NAME:${BASE_WIN}.1" "echo '╚════════════════════════════════════════════════════════════╝'" Enter
 tmux send-keys -t "$SESSION_NAME:${BASE_WIN}.1" "echo '等待日志...'\" Enter
-tmux send-keys -t "$SESSION_NAME:${BASE_WIN}.1" "sleep 2 && tail -f $LOG_DIR/*.log 2>/dev/null || tail -f $LOG_DIR/loop_*.log" Enter
 
-# 右下面板(面板 2): 状态监控 + 交互式 bash
-log INFO "配置右下面板: 状态监控 + 交互式终端"
+# 在后台启动循环,然后监控日志
+LOOP_STARTER_SCRIPT=$(cat << 'SCRIPT'
+# 等待一下让其他面板初始化
+sleep 2
+
+# 启动循环(后台)
+nohup LOOP_RUNNER_PATH > /dev/null 2>&1 &
+
+# 等待日志文件生成
+while [[ ! -f .morty/logs/loop_*_output.log ]]; do
+    sleep 1
+done
+
+# 尾随日志
+tail -f .morty/logs/loop_*_output.log 2>/dev/null
+SCRIPT
+)
+
+# 替换 LOOP_RUNNER_PATH
+LOOP_STARTER_SCRIPT="${LOOP_STARTER_SCRIPT//LOOP_RUNNER_PATH/$LOOP_RUNNER}"
+
+tmux send-keys -t "$SESSION_NAME:${BASE_WIN}.1" "$LOOP_STARTER_SCRIPT" Enter
+
+# 右下面板(面板 2): 交互式终端 (70% 高度)
+log INFO "配置右下面板: 交互式终端"
 tmux send-keys -t "$SESSION_NAME:${BASE_WIN}.2" "clear" Enter
 
-# 状态监控脚本(显示后进入交互模式)
-STATUS_DISPLAY_SCRIPT=$(cat << 'SCRIPT'
-show_status() {
-    clear
-    echo "╔════════════════════════════════════════════════════════════╗"
-    echo "║              状态监控 + 交互式终端                         ║"
-    echo "╚════════════════════════════════════════════════════════════╝"
-    echo ""
+# 交互式终端初始化脚本
+TERMINAL_INIT_SCRIPT=$(cat << 'SCRIPT'
+clear
+echo "╔════════════════════════════════════════════════════════════╗"
+echo "║              交互式终端 (70%)                              ║"
+echo "╚════════════════════════════════════════════════════════════╝"
+echo ""
 
+# 定义便捷命令
+show_status() {
+    echo ""
+    echo "📊 当前状态:"
     if [[ -f ".morty/status.json" ]]; then
-        echo "📊 当前状态:"
         cat ".morty/status.json" | jq -r '
             "  状态: \(.state)",
             "  循环: \(.loop_count) / \(.max_loops)",
             "  消息: \(.message)",
             "  时间: \(.timestamp)"
         ' 2>/dev/null || cat ".morty/status.json"
-        echo ""
     else
-        echo "⏳ 等待状态文件..."
-        echo ""
+        echo "  等待状态文件..."
     fi
+    echo ""
+}
 
+show_progress() {
+    echo ""
     echo "📝 任务进度:"
     if [[ -f ".morty/fix_plan.md" ]]; then
         total=$(grep -c "\- \[" ".morty/fix_plan.md" 2>/dev/null || echo "0")
@@ -339,40 +459,62 @@ show_status() {
     else
         echo "  无任务文件"
     fi
-
-    echo ""
-    echo "═══════════════════════════════════════════════════════════"
-    echo "命令:"
-    echo "  status    - 刷新状态"
-    echo "  logs      - 查看最新日志"
-    echo "  plan      - 查看任务计划"
-    echo ""
-    echo "快捷键:"
-    echo "  Ctrl+B [     进入滚动模式"
-    echo "  Ctrl+B 方向键 切换面板"
-    echo "  Ctrl+B D     分离会话"
     echo ""
 }
 
-# 定义便捷命令
+show_logs() {
+    echo ""
+    echo "📋 最新日志 (最后 30 行):"
+    tail -30 .morty/logs/loop_*_output.log 2>/dev/null | tail -30
+    echo ""
+}
+
+show_plan() {
+    echo ""
+    echo "📋 任务计划:"
+    cat .morty/fix_plan.md 2>/dev/null || echo "  无任务文件"
+    echo ""
+}
+
+show_help() {
+    echo ""
+    echo "═══════════════════════════════════════════════════════════"
+    echo "便捷命令:"
+    echo "  status       - 显示循环状态"
+    echo "  progress     - 显示任务进度"
+    echo "  logs         - 查看最新日志"
+    echo "  plan         - 查看任务计划"
+    echo "  help         - 显示此帮助"
+    echo ""
+    echo "快捷键:"
+    echo "  Ctrl+B [     进入滚动模式(查看历史)"
+    echo "  Ctrl+B 方向键 切换面板"
+    echo "  Ctrl+B D     分离会话(后台运行)"
+    echo "  Ctrl+B X     关闭当前面板"
+    echo "═══════════════════════════════════════════════════════════"
+    echo ""
+}
+
+# 注册别名
 alias status='show_status'
-alias logs='tail -20 .morty/logs/loop_*.log | tail -50'
-alias plan='cat .morty/fix_plan.md'
+alias progress='show_progress'
+alias logs='show_logs'
+alias plan='show_plan'
+alias help='show_help'
 
-# 显示初始状态
-show_status
-
-# 提示用户
-echo "💡 输入命令或使用 bash (输入 'status' 刷新状态)"
+# 显示欢迎信息
+echo "💡 可用命令: status, progress, logs, plan, help"
+echo "💡 或直接使用 bash 命令"
+echo ""
 SCRIPT
 )
 
-tmux send-keys -t "$SESSION_NAME:${BASE_WIN}.2" "$STATUS_DISPLAY_SCRIPT" Enter
+tmux send-keys -t "$SESSION_NAME:${BASE_WIN}.2" "$TERMINAL_INIT_SCRIPT" Enter
 
 # 设置面板标题
-tmux select-pane -t "$SESSION_NAME:${BASE_WIN}.0" -T "Loop 执行"
-tmux select-pane -t "$SESSION_NAME:${BASE_WIN}.1" -T "实时日志"
-tmux select-pane -t "$SESSION_NAME:${BASE_WIN}.2" -T "状态 + Bash"
+tmux select-pane -t "$SESSION_NAME:${BASE_WIN}.0" -T "Claude 监控"
+tmux select-pane -t "$SESSION_NAME:${BASE_WIN}.1" -T "循环日志(30%)"
+tmux select-pane -t "$SESSION_NAME:${BASE_WIN}.2" -T "交互终端(70%)"
 
 # 聚焦到右下面板(交互式终端)
 tmux select-pane -t "$SESSION_NAME:${BASE_WIN}.2"
@@ -382,11 +524,11 @@ log INFO ""
 log INFO "会话名称: $SESSION_NAME"
 log INFO ""
 log INFO "面板布局:"
-log INFO "  ┌─────────────────┬──────────────┐"
-log INFO "  │                 │  实时日志    │"
-log INFO "  │  Loop 执行      ├──────────────┤"
-log INFO "  │                 │  状态 + Bash │"
-log INFO "  └─────────────────┴──────────────┘"
+log INFO "  ┌──────────────────┬───────────────┐"
+log INFO "  │                  │ 循环日志(30%) │"
+log INFO "  │  Claude 监控     ├───────────────┤"
+log INFO "  │  (Token 使用)    │ 交互终端(70%) │"
+log INFO "  └──────────────────┴───────────────┘"
 log INFO ""
 log INFO "快捷键:"
 log INFO "  Ctrl+B 然后 [        进入滚动模式(查看历史)"
