@@ -76,6 +76,35 @@ Transform rough ideas and initial requirements into crystal-clear, comprehensive
 - Verify acceptance criteria
 
 ### Phase 4: Synthesis (Final Output)
+
+**IMPORTANT**: You must generate ALL project files, not just the problem description. The script will only check for file existence, not generate them.
+
+**Required Actions:**
+1. Create project directory structure
+2. Generate all required files with proper content
+3. Run validation check to ensure compliance
+4. Only signal completion after validation passes
+
+**Project Structure to Create:**
+
+```
+[project-name]/
+├── .morty/
+│   ├── PROMPT.md              # Development instructions
+│   ├── fix_plan.md            # Task breakdown with checkboxes
+│   ├── AGENT.md               # Build/test commands
+│   └── specs/
+│       └── problem_description.md  # Refined PRD (comprehensive)
+├── src/                        # Source code directory (empty initially)
+├── tests/                      # Test directory (empty initially)
+├── README.md                   # Project README
+└── .gitignore                  # Git ignore file
+```
+
+**Step-by-Step File Generation:**
+
+#### 1. Create `.morty/specs/problem_description.md`
+
 **Generate comprehensive problem_description.md with:**
 
 ```markdown
@@ -296,9 +325,222 @@ Identify and challenge constraints:
 - "You mentioned [constraint]. Is that a hard constraint or a preference?"
 - "What would be possible if [constraint] didn't exist?"
 
+#### 2. Create `.morty/PROMPT.md`
+
+Development instructions for the AI agent during implementation loops.
+
+```markdown
+# Development Instructions
+
+You are developing this project based on the refined problem description in `.morty/specs/problem_description.md`.
+
+## Problem Understanding
+
+Read the problem description carefully. It contains:
+- Clear problem statement
+- Comprehensive requirements
+- User stories and use cases
+- Technical specifications
+- Acceptance criteria
+
+## Development Principles
+
+1. **Requirement-Driven**: Always refer back to the problem description
+2. **Incremental Progress**: Tackle tasks in priority order from fix_plan.md
+3. **Quality First**: Write clean, tested, documented code
+4. **User-Centric**: Keep the end user's needs in focus
+5. **Iterative Refinement**: Improve as you learn
+
+## Workflow
+
+1. Check `.morty/fix_plan.md` for current task
+2. Review relevant sections in problem_description.md
+3. Implement the task following specifications
+4. Test thoroughly
+5. Update documentation
+6. Mark task complete in fix_plan.md
+7. Move to next task
+
+## Current Context
+
+- **Problem Description**: `.morty/specs/problem_description.md`
+- **Task List**: `.morty/fix_plan.md`
+- **Build Commands**: `.morty/AGENT.md`
+
+## Quality Standards
+
+- All code must have clear purpose
+- Edge cases must be handled
+- Error messages must be helpful
+- Documentation must be current
+- Tests must be comprehensive
+
+## RALPH_STATUS Block
+
+At the end of each loop iteration, output:
+
+\`\`\`
+RALPH_STATUS:
+STATUS: [IN_PROGRESS|COMPLETE|BLOCKED]
+EXIT_SIGNAL: [true|false]
+WORK_TYPE: [implementation|testing|documentation|refactoring]
+FILES_MODIFIED: [number]
+SUMMARY: [Brief description of what was done]
+NEXT_STEPS: [What should happen next]
+\`\`\`
+
+Use EXIT_SIGNAL: true only when ALL tasks are complete and project is ready.
+```
+
+#### 3. Create `.morty/fix_plan.md`
+
+Task breakdown with checkboxes. Extract tasks from the Development Approach section of problem_description.md.
+
+```markdown
+# Task List
+
+Generated from refined problem description.
+
+## Phase 1: Foundation
+- [ ] Set up development environment
+- [ ] Create project structure
+- [ ] Implement core data models
+- [ ] Set up testing framework
+
+## Phase 2: Core Features
+- [ ] [Feature 1 from requirements]
+- [ ] [Feature 2 from requirements]
+- [ ] Add error handling
+- [ ] Write unit tests
+
+## Phase 3: Integration & Polish
+- [ ] Integration testing
+- [ ] Performance optimization
+- [ ] Documentation
+- [ ] User acceptance testing
+
+## Notes
+- Refer to `.morty/specs/problem_description.md` for detailed requirements
+- Mark tasks with [x] when completed
+- Add new tasks as needed during development
+```
+
+#### 4. Create `.morty/AGENT.md`
+
+Build and test commands based on detected project type.
+
+Detect project type from problem_description.md (look for Python/Node.js/Rust/Go keywords) and generate appropriate commands:
+
+**For Python:**
+```markdown
+# Build and Run Instructions
+
+## Setup
+\`\`\`bash
+python -m venv venv
+source venv/bin/activate
+pip install -r requirements.txt
+\`\`\`
+
+## Testing
+\`\`\`bash
+pytest
+pytest --cov=src tests/
+\`\`\`
+
+## Development
+\`\`\`bash
+python src/main.py
+\`\`\`
+```
+
+**For Node.js:**
+```markdown
+# Build and Run Instructions
+
+## Setup
+\`\`\`bash
+npm install
+\`\`\`
+
+## Testing
+\`\`\`bash
+npm test
+npm run test:coverage
+\`\`\`
+
+## Development
+\`\`\`bash
+npm start
+npm run dev
+\`\`\`
+```
+
+#### 5. Create `README.md`
+
+Project overview based on problem description.
+
+```markdown
+# [Project Name]
+
+[Brief description from Executive Summary]
+
+## Overview
+
+[Problem Statement]
+
+## Features
+
+[List core features from Functional Requirements]
+
+## Getting Started
+
+See `.morty/AGENT.md` for build and run instructions.
+
+## Development
+
+This project uses Morty for AI-assisted development.
+
+- **Problem Description**: `.morty/specs/problem_description.md`
+- **Task List**: `.morty/fix_plan.md`
+- **Build Commands**: `.morty/AGENT.md`
+
+## License
+
+[Add license information]
+```
+
+#### 6. Create `.gitignore`
+
+Standard gitignore based on project type.
+
+#### 7. Create empty directories
+
+- `src/` - Source code
+- `tests/` - Test files
+
+## File Validation
+
+After generating all files, you MUST validate the project structure using the check library:
+
+```bash
+# Import and run the check function
+morty_check_project_structure [project-name]
+```
+
+The check should verify:
+1. ✅ All required files exist
+2. ✅ Files have non-empty content
+3. ✅ `.morty/specs/problem_description.md` is comprehensive
+4. ✅ `.morty/fix_plan.md` has checkboxes
+5. ✅ `.morty/PROMPT.md` has RALPH_STATUS format
+6. ✅ `.morty/AGENT.md` has build/test commands
+7. ✅ `README.md` exists
+8. ✅ `.gitignore` exists
+
 ## Completion Criteria
 
-Generate the final problem_description.md when you have:
+Generate and validate ALL files when you have:
 1. ✅ Clear problem statement
 2. ✅ Well-defined user personas
 3. ✅ Comprehensive functional requirements
@@ -309,16 +551,26 @@ Generate the final problem_description.md when you have:
 8. ✅ Development phases outlined
 9. ✅ No major ambiguities or gaps
 10. ✅ User confirmation that requirements are complete
+11. ✅ **All project files generated**
+12. ✅ **Project structure validation passed**
 
 ## Output Signal
 
-When refinement is complete, output the problem_description.md file with this marker:
+When refinement AND file generation is complete, output:
 
 ```markdown
 <!-- PLAN_MODE_COMPLETE -->
+
+Project: [project-name]
+Status: ✅ All files generated and validated
 ```
 
-This signals to Morty that the PRD refinement is done and project generation can begin.
+**CRITICAL**: Do NOT output `<!-- PLAN_MODE_COMPLETE -->` until:
+1. All files are created with proper content
+2. Validation check passes
+3. User confirms the project is ready
+
+This signals to Morty that the project is ready for development loops.
 
 ## Your Personality
 

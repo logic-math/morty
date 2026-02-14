@@ -259,3 +259,152 @@ git_loop_history() {
     echo ""
     log INFO "To rollback: morty rollback <loop-number>"
 }
+
+# Check Morty project structure validity
+# Returns 0 if valid, 1 if invalid
+morty_check_project_structure() {
+    local project_dir="${1:-.}"
+    local errors=0
+
+    log INFO "Validating Morty project structure: $project_dir"
+    echo ""
+
+    # Check if project directory exists
+    if [[ ! -d "$project_dir" ]]; then
+        log ERROR "Project directory does not exist: $project_dir"
+        return 1
+    fi
+
+    cd "$project_dir" || return 1
+
+    # Required files
+    local required_files=(
+        ".morty/specs/problem_description.md"
+        ".morty/PROMPT.md"
+        ".morty/fix_plan.md"
+        ".morty/AGENT.md"
+        "README.md"
+        ".gitignore"
+    )
+
+    # Check required files exist
+    log INFO "Checking required files..."
+    for file in "${required_files[@]}"; do
+        if [[ ! -f "$file" ]]; then
+            log ERROR "Missing required file: $file"
+            ((errors++))
+        else
+            # Check if file is not empty
+            if [[ ! -s "$file" ]]; then
+                log ERROR "File is empty: $file"
+                ((errors++))
+            else
+                log SUCCESS "✓ $file"
+            fi
+        fi
+    done
+    echo ""
+
+    # Check required directories
+    log INFO "Checking required directories..."
+    local required_dirs=(
+        ".morty"
+        ".morty/specs"
+        ".morty/logs"
+        "src"
+        "tests"
+    )
+
+    for dir in "${required_dirs[@]}"; do
+        if [[ ! -d "$dir" ]]; then
+            log WARN "Missing directory: $dir (will be created)"
+            mkdir -p "$dir"
+        else
+            log SUCCESS "✓ $dir/"
+        fi
+    done
+    echo ""
+
+    # Validate problem_description.md content
+    if [[ -f ".morty/specs/problem_description.md" ]]; then
+        log INFO "Validating problem_description.md content..."
+        local prd=".morty/specs/problem_description.md"
+
+        # Check for key sections
+        local required_sections=(
+            "Problem Description"
+            "Executive Summary"
+            "Goals and Objectives"
+            "Functional Requirements"
+            "Technical Specifications"
+        )
+
+        for section in "${required_sections[@]}"; do
+            if grep -qi "$section" "$prd"; then
+                log SUCCESS "✓ Contains section: $section"
+            else
+                log WARN "Missing section: $section"
+            fi
+        done
+        echo ""
+    fi
+
+    # Validate fix_plan.md has checkboxes
+    if [[ -f ".morty/fix_plan.md" ]]; then
+        log INFO "Validating fix_plan.md content..."
+        local fix_plan=".morty/fix_plan.md"
+
+        local checkbox_count=$(grep -c "\- \[ \]" "$fix_plan" 2>/dev/null || echo "0")
+        if [[ $checkbox_count -gt 0 ]]; then
+            log SUCCESS "✓ Contains $checkbox_count unchecked tasks"
+        else
+            log ERROR "No checkbox tasks found in fix_plan.md"
+            ((errors++))
+        fi
+        echo ""
+    fi
+
+    # Validate PROMPT.md has RALPH_STATUS format
+    if [[ -f ".morty/PROMPT.md" ]]; then
+        log INFO "Validating PROMPT.md content..."
+        local prompt=".morty/PROMPT.md"
+
+        if grep -q "RALPH_STATUS" "$prompt"; then
+            log SUCCESS "✓ Contains RALPH_STATUS format"
+        else
+            log WARN "Missing RALPH_STATUS format"
+        fi
+        echo ""
+    fi
+
+    # Validate AGENT.md has build/test commands
+    if [[ -f ".morty/AGENT.md" ]]; then
+        log INFO "Validating AGENT.md content..."
+        local agent=".morty/AGENT.md"
+
+        if grep -qi "build\|setup\|install" "$agent"; then
+            log SUCCESS "✓ Contains build/setup commands"
+        else
+            log WARN "Missing build/setup commands"
+        fi
+
+        if grep -qi "test" "$agent"; then
+            log SUCCESS "✓ Contains test commands"
+        else
+            log WARN "Missing test commands"
+        fi
+        echo ""
+    fi
+
+    # Summary
+    log INFO "================================"
+    if [[ $errors -eq 0 ]]; then
+        log SUCCESS "Project structure validation: PASSED ✓"
+        log INFO "All required files and structure are present"
+        return 0
+    else
+        log ERROR "Project structure validation: FAILED ✗"
+        log ERROR "Found $errors critical error(s)"
+        return 1
+    fi
+}
