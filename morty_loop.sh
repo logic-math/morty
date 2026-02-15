@@ -5,6 +5,7 @@ set -e
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "$SCRIPT_DIR/lib/common.sh"
+source "$SCRIPT_DIR/lib/git_manager.sh"
 
 # 配置
 MORTY_DIR=".morty"
@@ -172,6 +173,17 @@ fi
 log SUCCESS "✓ 项目结构完整"
 log INFO ""
 
+# 清空日志目录
+log INFO "清空历史日志..."
+rm -rf "$LOG_DIR"/*
+mkdir -p "$LOG_DIR"
+log SUCCESS "✓ 日志目录已清空"
+log INFO ""
+
+# 初始化 git 仓库(确保代码变更可被追溯)
+init_git_if_needed
+log INFO ""
+
 # 读取必要文件
 log INFO "读取项目文件..."
 
@@ -292,6 +304,8 @@ while [[ $LOOP_COUNT -lt $MAX_LOOPS ]]; do
     # 构建 Claude 命令
     CLAUDE_ARGS=(
         "$CLAUDE_CMD"
+        "--verbose"
+        "--debug"
         "--dangerously-skip-permissions"
     )
 
@@ -316,6 +330,12 @@ while [[ $LOOP_COUNT -lt $MAX_LOOPS ]]; do
     log INFO ""
     log INFO "循环 #$LOOP_COUNT 完成(退出码: $CLAUDE_EXIT_CODE)"
     log INFO ""
+
+    # 创建 git commit (用于历史追溯)
+    if [[ $CLAUDE_EXIT_CODE -eq 0 ]]; then
+        create_loop_commit "$LOOP_COUNT" "completed"
+        log INFO ""
+    fi
 
     # 检查退出码
     if [[ $CLAUDE_EXIT_CODE -ne 0 ]]; then

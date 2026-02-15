@@ -7,10 +7,9 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "$SCRIPT_DIR/lib/common.sh"
 
 # 配置
-CLAUDE_CMD="${CLAUDE_CODE_CLI:-claude}"
+CLAUDE_CMD="${CLAUDE_CODE_CLI:-ai_cli}"
 FIX_SYSTEM_PROMPT="$SCRIPT_DIR/prompts/fix_mode_system.md"
 WORK_DIR=".morty_fix_work"
-
 show_help() {
     cat << 'EOF'
 Morty Fix 模式 - 迭代式 PRD 改进
@@ -67,34 +66,50 @@ while [[ $# -gt 0 ]]; do
     esac
 done
 
+# 检查运行模式
+IS_PROJECT_VIEW_MODE=false
+
 if [[ -z "$PRD_FILE" ]]; then
-    log ERROR "需要 PRD 文件"
-    show_help
-    exit 1
-fi
+    # 无参数模式：检查 .morty 目录是否存在
+    if [[ -d ".morty" ]]; then
+        IS_PROJECT_VIEW_MODE=true
+        log INFO "进入项目进展查看模式（无 PRD 文件）"
+        log INFO "将基于现有 .morty/ 目录进行交互"
+    else
+        log ERROR "需要 PRD 文件，或确保 .morty/ 目录存在"
+        show_help
+        exit 1
+    fi
+else
+    # 检查 PRD 文件是否存在
+    if [[ ! -f "$PRD_FILE" ]]; then
+        log ERROR "PRD 文件未找到: $PRD_FILE"
+        exit 1
+    fi
 
-# 检查 PRD 文件是否存在
-if [[ ! -f "$PRD_FILE" ]]; then
-    log ERROR "PRD 文件未找到: $PRD_FILE"
-    exit 1
-fi
+    # 检查是否为 Markdown 文件
+    if [[ ! "$PRD_FILE" =~ \.md$ ]]; then
+        log ERROR "仅支持 Markdown (.md) 文件"
+        exit 1
+    fi
 
-# 检查是否为 Markdown 文件
-if [[ ! "$PRD_FILE" =~ \.md$ ]]; then
-    log ERROR "仅支持 Markdown (.md) 文件"
-    exit 1
+    # 获取绝对路径
+    PRD_FILE=$(realpath "$PRD_FILE")
+    PRD_FILENAME=$(basename "$PRD_FILE")
 fi
-
-# 获取绝对路径
-PRD_FILE=$(realpath "$PRD_FILE")
-PRD_FILENAME=$(basename "$PRD_FILE")
 
 log INFO "╔════════════════════════════════════════════════════════════╗"
 log INFO "║            MORTY FIX 模式 - PRD 迭代改进                  ║"
 log INFO "╚════════════════════════════════════════════════════════════╝"
 log INFO ""
-log INFO "PRD 文件(只读): $PRD_FILE"
-log INFO ""
+
+if [[ "$IS_PROJECT_VIEW_MODE" == true ]]; then
+    log INFO "模式: 项目进展查看"
+    log INFO ""
+else
+    log INFO "PRD 文件(只读): $PRD_FILE"
+    log INFO ""
+fi
 
 # 检查系统提示词是否存在
 if [[ ! -f "$FIX_SYSTEM_PROMPT" ]]; then
@@ -132,14 +147,80 @@ if [[ "$IS_FIRST_RUN" == false ]] && [[ -d ".morty/specs" ]]; then
     log INFO ""
 fi
 
-# 读取当前 PRD 内容
-CURRENT_PRD_CONTENT=$(cat "$PRD_FILE")
-
 # 读取系统提示词
 SYSTEM_PROMPT_CONTENT=$(cat "$FIX_SYSTEM_PROMPT")
 
 # 构建交互式提示词
-INTERACTIVE_PROMPT=$(cat << EOF
+if [[ "$IS_PROJECT_VIEW_MODE" == true ]]; then
+    # 项目进展查看模式：读取现有 .morty 目录内容
+    CURRENT_PROMPT=$(cat ".morty/PROMPT.md" 2>/dev/null || echo "(暂无)")
+    CURRENT_AGENT=$(cat ".morty/AGENT.md" 2>/dev/null || echo "(暂无)")
+    CURRENT_FIX_PLAN=$(cat ".morty/fix_plan.md" 2>/dev/null || echo "(暂无)")
+    CURRENT_SPECS=$(find .morty/specs -name "*.md" 2>/dev/null | head -5 | while read f; do echo "- $f"; done || echo "(暂无)")
+
+    INTERACTIVE_PROMPT=$(cat << EOF
+$SYSTEM_PROMPT_CONTENT
+
+---
+
+# 当前运行状态
+
+**运行模式**: 项目进展查看模式（无 PRD 文件）
+**工作目录**: \`$WORK_DIR/\`
+**项目目录**: \`.morty/\`
+
+---
+
+# 当前项目状态
+
+## PROMPT.md
+\`\`\`markdown
+$CURRENT_PROMPT
+\`\`\`
+
+## AGENT.md
+\`\`\`markdown
+$CURRENT_AGENT
+\`\`\`
+
+## fix_plan.md
+\`\`\`markdown
+$CURRENT_FIX_PLAN
+\`\`\`
+
+## specs/ 目录
+$CURRENT_SPECS
+
+---
+
+# 工作目录说明
+
+你的所有工作文件都应该在 \`$WORK_DIR/\` 中创建。
+
+**重要**: 此模式下不要修改 .morty/ 目录中的文件，除非你明确知道需要做什么修改。
+
+---
+
+**指令**:
+1. 分析当前项目状态和进展
+2. 回答用户关于项目的问题
+3. 如果需要，可以建议对 .morty/ 目录的修改（但不要直接修改）
+4. 帮助用户理解当前任务进度和下一步行动
+
+用户可以随时提问，例如：
+- "当前项目进展如何？"
+- "还有哪些任务待完成？"
+- "请解释当前的设计决策"
+- "建议下一步做什么？"
+
+开始对话!
+EOF
+)
+else
+    # 正常模式：基于 PRD 文件
+    CURRENT_PRD_CONTENT=$(cat "$PRD_FILE")
+
+    INTERACTIVE_PROMPT=$(cat << EOF
 $SYSTEM_PROMPT_CONTENT
 
 ---
@@ -182,17 +263,27 @@ $CURRENT_PRD_CONTENT
 开始对话!
 EOF
 )
+fi
 
 log INFO "启动交互式 Fix 模式会话..."
 log INFO ""
 log INFO "使用说明:"
 log INFO "  - Claude 会在工作目录 $WORK_DIR/ 中工作"
-log INFO "  - prd.md 是只读的,不会被修改"
-log INFO "  - 对话结束后会生成/更新 .morty/ 目录"
+if [[ "$IS_PROJECT_VIEW_MODE" == true ]]; then
+    log INFO "  - 当前模式: 项目进展查看（基于现有 .morty/ 目录）"
+    log INFO "  - 可以询问项目进展、任务状态、设计决策等问题"
+else
+    log INFO "  - prd.md 是只读的,不会被修改"
+    log INFO "  - 对话结束后会生成/更新 .morty/ 目录"
+fi
 log INFO "  - 会话在 Claude 输出时结束: <!-- FIX_MODE_COMPLETE -->"
 log INFO ""
-log INFO "按 Enter 开始交互式会话..."
-read -r
+
+# 只在非 loop 监控模式下等待用户输入
+if [[ -z "$MORTY_LOOP_MONITOR" ]]; then
+    log INFO "按 Enter 开始交互式会话..."
+    read -r
+fi
 
 # 将提示词保存到文件
 PROMPT_FILE="$WORK_DIR/fix_prompt.md"
@@ -204,7 +295,6 @@ log INFO ""
 # 构建 Claude 命令
 CLAUDE_ARGS=(
     "$CLAUDE_CMD"
-    "--continue"
     "--dangerously-skip-permissions"
     "--allowedTools" "Read" "Write" "Glob" "Grep" "WebSearch" "WebFetch" "Edit"
 )
@@ -245,8 +335,7 @@ if morty_check_project_structure "."; then
     log SUCCESS "╚════════════════════════════════════════════════════════════╝"
     log INFO ""
     log INFO "现在可以进入循环阶段:"
-    log INFO "  运行 'morty start' 开始开发循环"
-    log INFO "  或运行 'morty monitor' 使用监控模式"
+    log INFO "  运行 'morty loop' 开始开发循环"
     log INFO ""
     
     # 清理工作目录
