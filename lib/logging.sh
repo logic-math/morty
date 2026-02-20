@@ -202,6 +202,94 @@ _log_format_text() {
     echo "${prefix} ${message}"
 }
 
+# 上下文数据序列化为 JSON
+# 支持多种输入格式：JSON字符串、key=value 对、关联数组名
+_log_serialize_context() {
+    local context="$1"
+
+    # 如果为空，返回空
+    if [[ -z "${context}" ]]; then
+        echo ""
+        return 0
+    fi
+
+    # 检查是否已经是有效的 JSON 对象（以 { 开头 } 结尾）
+    if [[ "${context}" =~ ^\s*\{.*\}\s*$ ]]; then
+        # 验证基本 JSON 格式并返回
+        echo "${context}"
+        return 0
+    fi
+
+    # 检查是否是 JSON 数组（以 [ 开头 ] 结尾）
+    if [[ "${context}" =~ ^\s*\[.*\]\s*$ ]]; then
+        echo "${context}"
+        return 0
+    fi
+
+    # 尝试解析为 key=value 格式（逗号分隔）
+    if [[ "${context}" == *"="* ]]; then
+        local json_parts=()
+        local IFS_OLD="${IFS}"
+        IFS=',' read -ra pairs <<< "${context}"
+        IFS="${IFS_OLD}"
+
+        for pair in "${pairs[@]}"; do
+            # 提取 key 和 value
+            local key="${pair%%=*}"
+            local value="${pair#*=}"
+
+            # 清理空白字符
+            key=$(echo "${key}" | sed 's/^[[:space:]]*//; s/[[:space:]]*$//')
+            value=$(echo "${value}" | sed 's/^[[:space:]]*//; s/[[:space:]]*$//')
+
+            if [[ -n "${key}" ]]; then
+                # 转义 value 中的特殊字符
+                local escaped_value
+                escaped_value=$(_log_json_escape "${value}")
+                json_parts+=("\"${key}\":\"${escaped_value}\"")
+            fi
+        done
+
+        if [[ ${#json_parts[@]} -gt 0 ]]; then
+            # 构建 JSON 对象
+            local result="{"
+            local first=true
+            for part in "${json_parts[@]}"; do
+                if [[ "${first}" == true ]]; then
+                    first=false
+                else
+                    result="${result},"
+                fi
+                result="${result}${part}"
+            done
+            result="${result}}"
+            echo "${result}"
+            return 0
+        fi
+    fi
+
+    # 默认：将上下文作为普通字符串值
+    local escaped_context
+    escaped_context=$(_log_json_escape "${context}")
+    echo "\"${escaped_context}\""
+}
+
+# JSON 字符串转义
+# 将字符串中的特殊字符转义为 JSON 安全格式
+_log_json_escape() {
+    local str="$1"
+    # 使用 Bash 内置字符串替换进行转义（比 sed 更可靠）
+    # 顺序很重要：先转义反斜杠，再转义其他字符
+    str="${str//\\/\\\\}"  # 反斜杠 -> \\
+    str="${str//\"/\\\"}"  # 双引号 -> \\"
+    str="${str//$'\t'/\\t}"  # 制表符 -> \t
+    str="${str//$'\r'/\\r}"  # 回车 -> \r
+    str="${str//$'\n'/\\n}"  # 换行 -> \n
+    str="${str//$'\b'/\\b}"  # 退格 -> \b
+    str="${str//$'\f'/\\f}"  # 换页 -> \f
+    printf '%s' "${str}"
+}
+
 # 格式化日志消息（JSON 格式）
 _log_format_json() {
     local timestamp="$1"
@@ -211,9 +299,9 @@ _log_format_json() {
     local message="$5"
     local context="$6"
 
-    # 转义特殊字符
+    # 转义消息中的特殊字符
     local escaped_message
-    escaped_message=$(echo "${message}" | sed 's/"/\\"/g; s/\\/\\\\/g; s/\t/\\t/g; s/\n/\\n/g')
+    escaped_message=$(_log_json_escape "${message}")
 
     local json="{\"timestamp\":\"${timestamp}\",\"level\":\"${level_name}\",\"message\":\"${escaped_message}\""
 
@@ -226,8 +314,12 @@ _log_format_json() {
     fi
 
     if [[ -n "${context}" ]]; then
-        # 假设 context 已经是有效的 JSON 字符串
-        json="${json},\"context\":${context}"
+        # 尝试将上下文序列化为 JSON 字段
+        local serialized_context
+        serialized_context=$(_log_serialize_context "${context}")
+        if [[ -n "${serialized_context}" ]]; then
+            json="${json},\"context\":${serialized_context}"
+        fi
     fi
 
     json="${json}}"
@@ -365,7 +457,10 @@ log_loop() {
 
 # 结构化日志（JSON 格式，忽略 LOG_FORMAT 设置）
 # Usage: log_structured <level> <data>
-# data 应为有效的 JSON 对象字符串
+# data 可以是：
+#   - 有效的 JSON 对象字符串（如 '{"key":"value"}'）
+#   - key=value 对（如 'user=admin,action=login'）
+#   - 关联数组名称（数组中应包含键值对）
 log_structured() {
     local level="$1"
     local data="$2"
@@ -388,16 +483,49 @@ log_structured() {
     local timestamp
     timestamp=$(_log_timestamp_iso)
 
-    # 构建 JSON
+    # 构建基础 JSON
     local json="{\"timestamp\":\"${timestamp}\",\"level\":\"${level_name}\""
 
-    # 解析并合并数据
+    # 处理数据部分
     if [[ -n "${data}" ]]; then
-        # 移除外层花括号并附加
-        local inner_data
-        inner_data=$(echo "${data}" | sed 's/^\s*{\s*//; s/\s*}\s*$//')
-        if [[ -n "${inner_data}" ]]; then
-            json="${json},${inner_data}"
+        # 检查是否是有效的 JSON 对象（优先检查，避免将 JSON 当作变量名）
+        if [[ "${data}" =~ ^[[:space:]]*\{.*\}[[:space:]]*$ ]]; then
+            # 是 JSON 对象，提取内部内容
+            local inner_data
+            inner_data=$(printf '%s' "${data}" | sed 's/^[[:space:]]*{[[:space:]]*//; s/[[:space:]]*}[[:space:]]*$//')
+            if [[ -n "${inner_data}" ]]; then
+                json="${json},${inner_data}"
+            fi
+        # 检查是否是关联数组名（必须是有效的变量名且不是 JSON）
+        elif [[ "${data}" =~ ^[a-zA-Z_][a-zA-Z0-9_]*$ ]] && declare -p "${data}" 2>/dev/null | grep -q 'declare -A'; then
+            # 是关联数组，遍历键值对
+            local array_ref="${data}"
+            eval "local keys=(\${!${array_ref}[@]})"
+            for key in "${keys[@]}"; do
+                local val
+                eval "val=\"\${${array_ref}[${key}]}\""
+                local escaped_val
+                escaped_val=$(_log_json_escape "${val}")
+                json="${json},\"${key}\":\"${escaped_val}\""
+            done
+        # 检查是否是 key=value 格式
+        elif [[ "${data}" == *"="* ]]; then
+            # 解析 key=value 对
+            local serialized
+            serialized=$(_log_serialize_context "${data}")
+            if [[ "${serialized}" =~ ^\{.*\}$ ]]; then
+                # 提取序列化后对象的内部内容
+                local inner
+                inner=$(printf '%s' "${serialized}" | sed 's/^[[:space:]]*{[[:space:]]*//; s/[[:space:]]*}[[:space:]]*$//')
+                if [[ -n "${inner}" ]]; then
+                    json="${json},${inner}"
+                fi
+            fi
+        else
+            # 普通字符串，作为 message 字段
+            local escaped_msg
+            escaped_msg=$(_log_json_escape "${data}")
+            json="${json},\"message\":\"${escaped_msg}\""
         fi
     fi
 
