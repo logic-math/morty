@@ -3,15 +3,15 @@
   "state": "running",
   "current": {
     "module": "logging",
-    "job": "job_1",
-    "status": "COMPLETED",
-    "start_time": "2026-02-20T16:23:35Z",
+    "job": "job_2",
+    "status": "RUNNING",
+    "start_time": "2026-02-20T16:32:54Z",
     "completed_at": "2026-02-21T00:31:30Z"
   },
   "session": {
     "start_time": "2026-02-20T14:59:54Z",
-    "last_update": "2026-02-21T00:31:30Z",
-    "total_loops": 21
+    "last_update": "2026-02-20T16:36:12Z",
+    "total_loops": 22
   },
   "modules": {
     "cli": {
@@ -248,18 +248,20 @@
           "loop_count": 1,
           "retry_count": 0,
           "tasks_total": 5,
-          "tasks_completed": 5,
+          "tasks_completed": 6,
           "debug_logs": [],
           "started_at": "2026-02-20T16:23:35Z",
-          "completed_at": "2026-02-21T00:31:30Z"
+          "completed_at": "2026-02-20T16:32:53Z"
         },
         "job_2": {
-          "status": "PENDING",
-          "loop_count": 0,
+          "status": "RUNNING",
+          "loop_count": 2,
           "retry_count": 0,
           "tasks_total": 5,
-          "tasks_completed": 0,
-          "debug_logs": []
+          "tasks_completed": 3,
+          "debug_logs": [],
+          "started_at": "2026-02-20T16:32:54Z",
+          "last_task_completed": "2026-02-21T00:39:00Z"
         },
         "job_3": {
           "status": "PENDING",

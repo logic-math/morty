@@ -268,6 +268,9 @@ _log_write() {
         formatted_msg=$(_log_format_text "${timestamp}" "${level_name}" "${module}" "${job}" "${message}")
     fi
 
+    # 检查并执行日志轮转（在获取锁之前）
+    _log_rotate_if_needed "${LOG_MAIN_FILE}"
+
     # 写入主日志文件（带锁保护）
     local lock_handle
     lock_handle=$(_log_acquire_lock "main")
@@ -288,6 +291,9 @@ _log_write() {
 
     # 如果启用了 Job 日志，也写入 Job 日志
     if [[ -n "${_LOG_JOB_FILE}" && -n "${_LOG_JOB_NAME}" ]]; then
+        # 检查 Job 日志是否需要轮转
+        _log_rotate_if_needed "${_LOG_JOB_FILE}"
+
         local job_lock_handle
         local job_lock_name="job_${_LOG_JOB_MODULE}_${_LOG_JOB_NAME}"
         job_lock_handle=$(_log_acquire_lock "${job_lock_name}")
@@ -603,6 +609,19 @@ log_get_job_file() {
 # 日志轮转（将在 Job 2 中实现完整功能）
 # ============================================
 
+# 清理超出最大保留数的旧日志文件
+_log_cleanup_old_logs() {
+    local base_name="$1"
+    local max_files="$2"
+
+    # 删除所有编号大于 max_files 的历史日志文件
+    local i=$((max_files + 1))
+    while [[ -f "${base_name}.${i}" ]]; do
+        rm -f "${base_name}.${i}"
+        i=$((i + 1))
+    done
+}
+
 # 检查并执行日志轮转
 _log_rotate_if_needed() {
     local log_file="$1"
@@ -615,17 +634,22 @@ _log_rotate_if_needed() {
     file_size=$(stat -f%z "${log_file}" 2>/dev/null || stat -c%s "${log_file}" 2>/dev/null || echo "0")
 
     if [[ ${file_size} -ge ${LOG_MAX_SIZE} ]]; then
-        # 执行轮转（简单实现，将在 Job 2 中完善）
+        # 执行轮转
         local base_name="${log_file}"
         local max_files="${LOG_MAX_FILES}"
 
-        # 删除最旧的日志
+        # 首先清理任何超出最大保留数的旧日志文件
+        # 这处理了之前轮转而产生的离散历史文件
+        _log_cleanup_old_logs "${base_name}" "${max_files}"
+
+        # 删除最旧的日志（编号为 max_files 的文件）
         local oldest="${base_name}.${max_files}"
         if [[ -f "${oldest}" ]]; then
             rm -f "${oldest}"
         fi
 
-        # 向后移动日志
+        # 向后移动日志（从后往前移动）
+        # 例如：morty.log.2 -> morty.log.3, morty.log.1 -> morty.log.2
         for ((i=max_files-1; i>=1; i--)); do
             local src="${base_name}.${i}"
             local dst="${base_name}.$((i+1))"
@@ -634,7 +658,7 @@ _log_rotate_if_needed() {
             fi
         done
 
-        # 移动当前日志
+        # 移动当前日志到 .log.1
         mv "${log_file}" "${log_file}.1"
     fi
 }
