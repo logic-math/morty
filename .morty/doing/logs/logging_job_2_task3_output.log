@@ -1,0 +1,34 @@
+## Task #3 完成
+
+已成功实现最大保留文件数限制功能。
+
+### 主要修改
+
+**`lib/logging.sh`**:
+- 新增 `_log_cleanup_old_logs()` 函数：清理编号超出 `LOG_MAX_FILES` 限制的所有历史日志文件
+- 修改 `_log_rotate_if_needed()`：在轮转前调用清理函数，确保离散的历史文件（如 .log.4, .log.5）被正确处理
+
+### 实现逻辑
+
+1. **清理旧文件**：首先删除所有编号大于 `LOG_MAX_FILES` 的日志文件
+2. **标准轮转**：删除最旧的保留文件（.log.N），然后将所有文件向后移动一位
+3. **当前日志归档**：将当前日志移动到 .log.1
+
+### 验证结果
+
+- ✅ 日志文件超过大小时正确触发轮转
+- ✅ 超出限制的旧日志文件被删除
+- ✅ 日志写入不丢失消息
+
+<!-- RALPH_STATUS -->
+{
+  "module": "logging",
+  "job": "job_2",
+  "status": "RUNNING",
+  "tasks_completed": 3,
+  "tasks_total": 5,
+  "loop_count": 2,
+  "debug_issues": 0,
+  "summary": "完成 Task #3：实现最大保留文件数限制。添加 _log_cleanup_old_logs() 函数清理离散历史文件，确保轮转后只保留配置的最多文件数 (LOG_MAX_FILES)。测试全部通过。"
+}
+<!-- END_RALPH_STATUS -->

@@ -1,0 +1,4 @@
+Job started at 2026-02-21 00:52:40
+[2026-02-21 00:52:40] [INFO] [doing:job_1] Job doing:job_1 started
+Job completed at 2026-02-21 00:52:40 (duration: 0s)
+[2026-02-21 00:52:40] [INFO] [doing:job_1] Job doing:job_1 completed (duration: 0s)

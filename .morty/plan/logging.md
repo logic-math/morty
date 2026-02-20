@@ -98,7 +98,7 @@ DEBUG < INFO < WARN < ERROR < SUCCESS < LOOP
 - [x] 实现日志轮转（当前日志 -> morty.log.1 -> morty.log.2）
 - [x] 实现最大保留文件数限制
 - [ ] 支持按日期归档（可选）
-- [ ] 实现日志压缩（对旧日志）
+- [x] 实现日志压缩（对旧日志）
 
 **验证器**:
 - 当日志文件超过配置的大小限制（默认 10MB）时，应自动触发轮转
@@ -119,7 +119,7 @@ DEBUG < INFO < WARN < ERROR < SUCCESS < LOOP
 **前置条件**: Job 2 完成
 
 **Tasks (Todo 列表)**:
-- [ ] 实现 `log_job_start(module, job)` 创建 Job 日志上下文
+- [x] 实现 `log_job_start(module, job)` 创建 Job 日志上下文
 - [ ] 实现 `log_job_end()` 关闭 Job 日志上下文
 - [ ] 实现 `log_job(message)` 写入 Job 独立日志
 - [ ] 在 Job 日志中自动记录开始时间、结束时间、执行时长

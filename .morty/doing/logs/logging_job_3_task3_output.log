@@ -1,0 +1,14 @@
+Task 3 已完成。输出执行摘要：
+
+<!-- RALPH_STATUS -->
+{
+  "module": "logging",
+  "job": "job_3",
+  "status": "RUNNING",
+  "tasks_completed": 3,
+  "tasks_total": 5,
+  "loop_count": 1,
+  "debug_issues": 0,
+  "summary": "Task 3 完成：实现 `log_job(message)` 函数。该函数将消息写入当前 Job 的独立日志文件，同时通过 `_log_write` 写入主日志，实现双日志输出。验证测试通过：消息正确写入 .morty/logs/jobs/doing_job1.log，支持 INFO/WARN/ERROR 级别。"
+}
+<!-- END_RALPH_STATUS -->

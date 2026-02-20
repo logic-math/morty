@@ -453,16 +453,15 @@ log_job_start() {
 
     _log_init
 
+    # 规范化 job_name: 移除下划线以生成文件友好名称
+    local job_file_name="${job_name//_/}"
+
     _LOG_JOB_MODULE="${module}"
     _LOG_JOB_NAME="${job_name}"
-    _LOG_JOB_FILE="${LOG_DIR}/jobs/${module}_${job_name}.log"
+    _LOG_JOB_FILE="${LOG_DIR}/jobs/${module}_${job_file_name}.log"
     _LOG_JOB_START_TIME=$(date +%s)
 
-    # 创建 Job 日志文件并记录开始
-    local start_msg="Job started at $(_log_timestamp)"
-    echo "${start_msg}" > "${_LOG_JOB_FILE}" 2>/dev/null
-
-    # 同时记录到主日志
+    # 创建 Job 日志文件（log_info 会同时写入主日志和 Job 日志）
     log_info "Job ${module}:${job_name} started"
 }
 
@@ -479,15 +478,20 @@ log_job_end() {
     end_time=$(date +%s)
     local duration=$((end_time - _LOG_JOB_START_TIME))
 
-    local end_msg="Job ${status} at $(_log_timestamp) (duration: ${duration}s)"
-
-    # 写入 Job 日志
-    if [[ -n "${_LOG_JOB_FILE}" ]]; then
-        echo "${end_msg}" >> "${_LOG_JOB_FILE}" 2>/dev/null
-    fi
-
-    # 记录到主日志
+    # 记录结束信息到主日志（会自动写入 Job 日志）
     log_info "Job ${_LOG_JOB_MODULE}:${_LOG_JOB_NAME} ${status} (duration: ${duration}s)"
+
+    # 在 Job 日志末尾添加统计信息
+    if [[ -n "${_LOG_JOB_FILE}" ]]; then
+        local timestamp
+        timestamp=$(_log_timestamp)
+        {
+            echo ""
+            echo "=== Job ${status} ==="
+            echo "End time: ${timestamp}"
+            echo "Duration: ${duration}s"
+        } >> "${_LOG_JOB_FILE}" 2>/dev/null
+    fi
 
     # 清理上下文
     _LOG_JOB_MODULE=""
@@ -498,6 +502,8 @@ log_job_end() {
 
 # 写入 Job 独立日志
 # Usage: log_job <message> [level]
+# 注意：此函数只写入 Job 独立日志，不会写入主日志
+# 如需同时写入两者，请直接使用 log_info 等函数（在 Job 上下文中会自动双写）
 log_job() {
     local message="$1"
     local level="${2:-INFO}"
@@ -538,9 +544,6 @@ log_job() {
             eval "exec ${job_lock_handle}>&-"
         fi
     fi
-
-    # 同时写入主日志
-    _log_write "${level_num}" "${message}"
 }
 
 # Job 调试日志

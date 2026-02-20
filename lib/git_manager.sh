@@ -371,6 +371,10 @@ git_reset_to_commit() {
         if [[ -n "${LOGGING_LOADED:-}" ]]; then
             log SUCCESS "✓ 已回滚到提交: ${commit_id:0:8}"
         fi
+
+        # 清理未跟踪文件（保留 .morty/logs/）
+        _git_clean_untracked_files
+
         return 0
     else
         if [[ -n "${LOGGING_LOADED:-}" ]]; then
@@ -379,6 +383,38 @@ git_reset_to_commit() {
         return 1
     fi
 }
+
+# 清理未跟踪文件，保留 .morty/logs/
+# 内部辅助函数
+# Returns: 0 成功
+_git_clean_untracked_files() {
+    local repo_root
+    repo_root=$(git_get_repo_root)
+
+    # 检查 .morty/logs/ 是否存在且是未跟踪目录
+    if [[ -d "$repo_root/.morty/logs" ]]; then
+        # 临时移动 .morty/logs/ 到安全位置
+        local temp_logs
+        temp_logs=$(mktemp -d)
+        mv "$repo_root/.morty/logs" "$temp_logs/" 2>/dev/null || true
+
+        # 清理所有未跟踪文件和目录
+        git clean -fd > /dev/null 2>&1 || true
+
+        # 恢复 .morty/logs/
+        mkdir -p "$repo_root/.morty"
+        mv "$temp_logs/logs" "$repo_root/.morty/" 2>/dev/null || true
+        rm -rf "$temp_logs" 2>/dev/null || true
+
+        if [[ -n "${LOGGING_LOADED:-}" ]]; then
+            log INFO "已清理未跟踪文件（保留 .morty/logs/）"
+        fi
+    else
+        # 没有日志目录需要保留，直接清理
+        git clean -fd > /dev/null 2>&1 || true
+    fi
+
+    return 0
 
 # 回滚到指定循环
 # Args:
