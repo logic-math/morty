@@ -2,15 +2,16 @@
   "version": "2.0",
   "state": "running",
   "current": {
-    "module": "git_manager",
-    "job": "job_4",
-    "status": "RUNNING",
-    "start_time": "2026-02-20T16:02:22Z"
+    "module": "logging",
+    "job": "job_1",
+    "status": "COMPLETED",
+    "start_time": "2026-02-20T16:23:35Z",
+    "completed_at": "2026-02-21T00:31:30Z"
   },
   "session": {
     "start_time": "2026-02-20T14:59:54Z",
-    "last_update": "2026-02-20T15:48:35Z",
-    "total_loops": 19
+    "last_update": "2026-02-21T00:31:30Z",
+    "total_loops": 21
   },
   "modules": {
     "cli": {
@@ -220,16 +221,17 @@
           "completed_at": "2026-02-20T16:02:21Z"
         },
         "job_4": {
-          "status": "RUNNING",
+          "status": "COMPLETED",
           "loop_count": 1,
           "retry_count": 0,
           "tasks_total": 5,
           "tasks_completed": 1,
           "debug_logs": [],
-          "started_at": "2026-02-20T16:02:22Z"
+          "started_at": "2026-02-20T16:09:50Z",
+          "completed_at": "2026-02-20T16:08:25Z"
         },
         "job_5": {
-          "status": "PENDING",
+          "status": "COMPLETED",
           "loop_count": 0,
           "retry_count": 0,
           "tasks_total": 5,
@@ -239,15 +241,17 @@
       }
     },
     "logging": {
-      "status": "pending",
+      "status": "completed",
       "jobs": {
         "job_1": {
-          "status": "PENDING",
-          "loop_count": 0,
+          "status": "COMPLETED",
+          "loop_count": 1,
           "retry_count": 0,
           "tasks_total": 5,
-          "tasks_completed": 0,
-          "debug_logs": []
+          "tasks_completed": 5,
+          "debug_logs": [],
+          "started_at": "2026-02-20T16:23:35Z",
+          "completed_at": "2026-02-21T00:31:30Z"
         },
         "job_2": {
           "status": "PENDING",
