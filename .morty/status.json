@@ -3,9 +3,9 @@
   "state": "running",
   "current": {
     "module": "git_manager",
-    "job": "job_2",
+    "job": "job_4",
     "status": "RUNNING",
-    "start_time": "2026-02-20T15:48:35Z"
+    "start_time": "2026-02-20T16:02:22Z"
   },
   "session": {
     "start_time": "2026-02-20T14:59:54Z",
@@ -210,20 +210,23 @@
           "completed_at": "2026-02-20T15:51:30Z"
         },
         "job_3": {
-          "status": "PENDING",
-          "loop_count": 0,
+          "status": "COMPLETED",
+          "loop_count": 1,
           "retry_count": 0,
           "tasks_total": 5,
-          "tasks_completed": 0,
-          "debug_logs": []
+          "tasks_completed": 5,
+          "debug_logs": [],
+          "started_at": "2026-02-20T15:55:33Z",
+          "completed_at": "2026-02-20T16:02:21Z"
         },
         "job_4": {
-          "status": "PENDING",
-          "loop_count": 0,
+          "status": "RUNNING",
+          "loop_count": 1,
           "retry_count": 0,
           "tasks_total": 5,
-          "tasks_completed": 0,
-          "debug_logs": []
+          "tasks_completed": 1,
+          "debug_logs": [],
+          "started_at": "2026-02-20T16:02:22Z"
         },
         "job_5": {
           "status": "PENDING",
