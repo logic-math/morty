@@ -4,14 +4,14 @@
   "current": {
     "module": "logging",
     "job": "job_2",
-    "status": "RUNNING",
+    "status": "COMPLETED",
     "start_time": "2026-02-20T16:32:54Z",
-    "completed_at": "2026-02-21T00:31:30Z"
+    "completed_at": "2026-02-21T00:50:00Z"
   },
   "session": {
     "start_time": "2026-02-20T14:59:54Z",
-    "last_update": "2026-02-20T16:36:12Z",
-    "total_loops": 22
+    "last_update": "2026-02-21T00:50:00Z",
+    "total_loops": 23
   },
   "modules": {
     "cli": {
@@ -254,14 +254,14 @@
           "completed_at": "2026-02-20T16:32:53Z"
         },
         "job_2": {
-          "status": "RUNNING",
-          "loop_count": 2,
+          "status": "COMPLETED",
+          "loop_count": 3,
           "retry_count": 0,
           "tasks_total": 5,
-          "tasks_completed": 3,
+          "tasks_completed": 5,
           "debug_logs": [],
           "started_at": "2026-02-20T16:32:54Z",
-          "last_task_completed": "2026-02-21T00:39:00Z"
+          "completed_at": "2026-02-21T00:50:00Z"
         },
         "job_3": {
           "status": "PENDING",

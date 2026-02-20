@@ -609,17 +609,60 @@ log_get_job_file() {
 # 日志轮转（将在 Job 2 中实现完整功能）
 # ============================================
 
-# 清理超出最大保留数的旧日志文件
+# 清理超出最大保留数的旧日志文件（包括压缩文件）
 _log_cleanup_old_logs() {
     local base_name="$1"
     local max_files="$2"
 
     # 删除所有编号大于 max_files 的历史日志文件
     local i=$((max_files + 1))
-    while [[ -f "${base_name}.${i}" ]]; do
+    while [[ -f "${base_name}.${i}" ]] || [[ -f "${base_name}.${i}.gz" ]]; do
         rm -f "${base_name}.${i}"
+        rm -f "${base_name}.${i}.gz"
         i=$((i + 1))
     done
+}
+
+# 压缩日志文件
+# Usage: _log_compress_file <file_path>
+# 返回: 0 成功, 1 失败
+_log_compress_file() {
+    local file_path="$1"
+
+    # 检查文件是否存在且非空
+    if [[ ! -f "${file_path}" ]] || [[ ! -s "${file_path}" ]]; then
+        return 0
+    fi
+
+    # 检查 gzip 是否可用
+    if ! command -v gzip >/dev/null 2>&1; then
+        log_warn "gzip not available, skipping compression for ${file_path}"
+        return 1
+    fi
+
+    # 执行压缩
+    local original_size compressed_size
+    original_size=$(stat -f%z "${file_path}" 2>/dev/null || stat -c%s "${file_path}" 2>/dev/null || echo "0")
+
+    # 使用 gzip 压缩，保留原文件时间戳
+    if gzip -c "${file_path}" > "${file_path}.gz.tmp"; then
+        mv "${file_path}.gz.tmp" "${file_path}.gz"
+        rm -f "${file_path}"
+
+        # 验证压缩效果
+        compressed_size=$(stat -f%z "${file_path}.gz" 2>/dev/null || stat -c%s "${file_path}.gz" 2>/dev/null || echo "0")
+
+        if [[ ${original_size} -gt 0 ]]; then
+            local ratio=$((compressed_size * 100 / original_size))
+            log_debug "Compressed ${file_path}: ${original_size} bytes -> ${compressed_size} bytes (${ratio}%)"
+        fi
+
+        return 0
+    else
+        rm -f "${file_path}.gz.tmp"
+        log_warn "Failed to compress ${file_path}"
+        return 1
+    fi
 }
 
 # 检查并执行日志轮转
@@ -638,27 +681,45 @@ _log_rotate_if_needed() {
         local base_name="${log_file}"
         local max_files="${LOG_MAX_FILES}"
 
-        # 首先清理任何超出最大保留数的旧日志文件
-        # 这处理了之前轮转而产生的离散历史文件
+        # 首先清理任何超出最大保留数的旧日志文件（包括压缩文件）
         _log_cleanup_old_logs "${base_name}" "${max_files}"
 
-        # 删除最旧的日志（编号为 max_files 的文件）
+        # 从最旧的开始处理：先压缩即将成为最旧的文件
+        # 如果 max_files=5，那么 .4 -> .5，压缩 .5
         local oldest="${base_name}.${max_files}"
         if [[ -f "${oldest}" ]]; then
-            rm -f "${oldest}"
+            # 压缩最旧的日志文件
+            _log_compress_file "${oldest}"
         fi
+        # 同时也要检查是否有对应的 .gz 文件需要删除
+        rm -f "${oldest}.gz"
 
-        # 向后移动日志（从后往前移动）
-        # 例如：morty.log.2 -> morty.log.3, morty.log.1 -> morty.log.2
-        for ((i=max_files-1; i>=1; i--)); do
+        # 向后移动日志（从后往前移动），同时对较旧的文件进行压缩
+        # 例如：morty.log.3 -> morty.log.4 (并压缩), morty.log.2 -> morty.log.3 (并压缩)
+        for ((i=max_files-1; i>=2; i--)); do
             local src="${base_name}.${i}"
             local dst="${base_name}.$((i+1))"
             if [[ -f "${src}" ]]; then
                 mv "${src}" "${dst}"
+                # 压缩移动后的文件（.log.3 及以上进行压缩）
+                _log_compress_file "${dst}"
+            fi
+            # 同时处理可能存在的压缩文件
+            if [[ -f "${src}.gz" ]]; then
+                mv "${src}.gz" "${dst}.gz"
             fi
         done
 
-        # 移动当前日志到 .log.1
+        # 处理 .log.1 -> .log.2 (压缩)
+        if [[ -f "${base_name}.1" ]]; then
+            mv "${base_name}.1" "${base_name}.2"
+            _log_compress_file "${base_name}.2"
+        fi
+        if [[ -f "${base_name}.1.gz" ]]; then
+            mv "${base_name}.1.gz" "${base_name}.2.gz"
+        fi
+
+        # 移动当前日志到 .log.1（不压缩，保持可读取）
         mv "${log_file}" "${log_file}.1"
     fi
 }
