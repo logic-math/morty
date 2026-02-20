@@ -316,6 +316,19 @@ if [[ $CLAUDE_EXIT_CODE -ne 0 ]]; then
     exit 1
 fi
 
+# 项目进展查看模式：无需更新 .morty/ 目录，直接清理工作目录退出
+if [[ "$IS_PROJECT_VIEW_MODE" == true ]]; then
+    log INFO ""
+    log INFO "项目进展查看模式完成"
+    log INFO ""
+
+    # 清理工作目录
+    log INFO "清理工作目录..."
+    rm -rf "$WORK_DIR"
+    log SUCCESS "✓ 工作目录已清理"
+    exit 0
+fi
+
 # 验证 .morty/ 目录是否已生成
 if [[ ! -d ".morty" ]]; then
     log ERROR ".morty/ 目录未生成"
@@ -337,7 +350,7 @@ if morty_check_project_structure "."; then
     log INFO "现在可以进入循环阶段:"
     log INFO "  运行 'morty loop' 开始开发循环"
     log INFO ""
-    
+
     # 清理工作目录
     log INFO "清理工作目录..."
     rm -rf "$WORK_DIR"

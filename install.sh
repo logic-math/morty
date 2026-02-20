@@ -45,6 +45,9 @@ log INFO "复制文件..."
 cp morty_fix.sh "$INSTALL_DIR/"
 cp morty_loop.sh "$INSTALL_DIR/"
 cp morty_reset.sh "$INSTALL_DIR/"
+cp morty_research.sh "$INSTALL_DIR/"
+cp morty_plan.sh "$INSTALL_DIR/"
+cp morty_doing.sh "$INSTALL_DIR/"
 
 # Copy library and prompts
 cp -r lib "$INSTALL_DIR/"
@@ -80,28 +83,36 @@ Morty - 简化的 AI 开发循环
 用法: morty <command> [options]
 
 命令:
+    research [topic]        交互式代码库/文档库研究
+    plan                    基于研究结果创建 TDD 开发计划
+    doing [options]         执行 Plan 的分层 TDD 开发
     fix <prd.md>            迭代式 PRD 改进(问题修复/功能增强/架构优化)
     loop [options]          启动开发循环(集成监控)
     reset [options]         版本回滚和循环管理
     version                 显示版本
 
 示例:
+    morty research                     # 启动研究模式
+    morty research "api架构"           # 研究指定主题
+    morty plan                         # 基于研究结果创建 TDD 计划
+    morty doing                        # 执行分层 TDD 开发
     morty fix prd.md                   # 改进 PRD 并生成 .morty/ 目录
-    morty fix docs/requirements.md     # 指定 PRD 文件路径
     morty loop                         # 启动带监控的开发循环(推荐)
-    morty loop --max-loops 100         # 自定义最大循环次数
-    morty loop --no-monitor            # 不启动监控,直接运行
     morty reset -l                     # 查看循环提交历史
     morty reset -c abc123              # 回滚到指定 commit
 
-工作流程:
-    1. morty fix <prd.md>              # 迭代式 PRD 改进
-    2. 查看生成的 .morty/specs/*.md    # 检查模块规范
-    3. morty loop                      # 启动循环(自动启动 tmux 监控)
-    4. morty reset -l                  # 查看循环历史
+新工作流程 (research → plan → doing):
+    1. morty research [topic]          # 研究代码库/文档库
+    2. morty plan                      # 基于研究结果创建 TDD 计划
+    3. morty doing                     # 执行分层 TDD 开发
+    4. morty reset -l                  # 查看历史
     5. morty reset -c <commit>         # 回滚到指定版本
-    6. 人工干预修改代码(可选)
-    7. morty loop                      # 从当前状态继续
+
+传统工作流程 (fix → loop):
+    1. morty fix <prd.md>              # 迭代式 PRD 改进
+    2. morty loop                      # 启动循环(自动启动 tmux 监控)
+    3. morty reset -l                  # 查看循环历史
+    4. morty reset -c <commit>         # 回滚到指定版本
 
 监控功能:
     默认情况下,loop 会在 tmux 中启动三面板监控:
@@ -121,6 +132,18 @@ show_version() {
 
 # Command routing
 case "${1:-}" in
+    research)
+        shift
+        exec "$MORTY_HOME/morty_research.sh" "$@"
+        ;;
+    plan)
+        shift
+        exec "$MORTY_HOME/morty_plan.sh" "$@"
+        ;;
+    doing)
+        shift
+        exec "$MORTY_HOME/morty_doing.sh" "$@"
+        ;;
     fix)
         shift
         exec "$MORTY_HOME/morty_fix.sh" "$@"
@@ -165,7 +188,10 @@ if [[ ":$PATH:" != *":$BIN_DIR:"* ]]; then
 fi
 
 log INFO "快速开始:"
-log INFO "  morty fix prd.md  # 改进 PRD 并生成 .morty/ 目录"
-log INFO "  morty loop        # 启动循环(自动启动 tmux 监控)"
+log INFO "  morty research    # 研究代码库/文档库"
+log INFO "  morty plan        # 创建 TDD 开发计划"
+log INFO "  morty doing       # 执行分层 TDD 开发"
+log INFO "  morty fix prd.md  # (传统)改进 PRD 并生成 .morty/ 目录"
+log INFO "  morty loop        # (传统)启动开发循环"
 log INFO ""
 log SUCCESS "使用 Morty 愉快编码! 🚀"
