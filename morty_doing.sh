@@ -16,12 +16,6 @@ DOING_TESTS="$DOING_DIR/tests"
 CLAUDE_CMD="${CLAUDE_CODE_CLI:-ai_cli}"
 DOING_PROMPT="$SCRIPT_DIR/prompts/doing.md"
 
-
-# 命令行选项
-OPTION_MODULE=""
-OPTION_JOB=""
-OPTION_RESTART=false
-
 # ============================================
 # 帮助和入口函数
 # ============================================
@@ -69,8 +63,17 @@ Morty Doing 模式 - 执行 Plan 的分层 TDD 开发
 EOF
 }
 
+# ============================================
+# 参数解析函数 (doing_parse_args)
+# ============================================
+
+# 命令行选项
+OPTION_MODULE=""
+OPTION_JOB=""
+OPTION_RESTART=false
+
 # 解析命令行参数
-parse_arguments() {
+doing_parse_args() {
     while [[ $# -gt 0 ]]; do
         case $1 in
             -h|--help)
@@ -78,10 +81,18 @@ parse_arguments() {
                 exit 0
                 ;;
             --module)
+                if [[ -z "$2" || "$2" == --* ]]; then
+                    log ERROR "--module 需要一个参数"
+                    return 1
+                fi
                 OPTION_MODULE="$2"
                 shift 2
                 ;;
             --job)
+                if [[ -z "$2" || "$2" == --* ]]; then
+                    log ERROR "--job 需要一个参数"
+                    return 1
+                fi
                 OPTION_JOB="$2"
                 shift 2
                 ;;
@@ -92,10 +103,85 @@ parse_arguments() {
             *)
                 log ERROR "未知参数: $1"
                 show_help
-                exit 1
+                return 1
                 ;;
         esac
     done
+    return 0
+}
+
+# ============================================
+# 状态管理函数 (doing_load_status)
+# ============================================
+
+# 加载现有状态
+doing_load_status() {
+    if [[ ! -f "$STATUS_FILE" ]]; then
+        return 1
+    fi
+
+    # 验证 JSON 格式
+    if command -v jq &> /dev/null; then
+        if ! jq empty "$STATUS_FILE" 2>/dev/null; then
+            log ERROR "状态文件格式无效: $STATUS_FILE"
+            return 1
+        fi
+    fi
+
+    return 0
+}
+
+# ============================================
+# Job 选择函数 (doing_select_job)
+# ============================================
+
+# 获取第一个未完成的 Job
+doing_select_job() {
+    local target_module="${1:-}"
+
+    if ! command -v jq &> /dev/null; then
+        echo ""
+        return 1
+    fi
+
+    # 如果指定了模块，只查找该模块
+    if [[ -n "$target_module" ]]; then
+        jq -r --arg mod "$target_module" '
+            .modules[$mod].jobs // {} | to_entries[] |
+            select(.value.status == "PENDING" or .value.status == "FAILED") |
+            "\($mod):\(.key)"
+        ' "$STATUS_FILE" 2>/dev/null | head -1
+    else
+        # 按模块顺序查找第一个状态为 PENDING 或 FAILED 的 Job
+        jq -r '
+            .modules | to_entries[] |
+            .key as $mod |
+            .value.jobs | to_entries[] |
+            select(.value.status == "PENDING" or .value.status == "FAILED") |
+            "\($mod):\(.key)"
+        ' "$STATUS_FILE" 2>/dev/null | head -1
+    fi
+}
+
+# ============================================
+# 状态重置函数 (doing_reset_status)
+# ============================================
+
+# 重置状态（仅重置状态文件，不影响 git 历史和工作目录）
+doing_reset_status() {
+    log WARN "重置状态..."
+
+    # 只删除状态文件，保留目录结构和 git 历史
+    if [[ -f "$STATUS_FILE" ]]; then
+        rm -f "$STATUS_FILE"
+        log INFO "状态文件已删除: $STATUS_FILE"
+    fi
+
+    # 保留 logs 和 tests 目录（历史记录有价值）
+    # 只重置状态，不删除这些目录
+
+    log SUCCESS "状态已重置"
+    return 0
 }
 
 # ============================================
@@ -477,23 +563,6 @@ doing_save_status() {
         local temp_file=$(mktemp)
         jq --arg ts "$timestamp" '.session.last_update = $ts' "$STATUS_FILE" > "$temp_file" && mv "$temp_file" "$STATUS_FILE"
     fi
-}
-
-# 加载现有状态
-doing_load_status() {
-    if [[ ! -f "$STATUS_FILE" ]]; then
-        return 1
-    fi
-
-    # 验证 JSON 格式
-    if command -v jq &> /dev/null; then
-        if ! jq empty "$STATUS_FILE" 2>/dev/null; then
-            log ERROR "状态文件格式无效: $STATUS_FILE"
-            return 1
-        fi
-    fi
-
-    return 0
 }
 
 # 更新 Job 状态
@@ -950,20 +1019,9 @@ doing_run_task() {
 # 简单执行逻辑
 # ============================================
 
-# 获取第一个未完成的 Job
+# 获取第一个未完成的 Job（兼容函数，实际调用 doing_select_job）
 doing_get_first_pending_job() {
-    if ! command -v jq &> /dev/null; then
-        return 1
-    fi
-
-    # 按模块顺序查找第一个状态为 PENDING 或 FAILED 的 Job
-    jq -r '
-        .modules | to_entries[] |
-        .key as $mod |
-        .value.jobs | to_entries[] |
-        select(.value.status == "PENDING" or .value.status == "FAILED") |
-        "\($mod):\(.key)"
-    ' "$STATUS_FILE" 2>/dev/null | head -1
+    doing_select_job
 }
 
 
@@ -973,7 +1031,7 @@ doing_get_first_pending_job() {
 
 doing_main() {
     # 解析命令行参数
-    parse_arguments "$@"
+    doing_parse_args "$@"
 
     # 显示欢迎信息
     log INFO "╔════════════════════════════════════════════════════════════╗"
