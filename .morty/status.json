@@ -3,15 +3,15 @@
   "state": "running",
   "current": {
     "module": "doing",
-    "job": "job_2",
+    "job": "job_3",
     "status": "RUNNING",
-    "start_time": "2026-02-21T18:25:03Z",
+    "start_time": "2026-02-21T18:36:03Z",
     "completed_at": "2026-02-22T02:35:00Z"
   },
   "session": {
     "start_time": "2026-02-21T16:13:36Z",
-    "last_update": "2026-02-21T18:33:09Z",
-    "total_loops": 14
+    "last_update": "2026-02-21T18:36:03Z",
+    "total_loops": 15
   },
   "modules": {
     "cli": {
@@ -220,11 +220,11 @@
           }
         },
         "job_2": {
-          "status": "RUNNING",
+          "status": "COMPLETED",
           "loop_count": 1,
           "retry_count": 0,
           "tasks_total": 5,
-          "tasks_completed": 5,
+          "tasks_completed": 6,
           "debug_logs": [],
           "started_at": "2026-02-21T18:25:03Z",
           "tasks": {
@@ -253,15 +253,40 @@
               "status": "COMPLETED",
               "completed_at": "2026-02-22T10:34:00Z"
             }
-          }
+          },
+          "completed_at": "2026-02-21T18:36:02Z"
         },
         "job_3": {
-          "status": "PENDING",
-          "loop_count": 0,
+          "status": "COMPLETED",
+          "loop_count": 1,
           "retry_count": 0,
           "tasks_total": 4,
-          "tasks_completed": 0,
-          "debug_logs": []
+          "tasks_completed": 4,
+          "debug_logs": [],
+          "started_at": "2026-02-21T18:36:03Z",
+          "completed_at": "2026-02-22T10:45:00Z",
+          "tasks": {
+            "task_1": {
+              "description": "创建 `prompts/doing.md` 系统提示词",
+              "status": "COMPLETED",
+              "completed_at": "2026-02-22T10:40:00Z"
+            },
+            "task_2": {
+              "description": "实现 `doing_build_prompt()`",
+              "status": "COMPLETED",
+              "completed_at": "2026-02-22T10:42:00Z"
+            },
+            "task_3": {
+              "description": "实现 `doing_load_plan_context()`",
+              "status": "COMPLETED",
+              "completed_at": "2026-02-22T10:43:00Z"
+            },
+            "task_4": {
+              "description": "实现 `doing_save_prompt_to_file()`",
+              "status": "COMPLETED",
+              "completed_at": "2026-02-22T10:45:00Z"
+            }
+          }
         },
         "job_4": {
           "status": "PENDING",

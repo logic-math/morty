@@ -1,0 +1,14 @@
+执行完成。输出 RALPH_STATUS：
+
+<!-- RALPH_STATUS -->
+{
+  "module": "config",
+  "job": "job_2",
+  "status": "RUNNING",
+  "tasks_completed": 1,
+  "tasks_total": 4,
+  "loop_count": 1,
+  "debug_issues": 0,
+  "summary": "成功实现 config_check_work_dir() 及相关函数。创建了 lib/config.sh，包含完整的工作目录管理功能：检查目录存在、初始化目录结构、确保目录可写。Task 1 已完成，剩余 3 个 Tasks 待执行。"
+}
+<!-- END_RALPH_STATUS -->

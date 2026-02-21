@@ -1,0 +1,50 @@
+## Task 完成
+
+已成功实现 `doing_execute_job()` 函数，并添加了完整的信号处理机制。主要改动：
+
+**morty_doing.sh 新增功能：**
+
+1. **Ctrl+C 优雅中断** (`doing_interrupt_handler`):
+   - 捕获 INT/TERM 信号
+   - 保存当前 Job 执行状态到 status.json
+   - 记录中断时间戳 (`interrupted_at`)
+   - 清理临时文件后退出
+
+2. **信号处理设置** (`doing_setup_signal_handlers`):
+   - 主入口函数首先设置信号捕获
+   - 用户提示支持 Ctrl+C 中断
+
+3. **增强的 Task 执行** (`doing_run_task`):
+   - 后台运行 ai_cli 进程
+   - 循环检测中断信号，可终止子进程
+   - 完整日志记录到 `$DOING_LOGS/${module}_${job}_task${task_index}_output.log`
+   - 解析 RALPH_STATUS 中的成功/失败状态
+   - 失败时提取并记录失败原因
+
+4. **状态管理**:
+   - `CURRENT_MODULE` / `CURRENT_JOB` 全局变量跟踪当前执行
+   - `INTERRUPT_RECEIVED` 标志用于跨函数中断检测
+
+**验证器满足情况：**
+- ✅ ai_cli 以黑箱方式运行（管道传递）
+- ✅ 所有输出通过 logging 模块记录
+- ✅ 正确解析执行结果（成功/失败）
+- ✅ 失败时记录原因到日志
+- ✅ Ctrl+C 优雅中断并保存状态
+
+<!-- RALPH_STATUS -->
+```json
+{
+  "module": "doing",
+  "job": "job_2",
+  "status": "RUNNING",
+  "tasks_completed": 1,
+  "tasks_total": 5,
+  "loop_count": 1,
+  "debug_issues": 0,
+  "debug_logs_in_plan": false,
+  "explore_subagent_used": false,
+  "summary": "Task 1 完成: 实现 doing_execute_job() 函数，添加 Ctrl+C 信号处理机制，支持优雅中断并保存状态。所有验证器要求已满足。"
+}
+```
+<!-- END_RALPH_STATUS -->

@@ -1038,53 +1038,113 @@ doing_execute_job() {
     return 0
 }
 
-# 构建 Task 执行提示词
-build_task_prompt() {
+# ============================================
+# 提示词构建和管理函数 (Job 3)
+# ============================================
+
+# 加载 Plan 上下文
+# 读取 Plan 文件获取当前 Job 的完整上下文信息
+# 用法: doing_load_plan_context <module> <job>
+# 输出: JSON 格式的上下文信息
+doing_load_plan_context() {
     local module="$1"
     local job="$2"
-    local task_index="$3"
-    local task_desc="$4"
 
-    # 读取 doing.md 提示词
-    local doing_prompt=""
-    if [[ -f "$DOING_PROMPT" ]]; then
-        doing_prompt=$(cat "$DOING_PROMPT")
-    else
-        log ERROR "Doing 提示词文件不存在: $DOING_PROMPT"
+    # 查找对应的 Plan 文件
+    local plan_file="$PLAN_DIR/${module}.md"
+    if [[ ! -f "$plan_file" ]]; then
+        log ERROR "Plan 文件不存在: $plan_file"
         return 1
     fi
 
-    # 读取当前 Job 的所有 Tasks
-    local job_tasks=""
+    # 从解析结果中获取任务列表
     local tasks=$(get_job_tasks "$module" "$job")
+    local task_list=""
     local idx=1
     while IFS= read -r task_line; do
         if [[ -n "$task_line" ]]; then
             local status=$(echo "$task_line" | cut -d':' -f3)
             local desc=$(echo "$task_line" | cut -d':' -f2)
             if [[ "$status" == "completed" ]]; then
-                job_tasks="${job_tasks}- [x] ${desc}\n"
+                task_list="${task_list}- [x] ${desc}\n"
             else
-                job_tasks="${job_tasks}- [ ] ${desc}\n"
+                task_list="${task_list}- [ ] ${desc}\n"
             fi
         fi
         ((idx++))
     done <<< "$tasks"
 
-    # 读取验证器
-    local validators=""
-    local val_list=$(get_job_validators "$module" "$job")
+    # 获取验证器
+    local validators=$(get_job_validators "$module" "$job")
+    local validator_list=""
     while IFS= read -r val_line; do
         if [[ -n "$val_line" ]]; then
-            local vidx=$(echo "$val_line" | cut -d':' -f1)
             local vdesc=$(echo "$val_line" | cut -d':' -f2)
-            validators="${validators}- ${vdesc}\n"
+            validator_list="${validator_list}- ${vdesc}\n"
         fi
-    done <<< "$val_list"
+    done <<< "$validators"
+
+    # 获取 Job 状态信息
+    local job_status=$(doing_get_job_status "$module" "$job")
+    local loop_count=$(doing_get_loop_count "$module" "$job")
+    local tasks_total=$(doing_get_tasks_total "$module" "$job")
+    local tasks_completed=$(doing_get_tasks_completed "$module" "$job")
+
+    # 输出上下文信息
+    cat << EOF
+{
+  "module": "$module",
+  "job": "$job",
+  "status": "$job_status",
+  "loop_count": $loop_count,
+  "tasks": {
+    "total": $tasks_total,
+    "completed": $tasks_completed
+  },
+  "task_list": "$task_list",
+  "validators": "$validator_list"
+}
+EOF
+}
+
+# 构建完整的执行提示词
+# 组合系统提示词和当前 Job 上下文
+# 用法: doing_build_prompt <module> <job> <task_index> <task_desc>
+# 输出: 完整的提示词内容
+doing_build_prompt() {
+    local module="$1"
+    local job="$2"
+    local task_index="${3:-1}"
+    local task_desc="${4:-}"
+
+    # 读取系统提示词
+    local system_prompt=""
+    if [[ -f "$DOING_PROMPT" ]]; then
+        system_prompt=$(cat "$DOING_PROMPT")
+    else
+        log ERROR "系统提示词文件不存在: $DOING_PROMPT"
+        return 1
+    fi
+
+    # 加载 Plan 上下文
+    local plan_context
+    if ! plan_context=$(doing_load_plan_context "$module" "$job"); then
+        log ERROR "加载 Plan 上下文失败"
+        return 1
+    fi
+
+    # 解析上下文中的任务列表和验证器
+    local task_list=$(echo "$plan_context" | grep '"task_list"' | cut -d'"' -f4)
+    local validator_list=$(echo "$plan_context" | grep '"validators"' | cut -d'"' -f4)
+
+    # 如果未提供 task_desc，从上下文中获取
+    if [[ -z "$task_desc" ]]; then
+        task_desc=$(get_job_tasks "$module" "$job" | sed -n "${task_index}p" | cut -d':' -f2)
+    fi
 
     # 构建完整提示词
     cat << EOF
-$doing_prompt
+$system_prompt
 
 ---
 
@@ -1097,11 +1157,11 @@ $doing_prompt
 
 ## 任务列表
 
-$job_tasks
+$task_list
 
 ## 验证器
 
-$validators
+$validator_list
 
 ## 执行指令
 
@@ -1114,6 +1174,54 @@ $validators
 
 开始执行!
 EOF
+}
+
+# 保存提示词到临时文件
+# 用法: doing_save_prompt_to_file <prompt_content> <output_file>
+# 返回: 0 成功, 1 失败
+doing_save_prompt_to_file() {
+    local prompt_content="$1"
+    local output_file="$2"
+
+    # 检查参数
+    if [[ -z "$prompt_content" ]]; then
+        log ERROR "提示词内容为空"
+        return 1
+    fi
+
+    if [[ -z "$output_file" ]]; then
+        log ERROR "输出文件路径为空"
+        return 1
+    fi
+
+    # 确保目录存在
+    local output_dir=$(dirname "$output_file")
+    if [[ ! -d "$output_dir" ]]; then
+        mkdir -p "$output_dir" || {
+            log ERROR "无法创建目录: $output_dir"
+            return 1
+        }
+    fi
+
+    # 保存提示词到文件
+    echo "$prompt_content" > "$output_file" || {
+        log ERROR "无法写入文件: $output_file"
+        return 1
+    }
+
+    log INFO "提示词已保存: $output_file"
+    return 0
+}
+
+# 构建 Task 执行提示词 (兼容旧接口，使用新的模块化函数)
+build_task_prompt() {
+    local module="$1"
+    local job="$2"
+    local task_index="$3"
+    local task_desc="$4"
+
+    # 使用新的模块化函数构建提示词
+    doing_build_prompt "$module" "$job" "$task_index" "$task_desc"
 }
 
 # 执行单个 Task
@@ -1140,8 +1248,10 @@ doing_run_task() {
 
     # 保存提示词到临时文件
     local prompt_file="$DOING_LOGS/${module}_${job}_task${task_index}_prompt.md"
-    echo "$task_prompt" > "$prompt_file"
-    log INFO "    提示词已保存: $prompt_file"
+    if ! doing_save_prompt_to_file "$task_prompt" "$prompt_file"; then
+        log ERROR "保存提示词失败"
+        return 1
+    fi
 
     # 构建 ai_cli 命令
     local ai_args=(

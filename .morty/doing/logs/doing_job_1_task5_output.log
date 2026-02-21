@@ -1,0 +1,14 @@
+任务已完成。现在输出 RALPH_STATUS。
+
+<!-- RALPH_STATUS -->
+{
+  "module": "doing",
+  "job": "job_1",
+  "status": "COMPLETED",
+  "tasks_completed": 5,
+  "tasks_total": 5,
+  "loop_count": 1,
+  "debug_issues": 0,
+  "summary": "成功实现 doing_reset_status() 函数。该函数仅删除 .morty/status.json 状态文件，保留 logs/ 和 tests/ 目录的历史记录，不影响 git 历史和工作目录。Job 1 所有 5 个 Tasks 已完成，已创建 git 提交 d8b40cf。"
+}
+<!-- END_RALPH_STATUS -->
