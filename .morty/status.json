@@ -10,8 +10,8 @@
   },
   "session": {
     "start_time": "2026-02-21T16:13:36Z",
-    "last_update": "2026-02-21T19:50:58Z",
-    "total_loops": 27
+    "last_update": "2026-02-21T19:55:56Z",
+    "total_loops": 28
   },
   "modules": {
     "cli": {
@@ -637,18 +637,49 @@
       "status": "running",
       "jobs": {
         "job_1": {
-          "status": "RUNNING",
+          "status": "COMPLETED",
           "loop_count": 1,
           "retry_count": 0,
           "tasks_total": 7,
-          "tasks_completed": 1,
+          "tasks_completed": 7,
           "debug_logs": [],
           "started_at": "2026-02-21T19:50:58Z",
+          "completed_at": "2026-02-22T11:55:00Z",
           "tasks": {
             "task_1": {
               "description": "创建 `morty_research.sh` 脚本",
               "status": "COMPLETED",
               "completed_at": "2026-02-22T03:51:00Z"
+            },
+            "task_2": {
+              "description": "读取 `prompts/research.md` 作为系统提示词",
+              "status": "COMPLETED",
+              "completed_at": "2026-02-22T03:51:00Z"
+            },
+            "task_3": {
+              "description": "从 config 获取 ai_cli 命令：AI_CLI=$(config_get \"cli.command\" \"claude\")",
+              "status": "COMPLETED",
+              "completed_at": "2026-02-22T11:50:00Z"
+            },
+    "task_4": {
+              "description": "构建 Claude 命令参数",
+              "status": "COMPLETED",
+              "completed_at": "2026-02-22T11:55:00Z"
+            },
+    "task_5": {
+              "description": "以 Plan 模式调用：$AI_CLI --permission-mode plan -p \"$PROMPT\"",
+              "status": "COMPLETED",
+              "completed_at": "2026-02-22T11:55:00Z"
+            },
+    "task_6": {
+              "description": "创建 `.morty/research/` 目录",
+              "status": "COMPLETED",
+              "completed_at": "2026-02-22T11:55:00Z"
+            },
+    "task_7": {
+              "description": "验证输出目录是否生成内容",
+              "status": "COMPLETED",
+              "completed_at": "2026-02-22T11:55:00Z"
             }
           }
         }
