@@ -1439,6 +1439,96 @@ doing_execute_job() {
 # 提示词构建和管理函数 (Job 3)
 # ============================================
 
+# 构建精简上下文
+# 从 status.json 生成精简的上下文信息，用于传递给 AI
+# 用法: doing_build_compact_context <module> <job>
+# 输出: JSON 格式的精简上下文
+doing_build_compact_context() {
+    local module="$1"
+    local job="$2"
+
+    # 检查 status.json 是否存在
+    if [[ ! -f "$STATUS_FILE" ]]; then
+        log ERROR "状态文件不存在: $STATUS_FILE"
+        return 1
+    fi
+
+    # 获取当前 Job 信息
+    local job_status=$(doing_get_job_status "$module" "$job")
+    local loop_count=$(doing_get_loop_count "$module" "$job")
+    local tasks_total=$(doing_get_tasks_total "$module" "$job")
+    local tasks_completed=$(doing_get_tasks_completed "$module" "$job")
+
+    # 获取当前 Job 的任务列表
+    local tasks=$(get_job_tasks "$module" "$job")
+    local task_array=""
+    local idx=1
+    while IFS= read -r task_line; do
+        if [[ -n "$task_line" ]]; then
+            local task_desc=$(echo "$task_line" | cut -d':' -f2)
+            if [[ -n "$task_array" ]]; then
+                task_array="${task_array},"
+            fi
+            task_array="${task_array}\"${task_desc}\""
+        fi
+        ((idx++))
+    done <<< "$tasks"
+
+    # 获取验证器
+    local validators=$(get_job_validators "$module" "$job")
+    local validator_desc=""
+    while IFS= read -r val_line; do
+        if [[ -n "$val_line" ]]; then
+            validator_desc=$(echo "$val_line" | cut -d':' -f2)
+            break  # 只取第一个验证器描述
+        fi
+    done <<< "$validators"
+
+    # 构建已完成 Job 的摘要列表
+    local completed_jobs_summary=""
+    local modules=$(jq -r '(.modules // {}) | keys[]' "$STATUS_FILE" 2>/dev/null)
+    for mod in $modules; do
+        local jobs=$(jq -r --arg m "$mod" '(.modules[$m].jobs // {}) | keys[]' "$STATUS_FILE" 2>/dev/null)
+        for j in $jobs; do
+            # 跳过当前 Job
+            if [[ "$mod" == "$module" && "$j" == "$job" ]]; then
+                continue
+            fi
+
+            local jstatus=$(jq -r --arg m "$mod" --arg j "$j" '.modules[$m].jobs[$j].status' "$STATUS_FILE" 2>/dev/null)
+            if [[ "$jstatus" == "COMPLETED" ]]; then
+                local jtasks=$(jq -r --arg m "$mod" --arg j "$j" '.modules[$m].jobs[$j].tasks_total // 0' "$STATUS_FILE" 2>/dev/null)
+                if [[ -n "$completed_jobs_summary" ]]; then
+                    completed_jobs_summary="${completed_jobs_summary},"
+                fi
+                completed_jobs_summary="${completed_jobs_summary}\"${mod}/${j}: 完成 (${jtasks} tasks)\""
+            fi
+        done
+    done
+
+    # 输出精简上下文 JSON
+    cat << EOF
+{
+  "current": {
+    "module": "$module",
+    "job": "$job",
+    "status": "$job_status",
+    "loop_count": $loop_count
+  },
+  "context": {
+    "completed_jobs_summary": [${completed_jobs_summary}],
+    "current_job": {
+      "name": "$job",
+      "description": "Job execution",
+      "tasks": [${task_array}],
+      "dependencies": [],
+      "validator": "${validator_desc}"
+    }
+  }
+}
+EOF
+}
+
 # 加载 Plan 上下文
 # 读取 Plan 文件获取当前 Job 的完整上下文信息
 # 用法: doing_load_plan_context <module> <job>
@@ -1505,7 +1595,7 @@ EOF
 }
 
 # 构建完整的执行提示词
-# 组合系统提示词和当前 Job 上下文
+# 组合系统提示词和精简上下文
 # 用法: doing_build_prompt <module> <job> <task_index> <task_desc>
 # 输出: 完整的提示词内容
 doing_build_prompt() {
@@ -1523,16 +1613,37 @@ doing_build_prompt() {
         return 1
     fi
 
-    # 加载 Plan 上下文
-    local plan_context
-    if ! plan_context=$(doing_load_plan_context "$module" "$job"); then
-        log ERROR "加载 Plan 上下文失败"
+    # 构建精简上下文
+    local compact_context
+    if ! compact_context=$(doing_build_compact_context "$module" "$job"); then
+        log ERROR "构建精简上下文失败"
         return 1
     fi
 
-    # 解析上下文中的任务列表和验证器
-    local task_list=$(echo "$plan_context" | grep '"task_list"' | cut -d'"' -f4)
-    local validator_list=$(echo "$plan_context" | grep '"validators"' | cut -d'"' -f4)
+    # 从精简上下文中提取任务列表用于显示
+    local tasks=$(get_job_tasks "$module" "$job")
+    local task_list=""
+    while IFS= read -r task_line; do
+        if [[ -n "$task_line" ]]; then
+            local status=$(echo "$task_line" | cut -d':' -f3)
+            local desc=$(echo "$task_line" | cut -d':' -f2)
+            if [[ "$status" == "completed" ]]; then
+                task_list="${task_list}- [x] ${desc}\n"
+            else
+                task_list="${task_list}- [ ] ${desc}\n"
+            fi
+        fi
+    done <<< "$tasks"
+
+    # 获取验证器列表
+    local validators=$(get_job_validators "$module" "$job")
+    local validator_list=""
+    while IFS= read -r val_line; do
+        if [[ -n "$val_line" ]]; then
+            local vdesc=$(echo "$val_line" | cut -d':' -f2)
+            validator_list="${validator_list}- ${vdesc}\n"
+        fi
+    done <<< "$validators"
 
     # 如果未提供 task_desc，从上下文中获取
     if [[ -z "$task_desc" ]]; then
@@ -1542,6 +1653,14 @@ doing_build_prompt() {
     # 构建完整提示词
     cat << EOF
 $system_prompt
+
+---
+
+# 精简上下文
+
+\`\`\`json
+$compact_context
+\`\`\`
 
 ---
 
@@ -1563,7 +1682,7 @@ $validator_list
 ## 执行指令
 
 请按照 Doing 模式的循环步骤执行：
-1. 读取 .morty/status.json 了解当前状态
+1. 读取精简上下文了解当前状态
 2. 执行当前 Task: $task_desc
 3. 如有问题，记录 debug_log
 4. 更新状态文件

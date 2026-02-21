@@ -1,0 +1,14 @@
+Job 3 已完成。
+
+<!-- RALPH_STATUS -->
+{
+  "module": "doing",
+  "job": "job_3",
+  "status": "COMPLETED",
+  "tasks_completed": 4,
+  "tasks_total": 4,
+  "loop_count": 1,
+  "debug_issues": 0,
+  "summary": "成功实现提示词构建和管理功能。确认 prompts/doing.md 系统提示词已存在且完整；实现 doing_load_plan_context() 加载 Plan 上下文；实现 doing_build_prompt() 组合系统提示词和 Job 上下文；实现 doing_save_prompt_to_file() 保存提示词到临时文件；重构 build_task_prompt() 使用新的模块化函数。脚本语法检查通过，状态已更新，Git 提交已创建。"
+}
+<!-- END_RALPH_STATUS -->

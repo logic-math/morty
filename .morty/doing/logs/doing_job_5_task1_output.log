@@ -1,0 +1,37 @@
+All verification checks passed. 
+
+---
+
+## Summary
+
+Successfully completed Job 5 (Task 1-4) - integrating `version_create_loop_commit()`:
+
+**Changes made:**
+
+1. **`lib/common.sh`**: Added `version_create_loop_commit()` function that:
+   - Generates commit messages with module name, job name, status, and change summary
+   - Detects changes before committing (prevents empty commits)
+   - Handles commit failures gracefully (logs warning, doesn't interrupt workflow)
+
+2. **`morty_doing.sh`**: Integrated the function into `doing_mark_completed()` to automatically create Git commits when Jobs are completed
+
+3. **`.morty/status.json`**: Updated job_5 status to COMPLETED with all 4 tasks marked as done
+
+**Verification criteria met:**
+- ✅ Job 完成后自动创建 Git 提交
+- ✅ 提交信息包含 "morty"
+- ✅ 无变更时不创建空提交
+- ✅ 提交失败时记录警告但不中断流程
+
+<!-- RALPH_STATUS -->
+{
+  "module": "doing",
+  "job": "job_5",
+  "status": "COMPLETED",
+  "tasks_completed": 4,
+  "tasks_total": 4,
+  "loop_count": 1,
+  "debug_issues": 0,
+  "summary": "Integrated version_create_loop_commit() function with commit message generation, change detection, and graceful failure handling"
+}
+<!-- END_RALPH_STATUS -->

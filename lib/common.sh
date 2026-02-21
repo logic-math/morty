@@ -201,6 +201,78 @@ You can rollback to this point using: git reset --hard HEAD~N"
     fi
 }
 
+# Create a Git commit after completing a Job
+# This function creates a commit with Job name and status information
+# Usage: version_create_loop_commit <module> <job> <status> [summary]
+# Returns: 0 if successful or no changes, 1 if commit failed
+version_create_loop_commit() {
+    local module="${1:-}"
+    local job="${2:-}"
+    local status="${3:-}"
+    local summary="${4:-Job completed}"
+
+    # Check if git is available
+    if ! command -v git &> /dev/null; then
+        log WARN "Git not available, skipping commit"
+        return 0
+    fi
+
+    # Check if this is a git repository
+    if ! git rev-parse --git-dir > /dev/null 2>&1; then
+        log WARN "Not a git repository, skipping commit"
+        return 0
+    fi
+
+    # Validate required parameters
+    if [[ -z "$module" || -z "$job" || -z "$status" ]]; then
+        log WARN "Missing required parameters for version_create_loop_commit (module: $module, job: $job, status: $status)"
+        return 0
+    fi
+
+    # Stage all changes (including untracked files)
+    git add -A 2>/dev/null || {
+        log WARN "Failed to stage changes"
+        return 0
+    }
+
+    # Check if there are any staged changes (prevents empty commits)
+    if git diff --cached --quiet 2>/dev/null; then
+        log INFO "No changes to commit for $module/$job"
+        return 0
+    fi
+
+    # Get the number of changed files for the commit message
+    local changed_files=$(git diff --cached --numstat 2>/dev/null | wc -l)
+    local insertions=$(git diff --cached --numstat 2>/dev/null | awk '{sum+=$1} END {print sum+0}')
+    local deletions=$(git diff --cached --numstat 2>/dev/null | awk '{sum+=$2} END {print sum+0}')
+
+    # Create commit message with Job information
+    local commit_msg="morty: $module/$job - $status
+
+$summary
+
+- Module: $module
+- Job: $job
+- Status: $status
+- Files changed: $changed_files
+- Insertions: $insertions
+- Deletions: $deletions
+- Timestamp: $(get_iso_timestamp)
+
+Auto-committed by Morty Doing mode."
+
+    # Attempt to commit changes
+    if git commit -m "$commit_msg" > /dev/null 2>&1; then
+        local commit_hash=$(git rev-parse --short HEAD 2>/dev/null)
+        log SUCCESS "Created commit $commit_hash for $module/$job ($status)"
+        return 0
+    else
+        # Commit failed - log warning but don't interrupt workflow
+        log WARN "Failed to create commit for $module/$job - continuing without commit"
+        return 0
+    fi
+}
+
 # Rollback to a specific loop
 git_rollback() {
     local target_loop=$1

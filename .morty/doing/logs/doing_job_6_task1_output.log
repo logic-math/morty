@@ -1,0 +1,14 @@
+Job 6 完成。输出 RALPH_STATUS：
+
+<!-- RALPH_STATUS -->
+{
+  "module": "doing",
+  "job": "job_6",
+  "status": "COMPLETED",
+  "tasks_completed": 5,
+  "tasks_total": 5,
+  "loop_count": 1,
+  "debug_issues": 0,
+  "summary": "Job 6 完成：实现 JSON 输出格式支持。修改 ai_cli 调用添加 --output-format json 参数，重写解析函数使用 jq 解析 JSON，添加文本解析回退逻辑，更新 prompts/doing.md，创建测试脚本，所有 11 项测试通过。"
+}
+<!-- END_RALPH_STATUS -->
