@@ -3,14 +3,15 @@
   "state": "running",
   "current": {
     "module": "config",
-    "job": "job_2",
-    "status": "RUNNING",
-    "start_time": "2026-02-21T18:06:30Z"
+    "job": "job_3",
+    "status": "COMPLETED",
+    "start_time": "2026-02-21T18:12:37Z",
+    "completed_at": "2026-02-22T02:15:00Z"
   },
   "session": {
     "start_time": "2026-02-21T16:13:36Z",
-    "last_update": "2026-02-21T18:09:44Z",
-    "total_loops": 8
+    "last_update": "2026-02-21T18:12:37Z",
+    "total_loops": 9
   },
   "modules": {
     "cli": {
@@ -112,10 +113,10 @@
           "loop_count": 1,
           "retry_count": 0,
           "tasks_total": 4,
-          "tasks_completed": 4,
+          "tasks_completed": 5,
           "debug_logs": [],
           "started_at": "2026-02-21T18:06:30Z",
-          "completed_at": "2026-02-22T02:11:00Z",
+          "completed_at": "2026-02-21T18:12:36Z",
           "tasks": {
             "task_1": {
               "description": "实现 `config_check_work_dir()`",
@@ -140,12 +141,41 @@
           }
         },
         "job_3": {
-          "status": "PENDING",
-          "loop_count": 0,
+          "status": "COMPLETED",
+          "loop_count": 1,
           "retry_count": 0,
           "tasks_total": 5,
-          "tasks_completed": 0,
-          "debug_logs": []
+          "tasks_completed": 5,
+          "debug_logs": [],
+          "started_at": "2026-02-21T18:12:37Z",
+          "completed_at": "2026-02-22T02:15:00Z",
+          "tasks": {
+            "task_1": {
+              "description": "实现 `config_check_research_exists()`",
+              "status": "COMPLETED",
+              "completed_at": "2026-02-22T02:13:00Z"
+            },
+            "task_2": {
+              "description": "实现 `config_check_plan_done()`",
+              "status": "COMPLETED",
+              "completed_at": "2026-02-22T02:13:00Z"
+            },
+            "task_3": {
+              "description": "实现 `config_require_plan()`",
+              "status": "COMPLETED",
+              "completed_at": "2026-02-22T02:13:00Z"
+            },
+            "task_4": {
+              "description": "实现 `config_load_research_facts()`",
+              "status": "COMPLETED",
+              "completed_at": "2026-02-22T02:13:00Z"
+            },
+            "task_5": {
+              "description": "定义前置条件检查的错误提示信息",
+              "status": "COMPLETED",
+              "completed_at": "2026-02-22T02:13:00Z"
+            }
+          }
         }
       }
     },
