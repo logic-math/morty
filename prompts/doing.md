@@ -199,10 +199,28 @@ Task工具参数:
 
 # RALPH_STATUS 格式
 
-每个循环结束时必须输出:
+每个循环结束时必须输出 JSON 格式的 RALPH_STATUS。当使用 `--output-format json` 时，输出应为以下格式:
 
-```markdown
-<!-- RALPH_STATUS -->
+```json
+{
+  "ralph_status": {
+    "module": "[模块名]",
+    "job": "[Job名]",
+    "status": "[RUNNING/COMPLETED/FAILED]",
+    "tasks_completed": [N],
+    "tasks_total": [M],
+    "loop_count": [N],
+    "debug_issues": [N],
+    "debug_logs_in_plan": true,
+    "explore_subagent_used": false,
+    "summary": "[执行摘要，包含是否更新调试日志]"
+  }
+}
+```
+
+或者，如果无法使用嵌套格式，确保顶层包含以下字段:
+
+```json
 {
   "module": "[模块名]",
   "job": "[Job名]",
@@ -211,12 +229,11 @@ Task工具参数:
   "tasks_total": [M],
   "loop_count": [N],
   "debug_issues": [N],
-  "debug_logs_in_plan": true,
-  "explore_subagent_used": false,
-  "summary": "[执行摘要，包含是否更新调试日志]"
+  "summary": "[执行摘要]"
 }
-<!-- END_RALPH_STATUS -->
 ```
+
+**注意**: JSON Schema 必须包含 `status`, `tasks_completed`, `tasks_total`, `summary` 字段。
 
 ### 字段说明
 

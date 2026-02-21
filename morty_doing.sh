@@ -114,6 +114,31 @@ doing_parse_args() {
 # 状态管理函数 (doing_load_status)
 # ============================================
 
+# 定义有效的状态列表
+DOING_VALID_STATES=("PENDING" "RUNNING" "COMPLETED" "FAILED" "BLOCKED")
+
+# 状态转换规则定义
+# 格式: "当前状态:目标状态" -> 是否允许
+doing_is_valid_transition() {
+    local from_state="$1"
+    local to_state="$2"
+
+    # 定义允许的状态转换
+    case "${from_state}:${to_state}" in
+        "PENDING:RUNNING")    return 0 ;;
+        "PENDING:BLOCKED")    return 0 ;;
+        "RUNNING:COMPLETED")  return 0 ;;
+        "RUNNING:FAILED")     return 0 ;;
+        "RUNNING:PENDING")    return 0 ;;  # 重试时允许重置为 PENDING
+        "RUNNING:BLOCKED")    return 0 ;;
+        "FAILED:PENDING")     return 0 ;;  # 重试时允许
+        "FAILED:RUNNING")     return 0 ;;  # 重试时允许
+        "BLOCKED:PENDING")    return 0 ;;  # 解除阻塞时允许
+        "COMPLETED:PENDING")  return 0 ;;  # 重置时允许
+        *)                    return 1 ;;  # 其他转换不允许
+    esac
+}
+
 # 加载现有状态
 doing_load_status() {
     if [[ ! -f "$STATUS_FILE" ]]; then
@@ -568,61 +593,124 @@ doing_save_status() {
     fi
 }
 
-# 更新 Job 状态
+# 获取 Job 当前状态
+doing_get_job_status() {
+    local module="$1"
+    local job="$2"
+
+    if ! command -v jq &> /dev/null; then
+        echo "PENDING"
+        return
+    fi
+
+    jq -r --arg mod "$module" --arg job "$job" \
+        '.modules[$mod].jobs[$job].status // "PENDING"' \
+        "$STATUS_FILE" 2>/dev/null || echo "PENDING"
+}
+
+# 更新 Job 状态（带状态转换验证）
 doing_update_job_status() {
     local module="$1"
     local job="$2"
-    local status="$3"
+    local new_status="$3"
 
     if ! command -v jq &> /dev/null; then
         log WARN "jq 未安装，无法更新状态"
         return 1
     fi
 
+    # 获取当前状态
+    local current_status=$(doing_get_job_status "$module" "$job")
+
+    # 验证状态转换是否合法
+    if ! doing_is_valid_transition "$current_status" "$new_status"; then
+        log ERROR "无效的状态转换: $current_status → $new_status"
+        return 1
+    fi
+
     local timestamp=$(get_iso_timestamp)
     local temp_file=$(mktemp)
 
-    # 如果状态是 RUNNING，记录 started_at
-    # 如果状态是 COMPLETED/FAILED，记录 completed_at
-    if [[ "$status" == "RUNNING" ]]; then
-        jq --arg mod "$module" \
-           --arg job "$job" \
-           --arg status "$status" \
-           --arg ts "$timestamp" \
-           '.modules[$mod].jobs[$job].status = $status |
-            .modules[$mod].jobs[$job].started_at = $ts |
-            .current.module = $mod |
-            .current.job = $job |
-            .current.status = $status |
-            .current.start_time = $ts |
-            .session.last_update = $ts' \
-           "$STATUS_FILE" > "$temp_file" && mv "$temp_file" "$STATUS_FILE"
-    elif [[ "$status" == "COMPLETED" || "$status" == "FAILED" ]]; then
-        jq --arg mod "$module" \
-           --arg job "$job" \
-           --arg status "$status" \
-           --arg ts "$timestamp" \
-           '.modules[$mod].jobs[$job].status = $status |
-            .modules[$mod].jobs[$job].completed_at = $ts |
-            .current.module = $mod |
-            .current.job = $job |
-            .current.status = $status |
-            .session.last_update = $ts' \
-           "$STATUS_FILE" > "$temp_file" && mv "$temp_file" "$STATUS_FILE"
-    else
-        jq --arg mod "$module" \
-           --arg job "$job" \
-           --arg status "$status" \
-           --arg ts "$timestamp" \
-           '.modules[$mod].jobs[$job].status = $status |
-            .current.module = $mod |
-            .current.job = $job |
-            .current.status = $status |
-            .session.last_update = $ts' \
-           "$STATUS_FILE" > "$temp_file" && mv "$temp_file" "$STATUS_FILE"
-    fi
+    # 根据目标状态更新不同字段
+    case "$new_status" in
+        "RUNNING")
+            # PENDING/FAILED → RUNNING: 记录开始时间，增加 loop_count
+            jq --arg mod "$module" \
+               --arg job "$job" \
+               --arg status "$new_status" \
+               --arg ts "$timestamp" \
+               '.modules[$mod].jobs[$job].status = $status |
+                .modules[$mod].jobs[$job].started_at = $ts |
+                .modules[$mod].jobs[$job].loop_count += 1 |
+                .current.module = $mod |
+                .current.job = $job |
+                .current.status = $status |
+                .current.start_time = $ts |
+                .session.last_update = $ts |
+                .session.total_loops += 1' \
+               "$STATUS_FILE" > "$temp_file" && mv "$temp_file" "$STATUS_FILE"
+            ;;
+        "COMPLETED")
+            # RUNNING → COMPLETED: 记录完成时间
+            jq --arg mod "$module" \
+               --arg job "$job" \
+               --arg status "$new_status" \
+               --arg ts "$timestamp" \
+               '.modules[$mod].jobs[$job].status = $status |
+                .modules[$mod].jobs[$job].completed_at = $ts |
+                .current.module = $mod |
+                .current.job = $job |
+                .current.status = $status |
+                .current.completed_at = $ts |
+                .session.last_update = $ts' \
+               "$STATUS_FILE" > "$temp_file" && mv "$temp_file" "$STATUS_FILE"
+            ;;
+        "FAILED")
+            # RUNNING → FAILED: 记录完成时间和增加 retry_count
+            jq --arg mod "$module" \
+               --arg job "$job" \
+               --arg status "$new_status" \
+               --arg ts "$timestamp" \
+               '.modules[$mod].jobs[$job].status = $status |
+                .modules[$mod].jobs[$job].completed_at = $ts |
+                .modules[$mod].jobs[$job].retry_count += 1 |
+                .current.module = $mod |
+                .current.job = $job |
+                .current.status = $status |
+                .current.completed_at = $ts |
+                .session.last_update = $ts' \
+               "$STATUS_FILE" > "$temp_file" && mv "$temp_file" "$STATUS_FILE"
+            ;;
+        "BLOCKED")
+            # 任何状态 → BLOCKED: 标记为阻塞
+            jq --arg mod "$module" \
+               --arg job "$job" \
+               --arg status "$new_status" \
+               --arg ts "$timestamp" \
+               '.modules[$mod].jobs[$job].status = $status |
+                .modules[$mod].jobs[$job].blocked_at = $ts |
+                .current.module = $mod |
+                .current.job = $job |
+                .current.status = $status |
+                .session.last_update = $ts' \
+               "$STATUS_FILE" > "$temp_file" && mv "$temp_file" "$STATUS_FILE"
+            ;;
+        *)
+            # 其他状态直接更新
+            jq --arg mod "$module" \
+               --arg job "$job" \
+               --arg status "$new_status" \
+               --arg ts "$timestamp" \
+               '.modules[$mod].jobs[$job].status = $status |
+                .current.module = $mod |
+                .current.job = $job |
+                .current.status = $status |
+                .session.last_update = $ts' \
+               "$STATUS_FILE" > "$temp_file" && mv "$temp_file" "$STATUS_FILE"
+            ;;
+    esac
 
-    log INFO "状态更新: $module/$job → $status"
+    log INFO "状态更新: $module/$job $current_status → $new_status"
 }
 
 # 标记 Task 完成
@@ -645,6 +733,193 @@ doing_mark_task_complete() {
        '.modules[$mod].jobs[$job].tasks_completed += 1 |
         .session.last_update = $ts' \
        "$STATUS_FILE" > "$temp_file" && mv "$temp_file" "$STATUS_FILE"
+}
+
+# ============================================
+# 状态转换专用函数 (Job 4 Task 3 & 4)
+# ============================================
+
+# 获取最大重试次数
+DOING_MAX_RETRY_COUNT=3
+
+# 获取当前 retry_count
+doing_get_retry_count() {
+    local module="$1"
+    local job="$2"
+
+    if ! command -v jq &> /dev/null; then
+        echo "0"
+        return
+    fi
+
+    jq -r --arg mod "$module" --arg job "$job" \
+        '.modules[$mod].jobs[$job].retry_count // 0' \
+        "$STATUS_FILE" 2>/dev/null || echo "0"
+}
+
+# 检查是否需要重试
+doing_should_retry() {
+    local module="$1"
+    local job="$2"
+
+    local retry_count=$(doing_get_retry_count "$module" "$job")
+
+    if [[ "$retry_count" -lt "$DOING_MAX_RETRY_COUNT" ]]; then
+        return 0  # 需要重试
+    else
+        return 1  # 不需要重试，已达到最大重试次数
+    fi
+}
+
+# 标记 Job 为完成状态
+doing_mark_completed() {
+    local module="$1"
+    local job="$2"
+    local summary="${3:-Job completed successfully}"
+
+    log INFO "标记 Job 完成: $module/$job"
+
+    # 检查当前状态是否允许转换到 COMPLETED
+    local current_status=$(doing_get_job_status "$module" "$job")
+    if [[ "$current_status" != "RUNNING" ]]; then
+        log WARN "Job 当前状态不是 RUNNING ($current_status)，但仍标记为 COMPLETED"
+    fi
+
+    # 更新状态为 COMPLETED
+    if ! doing_update_job_status "$module" "$job" "COMPLETED"; then
+        log ERROR "无法更新 Job 状态为 COMPLETED"
+        return 1
+    fi
+
+    # 记录完成摘要
+    if command -v jq &> /dev/null; then
+        local temp_file=$(mktemp)
+        local timestamp=$(get_iso_timestamp)
+        jq --arg mod "$module" \
+           --arg job "$job" \
+           --arg summary "$summary" \
+           --arg ts "$timestamp" \
+           '.modules[$mod].jobs[$job].completion_summary = $summary |
+            .modules[$mod].jobs[$job].completed_at = $ts' \
+           "$STATUS_FILE" > "$temp_file" && mv "$temp_file" "$STATUS_FILE"
+    fi
+
+    # 创建 Git 提交记录本次 Job 完成
+    version_create_loop_commit "$module" "$job" "COMPLETED" "$summary"
+
+    log SUCCESS "Job $module/$job 已完成: $summary"
+    return 0
+}
+
+# 标记 Job 为失败状态，并处理重试逻辑
+doing_mark_failed() {
+    local module="$1"
+    local job="$2"
+    local reason="${3:-Unknown error}"
+
+    log ERROR "标记 Job 失败: $module/$job - $reason"
+
+    # 获取当前重试次数
+    local retry_count=$(doing_get_retry_count "$module" "$job")
+    local new_retry_count=$((retry_count + 1))
+
+    # 检查是否还可以重试
+    if [[ "$new_retry_count" -lt "$DOING_MAX_RETRY_COUNT" ]]; then
+        log WARN "Job 失败 ($new_retry_count/$DOING_MAX_RETRY_COUNT)，将重试..."
+
+        # 记录失败信息但不改变状态（保持在 RUNNING 或重置为 PENDING 重试）
+        if command -v jq &> /dev/null; then
+            local temp_file=$(mktemp)
+            local timestamp=$(get_iso_timestamp)
+            jq --arg mod "$module" \
+               --arg job "$job" \
+               --arg reason "$reason" \
+               --arg retry_count "$new_retry_count" \
+               --arg ts "$timestamp" \
+               '.modules[$mod].jobs[$job].retry_count = ($retry_count | tonumber) |
+                .modules[$mod].jobs[$job].last_failure_reason = $reason |
+                .modules[$mod].jobs[$job].last_failure_at = $ts' \
+               "$STATUS_FILE" > "$temp_file" && mv "$temp_file" "$STATUS_FILE"
+        fi
+
+        # 重置状态为 PENDING 以便重试
+        if ! doing_update_job_status "$module" "$job" "PENDING"; then
+            log ERROR "无法重置 Job 状态为 PENDING"
+            return 1
+        fi
+
+        log INFO "Job 已重置为 PENDING，准备重试 ($new_retry_count/$DOING_MAX_RETRY_COUNT)"
+        return 2  # 返回 2 表示需要重试
+    else
+        log ERROR "Job 已达到最大重试次数 ($DOING_MAX_RETRY_COUNT)，标记为 FAILED"
+
+        # 更新状态为 FAILED
+        if ! doing_update_job_status "$module" "$job" "FAILED"; then
+            log ERROR "无法更新 Job 状态为 FAILED"
+            return 1
+        fi
+
+        # 记录最终失败信息
+        if command -v jq &> /dev/null; then
+            local temp_file=$(mktemp)
+            local timestamp=$(get_iso_timestamp)
+            jq --arg mod "$module" \
+               --arg job "$job" \
+               --arg reason "$reason" \
+               --arg retry_count "$new_retry_count" \
+               --arg ts "$timestamp" \
+               '.modules[$mod].jobs[$job].final_failure_reason = $reason |
+                .modules[$mod].jobs[$job].failed_at = $ts |
+                .modules[$mod].jobs[$job].retry_exhausted = true' \
+               "$STATUS_FILE" > "$temp_file" && mv "$temp_file" "$STATUS_FILE"
+        fi
+
+        return 1  # 返回 1 表示彻底失败
+    fi
+}
+
+# 重置失败 Job 以便重新执行（手动重试）
+doing_reset_failed_job() {
+    local module="$1"
+    local job="$2"
+
+    log WARN "手动重置 Job: $module/$job"
+
+    # 只能重置 FAILED 或 BLOCKED 状态的 Job
+    local current_status=$(doing_get_job_status "$module" "$job")
+    if [[ "$current_status" != "FAILED" && "$current_status" != "BLOCKED" ]]; then
+        log ERROR "只能重置 FAILED 或 BLOCKED 状态的 Job (当前: $current_status)"
+        return 1
+    fi
+
+    if ! command -v jq &> /dev/null; then
+        log WARN "jq 未安装，无法重置 Job"
+        return 1
+    fi
+
+    local temp_file=$(mktemp)
+    local timestamp=$(get_iso_timestamp)
+
+    # 重置 Job 状态
+    jq --arg mod "$module" \
+       --arg job "$job" \
+       --arg ts "$timestamp" \
+       '.modules[$mod].jobs[$job].status = "PENDING" |
+        .modules[$mod].jobs[$job].retry_count = 0 |
+        .modules[$mod].jobs[$job].loop_count = 0 |
+        .modules[$mod].jobs[$job].tasks_completed = 0 |
+        .modules[$mod].jobs[$job].reset_at = $ts |
+        del(.modules[$mod].jobs[$job].completed_at) |
+        del(.modules[$mod].jobs[$job].failed_at) |
+        del(.modules[$mod].jobs[$job].blocked_at) |
+        del(.modules[$mod].jobs[$job].final_failure_reason) |
+        del(.modules[$mod].jobs[$job].last_failure_reason) |
+        del(.modules[$mod].jobs[$job].retry_exhausted) |
+        del(.modules[$mod].jobs[$job].completion_summary)' \
+       "$STATUS_FILE" > "$temp_file" && mv "$temp_file" "$STATUS_FILE"
+
+    log SUCCESS "Job $module/$job 已重置为 PENDING 状态"
+    return 0
 }
 
 # 记录一次循环
@@ -687,16 +962,21 @@ doing_interrupt_handler() {
     if [[ -n "$CURRENT_MODULE" && -n "$CURRENT_JOB" ]]; then
         log INFO "保存当前 Job 状态: $CURRENT_MODULE/$CURRENT_JOB"
 
-        # 更新状态为中断前的状态（保持 RUNNING 或标记为 FAILED）
+        # 更新状态为中断前的状态（保持 RUNNING 以便下次恢复）
         local timestamp=$(get_iso_timestamp)
         local temp_file=$(mktemp)
 
         if command -v jq &> /dev/null; then
+            # 记录中断信息，但保持 Job 状态为 RUNNING（以便恢复）
             jq --arg mod "$CURRENT_MODULE" \
                --arg job "$CURRENT_JOB" \
                --arg ts "$timestamp" \
                '.modules[$mod].jobs[$job].interrupted_at = $ts |
+                .modules[$mod].jobs[$job].interrupted = true |
+                .current.module = $mod |
+                .current.job = $job |
                 .current.status = "INTERRUPTED" |
+                .current.interrupted_at = $ts |
                 .session.last_update = $ts' \
                "$STATUS_FILE" > "$temp_file" && mv "$temp_file" "$STATUS_FILE"
         fi
@@ -716,21 +996,6 @@ doing_interrupt_handler() {
 # 设置信号捕获
 doing_setup_signal_handlers() {
     trap 'doing_interrupt_handler' INT TERM
-}
-
-# 获取 Job 状态
-doing_get_job_status() {
-    local module="$1"
-    local job="$2"
-
-    if ! command -v jq &> /dev/null; then
-        echo "PENDING"
-        return
-    fi
-
-    jq -r --arg mod "$module" --arg job "$job" \
-        '.modules[$mod].jobs[$job].status // "PENDING"' \
-        "$STATUS_FILE" 2>/dev/null || echo "PENDING"
 }
 
 # 检查 Task 是否已完成
@@ -785,8 +1050,67 @@ doing_get_loop_count() {
         "$STATUS_FILE" 2>/dev/null || echo "0"
 }
 
-# 解析执行结果 (RALPH_STATUS)
+# 解析执行结果 (RALPH_STATUS) - 使用 JSON 格式
+# 首先尝试使用 jq 解析 JSON 输出，如果失败则回退到文本解析
 doing_parse_execution_result() {
+    local output_file="$1"
+
+    # 检查输出文件是否存在
+    if [[ ! -f "$output_file" ]]; then
+        log ERROR "输出文件不存在: $output_file"
+        echo "status=FAILED;tasks_completed=0;tasks_total=0;summary=输出文件不存在"
+        return 1
+    fi
+
+    # 检查 jq 是否可用
+    if command -v jq &> /dev/null; then
+        # 尝试解析 JSON 格式的输出
+        local json_valid=false
+        if jq empty "$output_file" 2>/dev/null; then
+            json_valid=true
+        fi
+
+        if [[ "$json_valid" == true ]]; then
+            # 尝试从 JSON 中提取 RALPH_STATUS 字段
+            local ralph_json=$(jq -r '.ralph_status // empty' "$output_file" 2>/dev/null)
+
+            if [[ -n "$ralph_json" && "$ralph_json" != "null" ]]; then
+                # 从嵌套的 ralph_status 对象中提取字段
+                local result_status=$(echo "$ralph_json" | jq -r '.status // "UNKNOWN"')
+                local tasks_completed=$(echo "$ralph_json" | jq -r '.tasks_completed // 0')
+                local tasks_total=$(echo "$ralph_json" | jq -r '.tasks_total // 0')
+                local summary=$(echo "$ralph_json" | jq -r '.summary // "未知"')
+                local module=$(echo "$ralph_json" | jq -r '.module // ""')
+                local job=$(echo "$ralph_json" | jq -r '.job // ""')
+
+                log INFO "JSON 解析成功: ralph_status 对象"
+                echo "status=${result_status};tasks_completed=${tasks_completed};tasks_total=${tasks_total};summary=${summary};module=${module};job=${job}"
+                return 0
+            fi
+
+            # 尝试直接从顶层字段提取（旧格式兼容）
+            local result_status=$(jq -r '.status // "UNKNOWN"' "$output_file" 2>/dev/null)
+            local tasks_completed=$(jq -r '.tasks_completed // 0' "$output_file" 2>/dev/null)
+            local tasks_total=$(jq -r '.tasks_total // 0' "$output_file" 2>/dev/null)
+            local summary=$(jq -r '.summary // "未知"' "$output_file" 2>/dev/null)
+            local module=$(jq -r '.module // ""' "$output_file" 2>/dev/null)
+            local job=$(jq -r '.job // ""' "$output_file" 2>/dev/null)
+
+            if [[ "$result_status" != "UNKNOWN" && -n "$result_status" ]]; then
+                log INFO "JSON 解析成功: 顶层字段"
+                echo "status=${result_status};tasks_completed=${tasks_completed};tasks_total=${tasks_total};summary=${summary};module=${module};job=${job}"
+                return 0
+            fi
+        fi
+    fi
+
+    # JSON 解析失败或 jq 不可用，回退到文本解析
+    log WARN "JSON 解析失败，回退到文本解析..."
+    _doing_parse_execution_result_text "$output_file"
+}
+
+# 内部函数：文本解析方式（回退方案）
+_doing_parse_execution_result_text() {
     local output_file="$1"
 
     local result_status=""
@@ -795,13 +1119,6 @@ doing_parse_execution_result() {
     local summary=""
     local module=""
     local job=""
-
-    # 检查输出文件是否存在
-    if [[ ! -f "$output_file" ]]; then
-        log ERROR "输出文件不存在: $output_file"
-        echo "status=FAILED;tasks_completed=0;tasks_total=0;summary=输出文件不存在"
-        return 1
-    fi
 
     # 提取 RALPH_STATUS 块
     local ralph_status=$(grep -A10 "RALPH_STATUS" "$output_file" 2>/dev/null | grep -v "END_RALPH_STATUS" | head -12)
@@ -947,7 +1264,44 @@ doing_has_unresolved_debug_log() {
     fi
 }
 
-# 从断点恢复 Job 执行
+# 检查 Job 是否被中断过
+doing_was_interrupted() {
+    local module="$1"
+    local job="$2"
+
+    if ! command -v jq &> /dev/null; then
+        return 1
+    fi
+
+    local interrupted=$(jq -r --arg mod "$module" --arg job "$job" \
+        '.modules[$mod].jobs[$job].interrupted // false' \
+        "$STATUS_FILE" 2>/dev/null || echo "false")
+
+    if [[ "$interrupted" == "true" ]]; then
+        return 0
+    else
+        return 1
+    fi
+}
+
+# 清除中断标记
+doing_clear_interrupt_flag() {
+    local module="$1"
+    local job="$2"
+
+    if ! command -v jq &> /dev/null; then
+        return 1
+    fi
+
+    local temp_file=$(mktemp)
+    jq --arg mod "$module" \
+       --arg job "$job" \
+       'del(.modules[$mod].jobs[$job].interrupted) |
+        del(.modules[$mod].jobs[$job].interrupted_at)' \
+       "$STATUS_FILE" > "$temp_file" && mv "$temp_file" "$STATUS_FILE"
+}
+
+# 从断点恢复 Job 执行（改进版中断恢复逻辑）
 doing_resume_job() {
     local module="$1"
     local job="$2"
@@ -962,20 +1316,63 @@ doing_resume_job() {
         return 0
     fi
 
+    # 检查是否已达到最大重试次数
+    local retry_count=$(doing_get_retry_count "$module" "$job")
+    if [[ "$retry_count" -ge "$DOING_MAX_RETRY_COUNT" ]]; then
+        log ERROR "  Job 已达到最大重试次数 ($DOING_MAX_RETRY_COUNT)，跳过"
+        # 确保状态为 FAILED
+        if [[ "$status" != "FAILED" ]]; then
+            doing_update_job_status "$module" "$job" "FAILED"
+        fi
+        return 1
+    fi
+
     # 检查是否有未解决的 debug_log
     if doing_has_unresolved_debug_log "$module" "$job"; then
         log WARN "  发现未解决的 debug_log，进入重试模式"
         doing_record_loop "$module" "$job"
     fi
 
-    # 设置状态为 RUNNING
-    doing_update_job_status "$module" "$job" "RUNNING"
-
-    # 增加 loop_count
-    doing_record_loop "$module" "$job"
+    # 检查是否是从中断恢复
+    if doing_was_interrupted "$module" "$job"; then
+        log WARN "  检测到上次执行被中断，从断点恢复..."
+        doing_clear_interrupt_flag "$module" "$job"
+        # 保持 RUNNING 状态，不增加 loop_count（因为是继续执行）
+    else
+        # 新的执行循环，设置状态为 RUNNING（这会触发状态转换验证和 loop_count 增加）
+        doing_update_job_status "$module" "$job" "RUNNING"
+    fi
 
     # 执行 Job
     doing_execute_job "$module" "$job"
+    local result=$?
+
+    # 根据执行结果处理
+    case $result in
+        0)
+            # 执行成功，标记为 COMPLETED
+            doing_mark_completed "$module" "$job" "Job executed successfully"
+            return 0
+            ;;
+        130)
+            # 被中断，保持当前状态（已经在信号处理器中保存）
+            log WARN "  Job 执行被中断"
+            return 130
+            ;;
+        *)
+            # 执行失败，处理失败逻辑（包括重试）
+            log ERROR "  Job 执行失败 (退出码: $result)"
+            if doing_mark_failed "$module" "$job" "Execution failed with exit code $result"; then
+                # 返回 2 表示需要重试
+                log INFO "  Job 将重试..."
+                return 2
+            else
+                # 返回 1 表示彻底失败
+                log ERROR "  Job 彻底失败"
+                return 1
+            fi
+            ;;
+    esac
 }
 
 # 执行单个 Job
@@ -1259,6 +1656,7 @@ doing_run_task() {
         "--verbose"
         "--debug"
         "--dangerously-skip-permissions"
+        "--output-format" "json"
     )
 
     # 执行 ai_cli
@@ -1444,10 +1842,30 @@ doing_main() {
             log INFO ""
             log INFO "执行 Job: $module/$job"
 
-            if ! doing_resume_job "$module" "$job"; then
-                log ERROR "Job $module/$job 执行失败，停止执行"
-                exit 1
-            fi
+            doing_resume_job "$module" "$job"
+            local result=$?
+
+            case $result in
+                0)
+                    # 执行成功，继续下一个
+                    continue
+                    ;;
+                2)
+                    # 需要重试，继续循环（不退出）
+                    log INFO "Job $module/$job 将重试..."
+                    continue
+                    ;;
+                130)
+                    # 被中断
+                    log WARN "Job $module/$job 被中断"
+                    exit 130
+                    ;;
+                *)
+                    # 彻底失败
+                    log ERROR "Job $module/$job 执行失败，停止执行"
+                    exit 1
+                    ;;
+            esac
         done
     fi
 

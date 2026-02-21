@@ -3,15 +3,15 @@
   "state": "running",
   "current": {
     "module": "doing",
-    "job": "job_3",
+    "job": "job_6",
     "status": "RUNNING",
-    "start_time": "2026-02-21T18:36:03Z",
-    "completed_at": "2026-02-22T02:35:00Z"
+    "start_time": "2026-02-21T18:55:52Z",
+    "completed_at": "2026-02-22T00:00:00Z"
   },
   "session": {
     "start_time": "2026-02-21T16:13:36Z",
-    "last_update": "2026-02-21T18:36:03Z",
-    "total_loops": 15
+    "last_update": "2026-02-21T18:55:52Z",
+    "total_loops": 19
   },
   "modules": {
     "cli": {
@@ -261,10 +261,10 @@
           "loop_count": 1,
           "retry_count": 0,
           "tasks_total": 4,
-          "tasks_completed": 4,
+          "tasks_completed": 5,
           "debug_logs": [],
           "started_at": "2026-02-21T18:36:03Z",
-          "completed_at": "2026-02-22T10:45:00Z",
+          "completed_at": "2026-02-21T18:41:14Z",
           "tasks": {
             "task_1": {
               "description": "创建 `prompts/doing.md` 系统提示词",
@@ -289,28 +289,110 @@
           }
         },
         "job_4": {
-          "status": "PENDING",
-          "loop_count": 0,
+          "status": "COMPLETED",
+          "loop_count": 1,
           "retry_count": 0,
           "tasks_total": 5,
-          "tasks_completed": 0,
-          "debug_logs": []
+          "tasks_completed": 6,
+          "debug_logs": [],
+          "started_at": "2026-02-21T18:41:15Z",
+          "completed_at": "2026-02-21T18:49:58Z",
+          "tasks": {
+            "task_1": {
+              "description": "实现状态转换逻辑",
+              "status": "COMPLETED",
+              "completed_at": "2026-02-22T02:49:00Z"
+            },
+            "task_2": {
+              "description": "实现失败重试机制（最多 3 次）",
+              "status": "COMPLETED",
+              "completed_at": "2026-02-22T02:49:00Z"
+            },
+            "task_3": {
+              "description": "实现 `doing_mark_completed()`",
+              "status": "COMPLETED",
+              "completed_at": "2026-02-22T02:49:00Z"
+            },
+            "task_4": {
+              "description": "实现 `doing_mark_failed()`",
+              "status": "COMPLETED",
+              "completed_at": "2026-02-22T02:49:00Z"
+            },
+            "task_5": {
+              "description": "实现中断恢复逻辑",
+              "status": "COMPLETED",
+              "completed_at": "2026-02-22T02:49:00Z"
+            }
+          }
         },
         "job_5": {
-          "status": "PENDING",
-          "loop_count": 0,
+          "status": "COMPLETED",
+          "loop_count": 1,
           "retry_count": 0,
           "tasks_total": 4,
-          "tasks_completed": 0,
-          "debug_logs": []
+          "tasks_completed": 5,
+          "debug_logs": [],
+          "started_at": "2026-02-21T18:49:59Z",
+          "completed_at": "2026-02-21T18:55:51Z",
+          "tasks": {
+            "task_1": {
+              "description": "集成 `version_create_loop_commit()`",
+              "status": "COMPLETED",
+              "completed_at": "2026-02-22T00:00:00Z"
+            },
+            "task_2": {
+              "description": "生成提交信息（包含 Job 名称、状态、变更摘要）",
+              "status": "COMPLETED",
+              "completed_at": "2026-02-22T00:00:00Z"
+            },
+            "task_3": {
+              "description": "实现提交前的变更检测",
+              "status": "COMPLETED",
+              "completed_at": "2026-02-22T00:00:00Z"
+            },
+            "task_4": {
+              "description": "处理提交失败情况",
+              "status": "COMPLETED",
+              "completed_at": "2026-02-22T00:00:00Z"
+            }
+          }
         },
         "job_6": {
-          "status": "PENDING",
-          "loop_count": 0,
+          "status": "COMPLETED",
+          "loop_count": 1,
           "retry_count": 0,
           "tasks_total": 5,
-          "tasks_completed": 0,
-          "debug_logs": []
+          "tasks_completed": 5,
+          "debug_logs": [],
+          "started_at": "2026-02-21T18:55:52Z",
+          "completed_at": "2026-02-22T12:00:00Z",
+          "tasks": {
+            "task_1": {
+              "description": "修改 ai_cli 调用添加 --output-format json 参数",
+              "status": "COMPLETED",
+              "completed_at": "2026-02-22T11:30:00Z"
+            },
+            "task_2": {
+              "description": "修改 RALPH_STATUS 解析使用 jq 解析 JSON",
+              "status": "COMPLETED",
+              "completed_at": "2026-02-22T11:45:00Z"
+            },
+            "task_3": {
+              "description": "添加 JSON 解析失败回退到文本解析的逻辑",
+              "status": "COMPLETED",
+              "completed_at": "2026-02-22T11:50:00Z"
+            },
+            "task_4": {
+              "description": "更新 prompts/doing.md 中的 RALPH_STATUS 格式",
+              "status": "COMPLETED",
+              "completed_at": "2026-02-22T11:55:00Z"
+            },
+            "task_5": {
+              "description": "验证所有更改并创建测试",
+              "status": "COMPLETED",
+              "completed_at": "2026-02-22T12:00:00Z"
+            }
+          }
         },
         "job_7": {
           "status": "PENDING",
