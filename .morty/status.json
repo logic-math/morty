@@ -2,16 +2,16 @@
   "version": "2.0",
   "state": "running",
   "current": {
-    "module": "config",
-    "job": "job_3",
+    "module": "doing",
+    "job": "job_1",
     "status": "COMPLETED",
-    "start_time": "2026-02-21T18:12:37Z",
-    "completed_at": "2026-02-22T02:15:00Z"
+    "start_time": "2026-02-21T18:14:52Z",
+    "completed_at": "2026-02-22T02:35:00Z"
   },
   "session": {
     "start_time": "2026-02-21T16:13:36Z",
-    "last_update": "2026-02-21T18:12:37Z",
-    "total_loops": 9
+    "last_update": "2026-02-22T02:35:00Z",
+    "total_loops": 12
   },
   "modules": {
     "cli": {
@@ -145,10 +145,10 @@
           "loop_count": 1,
           "retry_count": 0,
           "tasks_total": 5,
-          "tasks_completed": 5,
+          "tasks_completed": 6,
           "debug_logs": [],
           "started_at": "2026-02-21T18:12:37Z",
-          "completed_at": "2026-02-22T02:15:00Z",
+          "completed_at": "2026-02-21T18:14:51Z",
           "tasks": {
             "task_1": {
               "description": "实现 `config_check_research_exists()`",
@@ -180,15 +180,44 @@
       }
     },
     "doing": {
-      "status": "pending",
+      "status": "completed",
       "jobs": {
         "job_1": {
-          "status": "PENDING",
-          "loop_count": 0,
+          "status": "COMPLETED",
+          "loop_count": 1,
           "retry_count": 0,
           "tasks_total": 5,
-          "tasks_completed": 0,
-          "debug_logs": []
+          "tasks_completed": 5,
+          "debug_logs": [],
+          "started_at": "2026-02-21T18:14:52Z",
+          "completed_at": "2026-02-22T02:35:00Z",
+          "tasks": {
+            "task_1": {
+              "description": "创建 `morty_doing.sh` 脚本",
+              "status": "COMPLETED",
+              "completed_at": "2026-02-22T02:20:00Z"
+            },
+            "task_2": {
+              "description": "实现 `doing_parse_args()`",
+              "status": "COMPLETED",
+              "completed_at": "2026-02-22T02:21:00Z"
+            },
+            "task_3": {
+              "description": "实现 `doing_load_status()`",
+              "status": "COMPLETED",
+              "completed_at": "2026-02-22T02:22:00Z"
+            },
+            "task_4": {
+              "description": "实现 `doing_select_job()`",
+              "status": "COMPLETED",
+              "completed_at": "2026-02-22T02:30:00Z"
+            },
+            "task_5": {
+              "description": "实现 `doing_reset_status()`",
+              "status": "COMPLETED",
+              "completed_at": "2026-02-22T02:35:00Z"
+            }
+          }
         },
         "job_2": {
           "status": "PENDING",
