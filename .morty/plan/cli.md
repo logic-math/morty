@@ -2,11 +2,11 @@
 
 ## 模块概述
 
-**模块职责**: 提供统一的命令行接口，实现命令路由与分发，支持所有 Morty 模式（research/plan/doing/stat/reset）。
+**模块职责**: 提供统一的命令行接口，实现命令路由与分发，支持所有 Morty 模式（doing/stat/reset/version）。stat 命令作为项目监控大盘，基于 logs 和 status.json 展示状态。
 
 **对应 Research**: 主入口 morty；命令路由与分发
 
-**依赖模块**: config, logging, git_manager, research, plan_mode, doing
+**依赖模块**: config, logging, version_manager, doing
 
 **被依赖模块**: 无（顶层模块）
 
@@ -14,7 +14,6 @@
 
 ### 输入接口
 - 命令行参数: `morty <command> [options]`
-- 标准输入: 交互式输入
 - 环境变量: `MORTY_HOME`, `CLAUDE_CODE_CLI` 等
 
 ### 输出接口
@@ -23,24 +22,65 @@
 - 退出码: 0=成功, 1=一般错误, 2=无效参数, 3=前置条件不满足
 
 ### 支持命令
+
+#### morty doing - 执行模式
 ```bash
-morty research <topic>      # 研究模式
-morty plan [topic]          # 规划模式
-morty doing [options]       # 执行模式（默认从断点自动恢复）
+morty doing [options]
+  --restart                 # 重置模式（见下方详细说明）
   --module <name>           # 指定模块
-  --job <name>              # 指定 Job
-  --restart                 # 强制从头开始执行
-morty stat                  # 显示执行状态和进度
-  --json                    # JSON 格式输出
-  --watch                   # 持续监控
-morty reset [options]       # 版本回滚
-  -l [N]                    # 显示历史
-  -c <id>                   # 回滚到提交
-  -s                        # 显示状态
-morty init                  # 初始化配置
-morty config <key>=<value>   # 设置配置项
-morty config get <key>       # 获取配置项
-morty config list            # 列出所有配置
+  --job <name>              # 指定 Job（必须与 --module 一起使用）
+```
+
+**执行模式详解**:
+
+| 命令 | 行为 |
+|------|------|
+| `morty doing` | 执行下一个未完成的 Job |
+| `morty doing --module config` | 仅执行 config 模块中的下一个未完成 Job |
+| `morty doing --module config --job job_1` | 仅执行指定的单个 Job |
+| `morty doing --restart` | 完全重置：重置所有 Job 状态，从第一个开始 |
+| `morty doing --restart --module config` | 重置 config 模块，从该模块第一个 Job 开始 |
+| `morty doing --restart --module config --job job_1` | 重置并重新执行指定 Job |
+
+**重要说明**:
+- `--restart` 仅重置 `status.json` 状态，**不**进行 git 重置，保留工作变更
+- 每次 `doing` 执行一个 Job 后退出（单循环模式）
+- Job 是 AI coding agent 执行的最小任务单元
+- Task 是 agent 内部 todo list 的最小执行单元
+
+#### morty stat - 监控大盘
+```bash
+morty stat                  # 默认输出，自动每60s刷新
+  -t                        # 表格形式输出（默认）
+  -w                        # 监控模式，原地刷新（默认60s）
+```
+
+**展示信息**:
+1. **当前执行**: 正在执行的模块和 Job
+2. **上一个 Job**: 完成摘要
+3. **Debug 问题**: 当前 Job loop 循环中需要解决的问题
+4. **整体进度**: doing 完成百分比
+5. **累计时间**: 当前 Job 运行时间
+
+#### morty reset - 版本回滚
+```bash
+morty reset -l [N]          # 显示最近 N 次循环提交（默认10，表格形式）
+morty reset -c <commit_id>  # 回滚到指定提交
+```
+
+**输出格式**:
+```
+┌──────────┬──────────────────────────────────────┬─────────────┐
+│ CommitID │ Message                              │ Time        │
+├──────────┼──────────────────────────────────────┼─────────────┤
+│ abc1234  │ morty: Loop #15 - [doing/job_3: COMPLETED]  │ 2026-02-21  │
+│ def5678  │ morty: Loop #14 - [doing/job_2: COMPLETED]  │ 2026-02-21  │
+│ ghi9012  │ morty: Loop #13 - [doing/job_1: FAILED]     │ 2026-02-20  │
+└──────────┴──────────────────────────────────────┴─────────────┘
+```
+
+#### 其他命令
+```bash
 morty version               # 显示版本
 morty help [command]        # 帮助信息
 ```
@@ -50,40 +90,25 @@ morty help [command]        # 帮助信息
 ### 命令路由表
 ```yaml
 commands:
-  research:
-    handler: "morty_research.sh"
-    description: "交互式代码库/文档库研究"
-    args: ["topic"]
-  plan:
-    handler: "morty_plan.sh"
-    description: "基于研究结果生成开发计划"
-    args: ["topic?"]
   doing:
     handler: "morty_doing.sh"
-    description: "执行开发计划（自动断点恢复）"
-    options: ["--module", "--job", "--restart"]
+    description: "执行开发计划"
+    options: ["--restart", "--module", "--job"]
+
   stat:
     handler: "morty_stat.sh"
-    description: "显示开发执行状态和进度"
-    options: ["--json", "--watch"]
+    description: "显示执行状态和进度（监控大盘）"
+    options: ["-t", "-w"]
+
   reset:
     handler: "morty_reset.sh"
     description: "版本管理和回滚"
-    options: ["-l", "-c", "-s"]
-  init:
-    handler: "config_init"
-    description: "初始化用户配置"
-  config:
-    handler: "config_cli"
-    description: "配置管理 (k=v 语法设置)"
-    examples:
-      - "morty config ai_cli='mc --code'"
-      - "morty config max_loops=100"
-      - "morty config get ai_cli"
-      - "morty config list"
+    options: ["-l", "-c"]
+
   version:
     handler: "show_version"
     description: "显示版本信息"
+
   help:
     handler: "show_help"
     description: "显示帮助信息"
@@ -91,21 +116,8 @@ commands:
 
 ### 版本信息
 ```
-Morty 2.0.0
-AI 驱动的开发循环管理系统
-
-命令:
-  research    交互式代码库/文档库研究
-  plan        基于研究结果生成开发计划
-  doing       执行开发计划
-  stat        显示执行状态和进度
-  reset       版本管理和回滚
-  init        初始化用户配置
-  config      配置管理
-  version     显示版本信息
-  help        显示帮助信息
-
-使用 'morty help <command>' 查看详细帮助
+mort 2.0.0
+上下文优先的AI Coding Agent 编排框架
 ```
 
 ## Jobs (Loop 块列表)
@@ -126,67 +138,76 @@ AI 驱动的开发循环管理系统
 - [ ] 实现 `cli_execute()`: 命令执行
 
 **验证器**:
-- 输入 `morty research test` 应调用 `morty_research.sh test`
-- 输入 `morty plan` 应调用 `morty_plan.sh`
+- 输入 `morty doing` 应调用 `morty_doing.sh`
+- 输入 `morty doing --restart --module config` 应传递所有参数
 - 输入 `morty stat` 应调用 `morty_stat.sh`
+- 输入 `morty stat -w` 应进入监控模式
+- 输入 `morty reset` 应调用 `morty_reset.sh`
 - 输入未知命令时应显示错误和帮助信息
 - 参数解析应正确处理选项和位置参数
-- 命令执行失败时应返回适当的退出码
 
 **调试日志**:
 - 无
 
 ---
 
-### Job 2: stat 命令实现
+### Job 2: stat 监控大盘
 
-**目标**: 实现 `morty stat` 命令，读取并显示 `.morty/status.json`
+**目标**: 实现 `morty stat` 命令，基于 logs 和 status.json 展示项目监控大盘
 
 **前置条件**: doing 模块核心功能完成
 
 **Tasks (Todo 列表)**:
 - [ ] 创建 `morty_stat.sh` 脚本
 - [ ] 实现 `stat_load_status()`: 读取 status.json
-- [ ] 实现 `stat_format_output()`: 格式化状态输出（表格/文本）
-- [ ] 实现 `stat_show_summary()`: 显示整体进度摘要
-- [ ] 实现 `stat_show_modules()`: 显示模块进度列表
-- [ ] 实现 `stat_show_current()`: 显示当前执行状态
-- [ ] 实现 `--json` 选项输出原始 JSON
-- [ ] 实现 `--watch` 选项持续刷新（每 2 秒）
+- [ ] 实现 `stat_load_logs()`: 读取最新日志摘要
+- [ ] 实现 `stat_get_current_job()`: 获取当前执行的模块和 Job
+- [ ] 实现 `stat_get_previous_job()`: 获取上一个完成的 Job 摘要
+- [ ] 实现 `stat_get_debug_issues()`: 获取当前 Job 的 debug 问题
+- [ ] 实现 `stat_get_progress()`: 计算整体完成进度
+- [ ] 实现 `stat_get_elapsed_time()`: 计算当前 Job 累计运行时间
+- [ ] 实现 `stat_format_table()`: 表格形式格式化输出
+- [ ] 实现 `stat_watch_mode()`: 监控模式，原地刷新（默认60s）
 
 **验证器**:
-- `morty stat` 应显示整体进度、当前状态、模块列表
+- `morty stat` 应显示：当前执行、上一个 Job 摘要、Debug 问题、整体进度、累计时间
 - 当 `.morty/status.json` 不存在时，应提示 "请先运行 morty doing"
-- `--json` 选项应输出有效的 JSON 格式
-- `--watch` 选项应每 2 秒刷新一次，Ctrl+C 退出
-- 应正确计算并显示进度百分比
-- 应显示最近的 debug_log 条目（最多 5 条）
+- `-t` 选项应以表格形式输出（默认行为）
+- `-w` 选项应进入监控模式，每 60s 原地刷新一次
+- 应正确计算并显示整体进度百分比
+- 应显示当前 Job 的累计运行时间（格式：HH:MM:SS）
+- 应显示上一个完成 Job 的摘要（模块/Job/状态/耗时）
+- 应显示当前 Job 需要 debug 的问题列表
+- Ctrl+C 应能优雅退出监控模式
 
 **调试日志**:
 - 无
 
 ---
 
-### Job 3: 全局选项和参数解析
+### Job 3: reset 命令
 
-**目标**: 实现全局选项（--help, --version）和子命令参数解析
+**目标**: 实现 `morty reset` 命令，表格形式输出循环历史，简洁无多余日志
 
-**前置条件**: Job 1, Job 2 完成
+**前置条件**: version_manager 模块完成
 
 **Tasks (Todo 列表)**:
-- [ ] 实现全局选项处理（-h/--help, -v/--version）
-- [ ] 实现子命令参数解析器
-- [ ] 实现参数验证（必填参数检查）
-- [ ] 实现参数类型转换（字符串/整数/布尔值）
-- [ ] 实现参数补全提示（可选）
+- [ ] 创建 `morty_reset.sh` 脚本
+- [ ] 实现 `reset_show_history()`: 显示最近 N 次循环提交（表格形式）
+- [ ] 实现 `reset_to_commit()`: 回滚到指定提交
+- [ ] 集成 `version_show_loop_history()`
+- [ ] 集成 `version_reset_to_commit()`
+- [ ] 实现回滚确认提示
+- [ ] 实现表格格式化输出（CommitID | Message | Time）
 
 **验证器**:
-- `morty --help` 应显示全局帮助信息
-- `morty research --help` 应显示 research 命令的详细帮助
-- `morty doing --module config` 应正确解析 `--module` 选项
-- `morty stat --watch` 应正确解析 `--watch` 选项
-- 缺少必填参数时应显示错误并提示用法
-- 无效参数值时应显示错误信息
+- `morty reset -l` 应表格形式显示最近 10 次循环提交
+- `morty reset -l 5` 应表格形式显示最近 5 次循环提交
+- 输出应只包含：CommitID、提交信息、时间（无其他日志）
+- 表格应规范对齐，易于阅读
+- `morty reset -c abc123` 应回滚到指定 commit
+- 回滚前应提示用户确认
+- 回滚后应显示新的当前状态
 
 **调试日志**:
 - 无
@@ -195,73 +216,42 @@ AI 驱动的开发循环管理系统
 
 ### Job 4: 帮助系统
 
-**目标**: 实现完善的帮助系统，支持多级帮助信息
+**目标**: 实现完善的帮助系统
 
-**前置条件**: Job 3 完成
+**前置条件**: Job 1, 2, 3 完成
 
 **Tasks (Todo 列表)**:
 - [ ] 实现 `cli_show_global_help()`: 全局帮助
 - [ ] 实现 `cli_show_command_help(cmd)`: 命令帮助
 - [ ] 实现帮助文档自动生成
-- [ ] 实现使用示例显示
-- [ ] 实现环境变量说明
 
 **验证器**:
-- `morty help` 应显示所有可用命令列表（包含 stat）
+- `morty help` 应显示所有可用命令列表
+- `morty help doing` 应显示 doing 命令的详细用法（包含所有选项组合）
 - `morty help stat` 应显示 stat 命令的详细用法
 - 每个命令的帮助应包含描述、用法、选项、示例
 - 帮助信息应格式清晰，易于阅读
-- 帮助系统应支持中文显示
 
 **调试日志**:
 - 无
 
 ---
 
-### Job 5: 版本和初始化
+### Job 5: 版本和诊断
 
-**目标**: 实现版本显示和初始化命令
+**目标**: 实现版本显示和诊断模式
 
 **前置条件**: Job 4 完成
 
 **Tasks (Todo 列表)**:
 - [ ] 实现 `cli_show_version()`: 显示版本信息
-- [ ] 实现 `cli_init()`: 初始化命令
-- [ ] 集成 config 模块的初始化功能
-- [ ] 实现版本号管理（统一存储）
-- [ ] 实现更新检查（可选）
-
-**验证器**:
-- `morty version` 应显示版本号、构建信息
-- `morty init` 应创建用户配置文件
-- 版本号应在代码中统一存储，避免多处定义
-- 初始化应检查依赖（如 Git、Claude CLI）
-- 重复初始化应安全处理（不覆盖已有配置）
-
-**调试日志**:
-- 无
-
----
-
-### Job 6: 错误处理和诊断
-
-**目标**: 实现统一的错误处理和诊断信息
-
-**前置条件**: Job 5 完成
-
-**Tasks (Todo 列表)**:
-- [ ] 实现错误码定义和管理
-- [ ] 实现友好的错误信息格式化
 - [ ] 实现诊断模式（--verbose, --debug）
 - [ ] 实现前置条件检查（依赖检查）
-- [ ] 实现错误恢复建议
 
 **验证器**:
-- 命令未找到时应返回退出码 2
-- 前置条件不满足时应返回退出码 3
+- `morty version` 应显示版本号
 - 使用 `--verbose` 时应显示详细的执行过程
-- 错误信息应包含问题描述和解决方案建议
-- 诊断信息应记录到日志文件
+- 缺少依赖时应显示友好的安装指导
 
 **调试日志**:
 - 无
@@ -274,10 +264,12 @@ AI 驱动的开发循环管理系统
 
 **验证器**:
 - 所有命令可以正确路由和执行
-- `morty stat` 可以正确显示状态
+- `morty doing` 的各种选项组合工作正确
+- `morty stat` 可以正确显示监控大盘信息（当前执行、上一个 Job、Debug 问题、进度、时间）
+- `morty stat -w` 监控模式每 60s 刷新正确
+- `morty reset -l` 以表格形式输出，无多余日志
+- `morty reset -c` 可以正确回滚版本
 - 帮助信息完整且准确
-- 错误处理一致且友好
-- 参数解析正确，边界情况处理得当
 
 ---
 
@@ -294,98 +286,224 @@ cli_execute(handler, args)
 
 # stat 命令
 stat_load_status()
-stat_format_output(format)  # text/json
-stat_show_summary()
-stat_show_modules()
-stat_show_current()
-stat_show_debug_logs(limit=5)
-stat_watch()  # 持续监控
+stat_load_logs(limit=10)
+stat_get_current_job()
+stat_get_previous_job()
+stat_get_debug_issues()
+stat_get_progress()
+stat_get_elapsed_time()
+stat_format_table()
+stat_watch_mode(interval=60)
+
+# reset 命令
+reset_show_history(n=10)
+reset_format_table(commits)
+reset_to_commit(commit_id)
 
 # 帮助
 cli_show_global_help()
 cli_show_command_help(command)
-cli_generate_help_text(command)
 
-# 版本和初始化
+# 版本和诊断
 cli_show_version()
-cli_init()
 cli_check_dependencies()
 
 # 错误处理
 cli_error(message, code=1)
-cli_die(message, code=1)
 cli_verbose(message)
-cli_debug(message)
-
-# 参数解析
-cli_getopt(args, optname)
-cli_getarg(args, index)
-cli_validate_args(spec, args)
 ```
 
 ---
 
 ## stat 命令输出示例
 
-### 默认输出
+### 默认/表格输出
 ```
 $ morty stat
 
-Morty 开发状态
-==============
+┌─────────────────────────────────────────────────────────────┐
+│                     Morty 监控大盘                           │
+├─────────────────────────────────────────────────────────────┤
+│ 当前执行                                                    │
+│   模块: logging                                             │
+│   Job:  job_2 (日志轮转和归档)                               │
+│   状态: RUNNING (第2次循环)                                  │
+│   累计时间: 00:32:15                                        │
+├─────────────────────────────────────────────────────────────┤
+│ 上一个 Job                                                  │
+│   config/job_1: COMPLETED (耗时 00:15:30)                   │
+│   摘要: 日志系统核心框架实现完成                              │
+├─────────────────────────────────────────────────────────────┤
+│ Debug 问题 (当前 Job)                                       │
+│   • 日志轮转时丢失消息 (loop 2)                              │
+│     猜想: 文件句柄未正确同步, 并发写入竞争                    │
+│     状态: 待修复                                             │
+├─────────────────────────────────────────────────────────────┤
+│ 整体进度                                                    │
+│   [████░░░░░░░░░░░░░░░░] 20% (5/25 Jobs)                    │
+│   已完成: config (3/3)                                       │
+│   进行中: logging (2/4)                                      │
+│   待开始: version_manager, doing, cli                       │
+└─────────────────────────────────────────────────────────────┘
 
-整体进度: 12% (5/42 Jobs)
-当前状态: running
-运行时间: 4小时30分钟
-总循环数: 15
-
-模块进度:
-  [✓] config       100% (3/3 Jobs)  耗时: 1h30m
-  [>] logging       50% (2/4 Jobs)  耗时: 2h00m  (运行中)
-  [ ] git_manager    0% (0/5 Jobs)
-  [ ] plan_mode      0% (0/6 Jobs)
-  [ ] doing          0% (0/7 Jobs)
-  [ ] cli            0% (0/6 Jobs)
-
-当前执行:
-  模块: logging
-  Job: job_2
-  名称: 日志轮转和归档
-  状态: RUNNING (第2次循环)
-  任务: Task 3/4 - 实现日志轮转
-  已运行: 30分钟
-
-最近调试记录:
-  [logging/job_2] 2026-02-20 13:30:00
-    现象: 日志轮转时丢失消息
-    复现: 高频写入时触发轮转
-    猜想: 文件句柄未正确同步, 并发写入竞争
-    修复: 待修复
-    状态: 未解决
+自动刷新: 60s (按 Ctrl+C 退出)
 ```
 
-### JSON 输出
+### 监控模式 (-w)
 ```bash
-$ morty stat --json
-{
-  "state": "running",
-  "progress": {
-    "percentage": 12,
-    "completed_jobs": 5,
-    "total_jobs": 42
-  },
-  "current": {
-    "module": "logging",
-    "job": "job_2",
-    "status": "RUNNING",
-    "loop_count": 2
-  },
-  "modules": [...]
-}
+$ morty stat -w
+[同上界面，每60s原地刷新]
 ```
 
-### 持续监控
+---
+
+## reset 命令输出示例
+
+### 显示历史 (-l)
 ```bash
-$ morty stat --watch
-[每2秒自动刷新，显示简化状态]
+$ morty reset -l
+
+┌──────────┬───────────────────────────────────────────┬─────────────────────┐
+│ CommitID │ Message                                   │ Time                │
+├──────────┼───────────────────────────────────────────┼─────────────────────┤
+│ abc1234  │ morty: Loop #15 - [doing/job_3: COMPLETED]│ 2026-02-21 14:30:00 │
+│ def5678  │ morty: Loop #14 - [doing/job_2: COMPLETED]│ 2026-02-21 14:15:00 │
+│ ghi9012  │ morty: Loop #13 - [doing/job_1: FAILED]   │ 2026-02-21 14:00:00 │
+│ jkl3456  │ morty: Loop #12 - [cli/job_5: COMPLETED]  │ 2026-02-21 13:45:00 │
+│ mno7890  │ morty: Loop #11 - [cli/job_4: COMPLETED]  │ 2026-02-21 13:30:00 │
+└──────────┴───────────────────────────────────────────┴─────────────────────┘
+
+$ morty reset -l 3
+
+┌──────────┬───────────────────────────────────────────┬─────────────────────┐
+│ CommitID │ Message                                   │ Time                │
+├──────────┼───────────────────────────────────────────┼─────────────────────┤
+│ abc1234  │ morty: Loop #15 - [doing/job_3: COMPLETED]│ 2026-02-21 14:30:00 │
+│ def5678  │ morty: Loop #14 - [doing/job_2: COMPLETED]│ 2026-02-21 14:15:00 │
+│ ghi9012  │ morty: Loop #13 - [doing/job_1: FAILED]   │ 2026-02-21 14:00:00 │
+└──────────┴───────────────────────────────────────────┴─────────────────────┘
+```
+
+### 回滚到指定提交 (-c)
+```bash
+$ morty reset -c abc1234
+
+确认回滚到 commit abc1234?
+这将重置工作目录到该提交状态。
+[Y/n]: y
+
+已回滚到 commit abc1234
+当前状态: doing/job_2 PENDING
+```
+
+---
+
+## doing 命令帮助示例
+
+```
+$ morty help doing
+
+morty doing - 执行开发计划
+
+用法:
+  morty doing [options]
+
+选项:
+  --restart                 重置模式，重置 Job 状态但不重置 git
+  --module <name>           指定模块
+  --job <name>              指定 Job（必须与 --module 一起使用）
+
+示例:
+  # 执行下一个未完成的 Job
+  morty doing
+
+  # 仅执行 config 模块的下一个未完成 Job
+  morty doing --module config
+
+  # 仅执行指定的单个 Job
+  morty doing --module config --job job_1
+
+  # 完全重置，从第一个 Job 开始
+  morty doing --restart
+
+  # 重置并重新执行 config 模块
+  morty doing --restart --module config
+
+  # 重置并重新执行指定 Job
+  morty doing --restart --module config --job job_1
+
+说明:
+  - Job 是 AI coding agent 执行的最小任务单元
+  - Task 是 agent 内部 todo list 的最小执行单元
+  - 每次 doing 执行一个 Job 后退出（单循环模式）
+  - --restart 仅重置 status.json，保留 git 历史和工作变更
+```
+
+---
+
+## stat 命令帮助示例
+
+```
+$ morty help stat
+
+morty stat - 显示项目监控大盘
+
+用法:
+  morty stat [options]
+
+选项:
+  -t                        表格形式输出（默认）
+  -w                        监控模式，原地刷新（默认60s）
+
+说明:
+  显示信息包括：
+  - 当前正在执行的模块和 Job
+  - 上一个 Job 的完成摘要
+  - 当前 Job loop 循环中需要 debug 的问题
+  - 整体 doing 的完成进度
+  - 当前 Job 运行的累计时间
+
+  默认每60秒自动刷新一次。
+
+示例:
+  # 显示监控大盘
+  morty stat
+
+  # 表格形式输出
+  morty stat -t
+
+  # 监控模式，持续刷新
+  morty stat -w
+```
+
+---
+
+## reset 命令帮助示例
+
+```
+$ morty help reset
+
+morty reset - 版本管理和回滚
+
+用法:
+  morty reset -l [N]        显示最近 N 次循环提交（默认10）
+  morty reset -c <commit_id> 回滚到指定提交
+
+选项:
+  -l [N]                    显示循环历史，表格形式输出
+  -c <commit_id>            回滚到指定 commit
+
+示例:
+  # 显示最近10次循环提交
+  morty reset -l
+
+  # 显示最近5次循环提交
+  morty reset -l 5
+
+  # 回滚到指定 commit
+  morty reset -c abc1234
+
+说明:
+  -l 选项以表格形式输出，包含 CommitID、Message、Time
+  -c 选项会提示确认，回滚后当前 Job 状态将重置
 ```

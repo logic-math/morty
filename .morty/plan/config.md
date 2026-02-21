@@ -2,63 +2,67 @@
 
 ## 模块概述
 
-**模块职责**: 提供统一的配置管理系统，集中管理环境变量、用户配置和项目级配置，解决原有配置分散在多个地方的问题。
+**模块职责**: 提供统一的配置管理系统，通过单一的 `settings.json` 文件管理所有配置。工作目录固定为 `.morty`，配置文件存放在 `MORTY_HOME` 指定的全局位置。
 
-**对应 Research**: [重构机会] 统一配置管理；环境变量和硬编码配置分散
+**对应 Research**: 统一配置管理；简化配置层级
 
 **依赖模块**: 无
 
-**被依赖模块**: logging, git_manager, research, plan, doing, cli
+**被依赖模块**: logging, version_manager, doing, cli
 
 ## 接口定义
 
 ### 输入接口
-- `morty init`: 初始化用户级配置文件
-- `morty config <key> [value]`: 获取/设置配置项
-- 环境变量: `MORTY_HOME`, `CLAUDE_CODE_CLI`, `MAX_LOOPS`, `LOOP_DELAY`
+- `settings.json`: 全局配置文件（位于 `$MORTY_HOME/settings.json`）
 
 ### 输出接口
-- `config_get(key)`: 获取配置值（按优先级：环境变量 > 项目配置 > 用户配置 > 默认值）
-- `config_set(key, value, scope)`: 设置配置值（scope: user/project）
-- `config_load()`: 加载所有配置到内存
-- `config_validate()`: 验证配置完整性和有效性
+- `config_get(key)`: 从 settings.json 读取配置值
+- `config_set(key, value)`: 设置配置值并保存到 settings.json
+- `config_load()`: 加载配置文件
+- `config_get_morty_home()`: 获取 MORTY_HOME 路径
 
 ## 数据模型
 
-### 配置文件结构
-
-```yaml
-# ~/.mortyrc (用户级配置)
-morty:
-  version: "2.0"
-  cli:
-    command: "claude"  # 或自定义 ai_cli
-  defaults:
-    max_loops: 50
-    loop_delay: 5
-    log_level: "INFO"
-  paths:
-    work_dir: ".morty_work"
-    log_dir: ".morty/logs"
-
-# .morty/config.yaml (项目级配置)
-project:
-  name: "my-project"
-  type: "nodejs"  # auto-detected
-  commands:
-    install: "npm install"
-    build: "npm run build"
-    test: "npm test"
-  plan:
-    retry_count: 3
-    coverage_threshold: 80
+### 配置文件路径
+```
+$MORTY_HOME/settings.json
 ```
 
-### 配置优先级（从高到低）
-1. 环境变量 (e.g., `MORTY_MAX_LOOPS=100`)
-2. 项目级配置 (`.morty/config.yaml`)
-3. 用户级配置 (`~/.mortyrc`)
-4. 内置默认值
+### settings.json 结构
+```json
+{
+  "version": "2.0",
+  "cli": {
+    "command": "claude"
+  },
+  "defaults": {
+    "max_loops": 50,
+    "loop_delay": 5,
+    "log_level": "INFO",
+    "stat_refresh_interval": 60
+  },
+  "paths": {
+    "work_dir": ".morty",
+    "log_dir": ".morty/logs",
+    "research_dir": ".morty/research",
+    "plan_dir": ".morty/plan",
+    "status_file": ".morty/status.json"
+  }
+}
+```
+
+### 工作目录结构
+```
+.morty/                      # 工作目录（固定）
+├── logs/                    # 日志目录
+├── research/                # 研究结果
+│   └── [主题].md
+├── plan/                    # 计划文件
+│   ├── README.md
+│   ├── [模块].md
+│   └── [生产测试].md
+└── status.json              # 执行状态
+```
 
 ## Jobs (Loop 块列表)
 
@@ -66,22 +70,23 @@ project:
 
 ### Job 1: 配置系统基础架构
 
-**目标**: 建立配置系统的核心框架，支持多层配置加载和优先级管理
+**目标**: 建立配置系统的核心框架，支持从单一 JSON 文件读取配置
 
 **前置条件**: 无
 
 **Tasks (Todo 列表)**:
 - [ ] 创建 `lib/config.sh` 配置文件管理模块
-- [ ] 实现 `config_get()` 函数，支持按优先级读取配置
-- [ ] 实现 `config_set()` 函数，支持用户级和项目级配置写入
-- [ ] 定义内置默认配置表
-- [ ] 实现配置验证函数 `config_validate()`
+- [ ] 实现 `config_get_morty_home()`: 读取 MORTY_HOME 环境变量，验证路径存在
+- [ ] 实现 `config_load()`: 加载 settings.json
+- [ ] 实现 `config_get(key)`: 按 key 读取配置值
+- [ ] 实现 `config_set(key, value)`: 设置配置值并保存
+- [ ] 实现配置默认值机制
 
 **验证器**:
-- 当环境变量 `MORTY_TEST_KEY=value` 设置时，`config_get TEST_KEY` 应返回 "value"
-- 当用户级配置文件中设置 `test_key: user_value`，且无环境变量时，`config_get test_key` 应返回 "user_value"
-- 当项目级配置设置 `test_key: project_value`，应覆盖用户级配置但低于环境变量
-- 无效的配置键应返回空值或默认值，不抛出异常
+- 当 `MORTY_HOME` 未设置时，应提示用户设置该环境变量
+- 当 `settings.json` 不存在时，应自动创建默认配置文件
+- `config_get("cli.command")` 应返回配置的值或默认值 "claude"
+- `config_set("log_level", "DEBUG")` 应更新配置文件
 - 配置加载时间应小于 100ms
 
 **调试日志**:
@@ -89,54 +94,48 @@ project:
 
 ---
 
-### Job 2: 配置文件初始化命令
+### Job 2: 工作目录管理
 
-**目标**: 实现 `morty init` 和 `morty config` 命令，支持配置的交互式初始化和管理
+**目标**: 实现工作目录 `.morty` 的自动创建和管理
 
 **前置条件**: Job 1 完成
 
 **Tasks (Todo 列表)**:
-- [ ] 实现 `morty init` 命令，创建 `~/.mortyrc` 配置文件
-- [ ] 实现 `morty config <key>=<value>` 语法（k=v 方式设置）
-- [ ] 实现 `morty config get <key>` 命令
-- [ ] 实现 `morty config list` 命令
-- [ ] 添加配置项验证（如路径是否存在、数值是否合法）
-- [ ] 创建配置模板生成器
-- [ ] 更新 `morty` 主命令路由，添加 config 命令
+- [ ] 实现 `config_check_work_dir()`: 检查当前目录是否有 `.morty`
+- [ ] 实现 `config_init_work_dir()`: 初始化工作目录结构
+- [ ] 实现 `config_ensure_work_dir()`: 确保工作目录存在（不存在则创建）
+- [ ] 实现子目录自动创建（logs, research, plan）
 
 **验证器**:
-- 运行 `morty init` 后，`~/.mortyrc` 文件应存在且包含有效 YAML 格式
-- 运行 `morty config ai_cli='mc --code'` 应更新用户级配置的 `cli.command` 为 `"mc --code"`
-- 运行 `morty config get ai_cli` 应返回当前配置的值
-- 运行 `morty config list` 应显示所有配置项及其来源（环境变量/用户/项目/默认）
-- 运行 `morty config max_loops=100` 后，`~/.mortyrc` 中的值应更新为 100
-- 无效的配置值应被拒绝并显示错误信息
-- 当 `~/.mortyrc` 不存在时运行 `morty config key=value`，应先创建默认配置再设置值
+- 调用 `config_ensure_work_dir()` 时，如 `.morty` 不存在应自动创建
+- 应同时创建 `.morty/logs/`, `.morty/research/`, `.morty/plan/` 子目录
+- 如目录已存在，应正常返回不报错
+- 应检查目录是否可写
 
 **调试日志**:
 - 无
 
 ---
 
-### Job 3: 项目类型自动检测配置
+### Job 3: 前置条件检查
 
-**目标**: 将原有的项目类型检测功能整合到配置系统中，支持自动检测和手动指定
+**目标**: 实现 plan → doing 的前置条件检查；research 作为可选输入
 
 **前置条件**: Job 2 完成
 
 **Tasks (Todo 列表)**:
-- [ ] 迁移 `detect_project_type()` 到 config 模块
-- [ ] 迁移 `detect_build_command()` 和 `detect_test_command()` 到 config 模块
-- [ ] 实现项目类型到命令的映射表
-- [ ] 支持用户覆盖自动检测的命令
-- [ ] 添加项目配置缓存机制
+- [ ] 实现 `config_check_research_exists()`: 检查是否存在 research 文件
+- [ ] 实现 `config_check_plan_done()`: 检查是否已完成 plan
+- [ ] 实现 `config_require_plan()`: 要求必须先 plan
+- [ ] 实现 `config_load_research_facts()`: 加载 research 事实信息
+- [ ] 定义前置条件检查的错误提示信息
 
 **验证器**:
-- 在 Node.js 项目目录运行 `config_detect_project_type()` 应返回 "nodejs"
-- 在 Python 项目目录（存在 requirements.txt 或 setup.py）应返回 "python"
-- 当 `.morty/config.yaml` 中手动指定 `project.type: rust`，应使用该值而非自动检测
-- 自动检测的命令应与手动配置的命令合并，手动配置优先级更高
-- 未知项目类型应返回 "generic" 并使用空命令列表
+- 当 `.morty/research/` 存在且有文件时，`config_load_research_facts()` 应返回文件列表和内容
+- 当 `.morty/research/` 不存在或为空时，plan 模式应提示 "未找到 research，将通过对话理解需求"
+- 当 `.morty/plan/` 为空时，`config_require_plan()` 应返回错误 "请先运行 morty plan"
+- doing 模式运行时如未完成 plan 应报错 "请先运行 morty plan"
+- research 不是 plan 的强制前置条件
 
 **调试日志**:
 - 无
@@ -149,10 +148,12 @@ project:
 
 **验证器**:
 - 配置系统可以被其他模块正常导入和使用
-- 环境变量、用户配置、项目配置、默认值四层优先级正确工作
-- 配置变更可以实时生效（无需重启 morty）
-- 配置验证可以检测并报告无效配置
-- 并发读取配置不会导致竞态条件
+- settings.json 可以正确读取和写入
+- 工作目录可以自动创建
+- plan 可以不依赖 research 直接运行
+- research 存在时 plan 可以正确加载事实信息
+- doing 强制依赖 plan，无 plan 时报错
+- 在任意模式下，缺少 `.morty` 目录时都会自动创建
 
 ---
 
@@ -161,38 +162,61 @@ project:
 ```bash
 # lib/config.sh
 
-# 配置读取
+# 路径和初始化
+config_get_morty_home()
+config_load()
+config_init_settings()
+
+# 配置读写
 config_get(key, default="")
 config_get_int(key, default=0)
 config_get_bool(key, default=false)
+config_set(key, value)
 
-# 配置写入
-config_set(key, value, scope="project")
-config_unset(key, scope="project")
+# 工作目录
+config_check_work_dir()
+config_init_work_dir()
+config_ensure_work_dir()
+config_get_work_dir()
 
-# 配置加载
-config_load()
-config_reload()
+# 前置条件检查
+config_check_research_exists()
+config_check_plan_done()
+config_require_plan()
+config_load_research_facts()
 
-# 配置验证
-config_validate()
-config_validate_key(key, value)
+# 路径获取
+config_get_log_dir()
+config_get_research_dir()
+config_get_plan_dir()
+config_get_status_file()
+```
 
-# 项目类型检测
-config_detect_project_type()
-config_get_build_command()
-config_get_test_command()
+---
 
-# 配置持久化
-config_save_user_config()
-config_save_project_config()
+## 配置加载流程
 
-# CLI 命令
-config_cli_init()           # morty init
-config_cli_set(kv_pair)     # morty config key=value
-config_cli_get(key)         # morty config get key
-config_cli_list()           # morty config list
-config_parse_kv_pair(string)  # 解析 key=value 格式
+```
+1. 读取 MORTY_HOME 环境变量
+2. 加载 $MORTY_HOME/settings.json
+3. 检查当前目录是否有 .morty 工作目录
+4. 如无，自动创建工作目录结构
+```
+
+---
+
+## 前置条件检查流程
+
+```
+plan 模式启动:
+  └─> 检查 .morty/research/ 是否有文件
+      ├─> 有 → 加载事实信息，继续执行
+      └─> 无 → 提示 "未找到 research，将通过对话理解需求"
+
+doing 模式启动:
+  └─> 检查 .morty/plan/ 是否有文件
+      ├─> 有 → 继续执行
+      └─> 无 → 报错 "请先运行 morty plan"
 ```
 
 ---
@@ -201,50 +225,33 @@ config_parse_kv_pair(string)  # 解析 key=value 格式
 
 ### 初始化配置
 ```bash
-morty init
-# 创建 ~/.mortyrc 配置文件
+export MORTY_HOME=$HOME/.morty
+morty research test-topic
+# 自动创建 .morty 工作目录和 $MORTY_HOME/settings.json
 ```
 
-### 设置配置项（k=v 语法）
+### 读取配置
 ```bash
-# 设置 ai_cli 命令
-morty config ai_cli='mc --code'
-
-# 设置数值配置
-morty config max_loops=100
-
-# 设置字符串配置（含空格）
-morty config log_level='DEBUG'
+# 在脚本中
+source lib/config.sh
+config_load
+AI_CLI=$(config_get "cli.command" "claude")
+LOG_LEVEL=$(config_get "defaults.log_level" "INFO")
 ```
 
-### 获取配置项
+### 设置配置
 ```bash
-morty config get ai_cli
-# 输出: mc --code
-
-morty config get max_loops
-# 输出: 100
+# 在脚本中
+config_set "cli.command" "mc --code"
+config_set "defaults.log_level" "DEBUG"
 ```
 
-### 列出所有配置
-```bash
-morty config list
-# 输出:
-# ai_cli = mc --code      [user]
-# max_loops = 100         [user]
-# log_level = DEBUG       [default]
-```
+---
 
-### 配置优先级示例
-```bash
-# 1. 环境变量（最高优先级）
-export MORTY_AI_CLI="claude --verbose"
+## 重要说明
 
-# 2. 用户级配置
-morty config ai_cli='mc --code'
-
-# 3. 项目级配置（.morty/config.yaml）
-
-# 4. 默认值（最低优先级）
-# ai_cli = claude
-```
+1. **单一配置源**: 只有 `$MORTY_HOME/settings.json`，无项目级/用户级配置
+2. **环境变量**: 只使用 `MORTY_HOME` 指定配置目录，其他配置不从环境变量读取
+3. **自动创建**: 任意模式下如缺少 `.morty` 目录都会自动创建
+4. **前置条件**: plan 可选依赖 research（有则读取，无则对话），doing 必须依赖 plan
+5. **工作目录固定**: 统一使用 `.morty`，不可配置

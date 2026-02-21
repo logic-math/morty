@@ -1,10 +1,9 @@
 # Plan 索引
 
-**生成时间**: 2026-02-20T19:10:00Z
+**生成时间**: 2026-02-21T00:00:00Z
 
 **对应 Research**:
 - `.morty/research/morty-project-research.md` - Morty 项目重构调研报告
-- `.morty/research/plan-mode-design.md` - Plan 模式详细设计文档
 
 ---
 
@@ -13,13 +12,13 @@
 | 模块名称 | 文件 | Jobs 数量 | 依赖模块 | 状态 |
 |----------|------|-----------|----------|------|
 | config | config.md | 3 | 无 | 规划中 |
-| logging | logging.md | 4 | config | 规划中 |
-| git_manager | git_manager.md | 5 | config, logging | 规划中 |
-| research_mode | research_mode.md | 5 | config, logging | 规划中 |
-| plan_mode | plan_mode.md | 6 | config, logging, git_manager | 规划中 |
-| doing | doing.md | 7 | config, logging, git_manager, plan_mode | 规划中 |
-| cli | cli.md | 6 | 所有模块 | 规划中 |
+| logging | logging.md | 4 | config | 已实现 |
+| version_manager | version_manager.md | 3 | config, logging | 规划中 |
+| doing | doing.md | 5 | config, logging, version_manager | 规划中 |
+| cli | cli.md | 5 | 所有模块 | 规划中 |
 | 生产测试 | 生产测试.md | 6 | 所有功能模块 | 规划中 |
+
+**注意**: plan_mode 和 research_mode 由用户手动实现，不包含在 doing 执行计划中。
 
 ---
 
@@ -35,19 +34,13 @@
         │                         │                          │
         ▼                         ▼                          ▼
 ┌───────────────┐        ┌─────────────────┐        ┌─────────────────┐
-│     doing     │        │    plan_mode    │        │  research_mode  │
-│   (执行模式)   │◄───────│   (规划模式)     │        │   (研究模式)     │
+│     doing     │        │  version_manager │        │     stat       │
+│   (执行模式)   │◄───────│   (版本管理)     │        │  (监控大盘)     │
 └───────┬───────┘        └────────┬────────┘        └─────────────────┘
         │                         │
         │                         ▼
         │                ┌─────────────────┐
-        └───────────────►│   git_manager   │
-                         │   (Git 管理)     │
-                         └────────┬────────┘
-                                  │
-                                  ▼
-                         ┌─────────────────┐
-                         │    logging      │
+        └───────────────►│    logging      │
                          │   (日志系统)     │
                          └────────┬────────┘
                                   │
@@ -65,8 +58,7 @@
 ### 断点自动恢复
 `morty doing` 默认从上次中断处自动恢复执行：
 - 从未完成的 Job 开始继续
-- 在 Job 内从未完成的 Task 继续
-- 有未解决 debug_log 的 Job 自动重试
+- 状态通过 `.morty/status.json` 维护
 
 ### 拓扑排序执行
 - **模块级**: 按依赖关系拓扑排序（被依赖模块先执行）
@@ -77,7 +69,7 @@
 
 ```json
 {
-  "state": "running|completed|error|blocked|paused",
+  "state": "running|completed|error",
   "current": { "module": "config", "job": "job_2" },
   "modules": {
     "config": {
@@ -86,13 +78,13 @@
         "job_1": {
           "status": "COMPLETED",
           "loop_count": 1,
-          "tasks_completed": 5,
-          "debug_logs": []
+          "tasks_total": 5,
+          "tasks_completed": 5
         }
       }
     }
   },
-  "summary": { "total_jobs": 36, "completed_jobs": 5, "progress_percentage": 14 }
+  "summary": { "total_jobs": 25, "completed_jobs": 5, "progress_percentage": 20 }
 }
 ```
 
@@ -111,37 +103,33 @@ morty stat --watch      # 持续监控
 
 ### 第一阶段：基础模块
 1. **config** (无依赖)
-2. **logging** (依赖 config)
+2. **logging** (依赖 config) - 已实现
 
 ### 第二阶段：核心服务模块
-3. **git_manager** (依赖 config, logging)
+3. **version_manager** (依赖 config, logging)
 
-### 第三阶段：模式模块
-4. **research_mode** (依赖 config, logging)
-5. **plan_mode** (依赖 config, logging, git_manager)
-6. **doing** (依赖 config, logging, git_manager, plan_mode)
+### 第三阶段：执行模块
+4. **doing** (依赖 config, logging, version_manager)
 
 ### 第四阶段：入口整合
-7. **cli** (依赖所有模块)
+5. **cli** (依赖所有模块)
 
 ### 第五阶段：验证
-8. **生产测试** (所有模块完成后)
+6. **生产测试** (所有模块完成后)
 
 ---
 
 ## Jobs 统计
 
-| 模块 | Jobs | 平均前置条件数 | 关键验证点 |
-|------|------|----------------|------------|
-| config | 3 | 0.3 | 配置优先级、验证 |
-| logging | 4 | 0.5 | 日志级别、轮转、Job 级日志 |
-| git_manager | 5 | 0.6 | 提交格式、回滚、里程碑 |
-| research_mode | 5 | 0.4 | 报告生成、验证 |
-| plan_mode | 6 | 0.7 | 模块识别、验证器生成 |
-| doing | 7 | 0.9 | 状态机、测试生成、重试、拓扑调度、断点恢复、stat |
-| cli | 6 | 0.5 | 路由、stat、帮助、断点恢复 |
+| 模块 | Jobs | 关键验证点 |
+|------|------|------------|
+| config | 3 | 配置优先级、验证 |
+| logging | 4 | 日志级别、轮转、Job 级日志 - 已实现 |
+| version_manager | 3 | 提交格式、回滚 |
+| doing | 5 | 状态机、黑箱执行、重试、Git 提交 |
+| cli | 5 | 路由、stat、reset、帮助 |
 
-**总计**: 36 个 Jobs
+**总计**: 25 个 Jobs (logging 已实现，剩余 21 个)
 
 ---
 
@@ -149,15 +137,16 @@ morty stat --watch      # 持续监控
 
 ```
 第1次执行 morty doing:
-  → config/job1 (新, 0依赖) → Task1-5 → COMPLETED
-  → config/job2 (新, 依赖job1) → Task1-2 → Task3 FAILED
-  → 状态保存，记录 debug_log
+  → config/job1 (新, 0依赖) → COMPLETED → Git 提交
+  → config/job2 (新, 依赖job1) → COMPLETED → Git 提交
+  → config/job3 (新, 依赖job2) → COMPLETED → Git 提交
+  → logging/job1 (已完成) → 跳过
+  → ...
 
 第2次执行 morty doing (自动恢复):
-  → config/job1 (已完成) → 跳过
-  → config/job2 (FAILED) → Task1-2 (已完成,跳过) → Task3 (重试) → Task4-5 → COMPLETED
-  → config/job3 (新, 依赖job2) → 执行 → COMPLETED
-  → logging/job1 (新, 0依赖, config已完成) → 执行...
+  → config/* (已完成) → 跳过
+  → version_manager/job1 (新) → 执行 → COMPLETED
+  → ...
 ```
 
 ---
@@ -167,35 +156,31 @@ morty stat --watch      # 持续监控
 ### 1. 分层架构
 ```
 基础层: config, logging
-服务层: git_manager
-模式层: research_mode, plan_mode, doing
+服务层: version_manager
+执行层: doing
 入口层: cli
 ```
 
-### 2. 分层 TDD 验证
-```
-Layer 1: Job 级单元测试（每个 Job 执行前生成）
-Layer 2: 模块级集成测试（模块 Jobs 完成后）
-Layer 3: 端到端生产测试（所有模块完成后）
-```
+### 2. 黑箱执行
+- doing 模式调用 ai_cli 以黑箱方式执行 Job
+- 所有输出通过 logging 模块记录到日志
+- 人类通过日志观察执行细节
+- 所有修改在 plan 目录闭环
 
 ### 3. 状态管理
 - 所有状态集中存储在 `.morty/status.json`
 - 每个 Job 执行一次算一次循环，记录 loop_count
-- Task 级完成状态记录，支持 Task 级断点恢复
-- 调试日志记录在 Job 的 debug_logs 数组中
-- 通过 `morty stat` 查看实时进度
-- `morty doing --restart` 强制从头执行
+- 通过 `morty stat` 查看实时进度（监控大盘）
 
-### 4. 验证器设计
-- 使用自然语言描述验收标准
-- 由 doing 模式解析并生成测试
-- 支持重试（最多 3 次）和跳过策略
+### 4. 提示词收敛
+- 所有提示词放在 `prompts/` 目录
+- doing 脚本不内置任何提示词
+- 运行时动态组合提示词 + Plan 文件
 
-### 5. 环境同构
-- Bash 4.0+ 作为统一脚本语言
-- 依赖版本声明（Git 2.0+, Bash 4.0+）
-- 配置模板化
+### 5. 模块精简
+- plan_mode 和 research_mode 由用户手动实现
+- version_manager 替代 git_manager（便于扩展隔离性）
+- 简化 doing 为单循环调度器
 
 ---
 
@@ -204,13 +189,14 @@ Layer 3: 端到端生产测试（所有模块完成后）
 ### Plan 文件
 - `plan/README.md` - Plan 索引（本文件）
 - `plan/config.md` - 配置管理模块
-- `plan/logging.md` - 日志系统模块
-- `plan/git_manager.md` - Git 管理模块
-- `plan/research_mode.md` - 研究模式模块
-- `plan/plan_mode.md` - 规划模式模块
-- `plan/doing.md` - 执行模式模块（含 status.json 设计）
-- `plan/cli.md` - 命令行接口模块（含 stat 命令）
+- `plan/logging.md` - 日志系统模块（已实现）
+- `plan/version_manager.md` - 版本管理模块
+- `plan/doing.md` - 执行模式模块
+- `plan/cli.md` - 命令行接口模块
 - `plan/生产测试.md` - 端到端测试计划
+
+### 提示词文件（prompts/）
+- `prompts/doing.md` - Doing 模式系统提示词
 
 ---
 
@@ -219,8 +205,9 @@ Layer 3: 端到端生产测试（所有模块完成后）
 运行 `morty doing` 开始分层 TDD 开发
 
 执行顺序:
-1. config → logging → git_manager (基础层)
-2. research_mode → plan_mode (模式层基础)
-3. doing (核心执行)
-4. cli (入口整合)
-5. 生产测试 (验证发布)
+1. config → version_manager (基础层)
+2. doing (核心执行)
+3. cli (入口整合)
+4. 生产测试 (验证发布)
+
+**注意**: logging 模块已实现，可直接跳过。
