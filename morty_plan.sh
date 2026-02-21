@@ -5,9 +5,15 @@ set -e
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "$SCRIPT_DIR/lib/common.sh"
+source "$SCRIPT_DIR/lib/config.sh"
+
+# 加载配置
+config_load 2>/dev/null || true
+
+# 从配置获取 AI CLI 命令，默认为 claude
+AI_CLI=$(config_get "cli.command" "claude")
 
 # 配置
-CLAUDE_CMD="${CLAUDE_CODE_CLI:-ai_cli}"
 PLAN_PROMPT="$SCRIPT_DIR/prompts/plan.md"
 MORTY_DIR=".morty"
 PLAN_DIR="$MORTY_DIR/plan"
@@ -176,15 +182,15 @@ log INFO "  4. 创建 [生产测试].md 端到端测试计划"
 log INFO "  5. 生成 README.md 索引"
 log INFO ""
 
-# 构建 Claude 命令
+# 构建 Claude 命令参数
 CLAUDE_ARGS=(
-    "$CLAUDE_CMD"
-    "--dangerously-skip-permissions"
-    "--allowedTools" "Read" "Write" "Glob" "Grep" "WebSearch" "WebFetch" "Edit" "Task"
+    "$AI_CLI"
+    "--permission-mode" "plan"
+    "-p" "$INTERACTIVE_PROMPT"
 )
 
-# 将提示词通过管道传递给 Claude Code
-echo "$INTERACTIVE_PROMPT" | "${CLAUDE_ARGS[@]}"
+# 以 Plan 模式调用 ai_cli
+"${CLAUDE_ARGS[@]}"
 
 CLAUDE_EXIT_CODE=$?
 
