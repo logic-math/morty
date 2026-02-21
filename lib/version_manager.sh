@@ -601,6 +601,437 @@ version_create_loop_commit() {
 }
 
 # ============================================
+# 版本回滚与历史查询功能
+# ============================================
+
+# 错误码定义（追加）
+readonly VERSION_ERR_INVALID_COMMIT=5
+readonly VERSION_ERR_RESET_FAILED=6
+
+# 创建回滚前备份分支
+# 在回滚前自动创建一个备份分支，以便需要时可以恢复
+# Usage: _version_create_backup_branch [directory]
+# 参数:
+#   directory - 可选，Git 仓库目录，默认为当前目录
+# 输出:
+#   备份分支名称（stdout）
+# 返回:
+#   0 - 成功
+#   1 - 不在 Git 仓库内
+#   2 - git 命令不可用
+_version_create_backup_branch() {
+    local target_dir="${1:-.}"
+
+    # 检查 git 是否可用
+    if ! _version_check_git; then
+        return $VERSION_ERR_GIT_NOT_INSTALLED
+    fi
+
+    # 保存当前目录
+    local original_dir="$PWD"
+
+    # 如果指定了目录，切换到该目录
+    if [[ "$target_dir" != "." ]]; then
+        if [[ ! -d "$target_dir" ]]; then
+            return $VERSION_ERR_INVALID_PATH
+        fi
+        cd "$target_dir" || return $VERSION_ERR_INVALID_PATH
+    fi
+
+    # 检查是否在 Git 仓库内
+    if ! git rev-parse --git-dir >/dev/null 2>&1; then
+        cd "$original_dir" || true
+        return $VERSION_ERR_NOT_GIT_REPO
+    fi
+
+    # 生成备份分支名称：backup/YYYYMMDD-HHMMSS
+    local timestamp
+    timestamp=$(date +"%Y%m%d-%H%M%S")
+    local backup_branch="backup/${timestamp}"
+
+    # 创建备份分支（指向当前 HEAD）
+    if git branch "$backup_branch" HEAD 2>/dev/null; then
+        if type log_info &>/dev/null; then
+            log_info "Created backup branch: ${backup_branch}"
+        fi
+        echo "$backup_branch"
+        cd "$original_dir" || true
+        return 0
+    else
+        if type log_error &>/dev/null; then
+            log_error "Failed to create backup branch"
+        fi
+        cd "$original_dir" || true
+        return 1
+    fi
+}
+
+# 保护 .morty/logs/ 目录（暂存变更以便回滚后恢复）
+# Usage: _version_protect_logs_dir [directory]
+# 参数:
+#   directory - 可选，Git 仓库目录，默认为当前目录
+# 返回:
+#   0 - 成功
+#   1 - 无需保护（目录不存在或无变更）
+_version_protect_logs_dir() {
+    local target_dir="${1:-.}"
+
+    # 保存当前目录
+    local original_dir="$PWD"
+
+    # 如果指定了目录，切换到该目录
+    if [[ "$target_dir" != "." ]]; then
+        if [[ ! -d "$target_dir" ]]; then
+            return $VERSION_ERR_INVALID_PATH
+        fi
+        cd "$target_dir" || return $VERSION_ERR_INVALID_PATH
+    fi
+
+    # 检查 .morty/logs/ 目录是否存在
+    local logs_dir=".morty/logs"
+    if [[ ! -d "$logs_dir" ]]; then
+        cd "$original_dir" || true
+        return 1
+    fi
+
+    # 检查 logs 目录是否有未提交的变更
+    # 使用 git status 检查是否有变更
+    local has_changes=false
+
+    # 检查 logs 目录下的所有文件
+    if git status --porcelain "$logs_dir" 2>/dev/null | grep -q .; then
+        has_changes=true
+    fi
+
+    # 如果没有变更，也创建一个临时 stash 来保护当前状态
+    # 这样 reset --hard 不会删除这些文件
+    if [[ "$has_changes" == "true" ]]; then
+        # 暂存 logs 目录的变更
+        git add "$logs_dir" 2>/dev/null || true
+    fi
+
+    cd "$original_dir" || true
+    return 0
+}
+
+# 重置到指定 commit
+# Usage: version_reset_to_commit <commit_hash> [directory]
+# 参数:
+#   commit_hash - 目标 commit hash（可以是短 hash）
+#   directory - 可选，Git 仓库目录，默认为当前目录
+# 输出:
+#   重置结果信息（stdout）
+# 返回:
+#   0 - 重置成功
+#   1 - 不在 Git 仓库内
+#   2 - git 命令不可用
+#   4 - 无效参数
+#   5 - 无效的 commit hash
+#   6 - 重置失败
+version_reset_to_commit() {
+    local commit_hash="$1"
+    local target_dir="${2:-.}"
+
+    # 验证参数
+    if [[ -z "$commit_hash" ]]; then
+        if type log_error &>/dev/null; then
+            log_error "Commit hash is required"
+        fi
+        echo "Error: Commit hash is required" >&2
+        return 4
+    fi
+
+    # 检查 git 是否可用
+    if ! _version_check_git; then
+        if type log_error &>/dev/null; then
+            log_error "Git is not installed"
+        fi
+        echo "Error: Git is not installed" >&2
+        return $VERSION_ERR_GIT_NOT_INSTALLED
+    fi
+
+    # 保存当前目录
+    local original_dir="$PWD"
+
+    # 如果指定了目录，切换到该目录
+    if [[ "$target_dir" != "." ]]; then
+        if [[ ! -d "$target_dir" ]]; then
+            if type log_error &>/dev/null; then
+                log_error "Directory does not exist: $target_dir"
+            fi
+            echo "Error: Directory does not exist: $target_dir" >&2
+            return $VERSION_ERR_INVALID_PATH
+        fi
+        cd "$target_dir" || return $VERSION_ERR_INVALID_PATH
+    fi
+
+    # 检查是否在 Git 仓库内
+    if ! git rev-parse --git-dir >/dev/null 2>&1; then
+        if type log_error &>/dev/null; then
+            log_error "Not a git repository: $target_dir"
+        fi
+        echo "Error: Not a git repository" >&2
+        cd "$original_dir" || true
+        return $VERSION_ERR_NOT_GIT_REPO
+    fi
+
+    # 验证 commit hash 是否有效
+    local full_commit
+    full_commit=$(git rev-parse --verify "$commit_hash" 2>/dev/null)
+    if [[ -z "$full_commit" ]]; then
+        if type log_error &>/dev/null; then
+            log_error "Invalid commit hash: $commit_hash"
+        fi
+        echo "Error: Invalid commit hash: $commit_hash" >&2
+        cd "$original_dir" || true
+        return $VERSION_ERR_INVALID_COMMIT
+    fi
+
+    # 获取当前 commit 信息（用于日志）
+    local current_commit
+    current_commit=$(git rev-parse --short HEAD 2>/dev/null)
+
+    # 步骤 1: 创建备份分支
+    local backup_branch
+    backup_branch=$(_version_create_backup_branch ".")
+    if [[ $? -ne 0 ]]; then
+        if type log_warn &>/dev/null; then
+            log_warn "Failed to create backup branch"
+        fi
+    else
+        echo "Created backup branch: $backup_branch"
+    fi
+
+    # 步骤 2: 保护 .morty/logs/ 目录
+    # 将 logs 目录的内容保存到临时位置
+    local logs_backup_needed=false
+    local logs_backup_dir=""
+    if [[ -d ".morty/logs" ]]; then
+        logs_backup_needed=true
+        logs_backup_dir=$(mktemp -d -t morty_logs_backup.XXXXXX)
+        cp -r .morty/logs/* "$logs_backup_dir/" 2>/dev/null || true
+        if type log_info &>/dev/null; then
+            log_info "Backed up .morty/logs/ to temporary location"
+        fi
+    fi
+
+    # 步骤 3: 执行 git reset --hard
+    local reset_output
+    reset_output=$(git reset --hard "$commit_hash" 2>&1)
+    local reset_result=$?
+
+    if [[ $reset_result -ne 0 ]]; then
+        if type log_error &>/dev/null; then
+            log_error "Failed to reset to commit: $reset_output"
+        fi
+        echo "Error: Failed to reset to commit $commit_hash" >&2
+        echo "$reset_output" >&2
+        cd "$original_dir" || true
+        return $VERSION_ERR_RESET_FAILED
+    fi
+
+    # 步骤 4: 恢复 .morty/logs/ 目录
+    if [[ "$logs_backup_needed" == "true" && -n "$logs_backup_dir" && -d "$logs_backup_dir" ]]; then
+        # 确保 .morty 目录存在
+        mkdir -p .morty/logs
+        # 恢复日志文件
+        cp -r "$logs_backup_dir/"* .morty/logs/ 2>/dev/null || true
+        # 清理临时目录
+        rm -rf "$logs_backup_dir"
+        if type log_info &>/dev/null; then
+            log_info "Restored .morty/logs/ directory"
+        fi
+        echo "Protected .morty/logs/ directory restored"
+    fi
+
+    # 获取新的 HEAD commit
+    local new_commit
+    new_commit=$(git rev-parse --short HEAD 2>/dev/null)
+
+    if type log_info &>/dev/null; then
+        log_info "Reset from ${current_commit} to ${new_commit}"
+    fi
+
+    echo "Successfully reset to commit: $new_commit"
+    if [[ -n "$backup_branch" ]]; then
+        echo "Backup branch created: $backup_branch"
+    fi
+
+    cd "$original_dir" || true
+    return 0
+}
+
+# 显示最近 n 次循环历史
+# Usage: version_show_loop_history [n] [directory]
+# 参数:
+#   n - 可选，显示最近的 n 次循环，默认为 10
+#   directory - 可选，Git 仓库目录，默认为当前目录
+# 输出:
+#   格式化的循环历史（stdout）
+# 返回:
+#   0 - 成功
+#   1 - 不在 Git 仓库内
+#   2 - git 命令不可用
+version_show_loop_history() {
+    local n="${1:-10}"
+    local target_dir="${2:-.}"
+
+    # 确保 n 是数字
+    if ! [[ "$n" =~ ^[0-9]+$ ]]; then
+        n=10
+    fi
+
+    # 检查 git 是否可用
+    if ! _version_check_git; then
+        if type log_error &>/dev/null; then
+            log_error "Git is not installed"
+        fi
+        echo "Error: Git is not installed" >&2
+        return $VERSION_ERR_GIT_NOT_INSTALLED
+    fi
+
+    # 保存当前目录
+    local original_dir="$PWD"
+
+    # 如果指定了目录，切换到该目录
+    if [[ "$target_dir" != "." ]]; then
+        if [[ ! -d "$target_dir" ]]; then
+            if type log_error &>/dev/null; then
+                log_error "Directory does not exist: $target_dir"
+            fi
+            echo "Error: Directory does not exist: $target_dir" >&2
+            return $VERSION_ERR_INVALID_PATH
+        fi
+        cd "$target_dir" || return $VERSION_ERR_INVALID_PATH
+    fi
+
+    # 检查是否在 Git 仓库内
+    if ! git rev-parse --git-dir >/dev/null 2>&1; then
+        if type log_error &>/dev/null; then
+            log_error "Not a git repository: $target_dir"
+        fi
+        echo "Error: Not a git repository" >&2
+        cd "$original_dir" || true
+        return $VERSION_ERR_NOT_GIT_REPO
+    fi
+
+    # 获取 morty 循环提交历史
+    local history
+    history=$(git log --grep="^morty\[" --pretty=format:"%h|%s|%ci" -n "$n" 2>/dev/null)
+
+    if [[ -z "$history" ]]; then
+        echo "No loop history found"
+        cd "$original_dir" || true
+        return 0
+    fi
+
+    # 格式化输出
+    echo "=== Loop History (last $n) ==="
+    echo ""
+
+    local count=1
+    while IFS='|' read -r hash subject date; do
+        # 解析循环编号和状态
+        local loop_num=$(echo "$subject" | grep -oE 'loop:[0-9]+' | cut -d: -f2)
+        local status=$(echo "$subject" | grep -oE 'status:[a-z]+' | cut -d: -f2)
+
+        printf "%2d. [%s] Loop %s - %s (%s)\n" "$count" "$hash" "$loop_num" "$status" "$date"
+        count=$((count + 1))
+    done <<< "$history"
+
+    cd "$original_dir" || true
+    return 0
+}
+
+# 获取指定编号的循环提交信息
+# Usage: version_get_loop_by_number <n> [directory]
+# 参数:
+#   n - 循环编号
+#   directory - 可选，Git 仓库目录，默认为当前目录
+# 输出:
+#   循环提交的 commit hash（stdout）
+# 返回:
+#   0 - 成功
+#   1 - 不在 Git 仓库内
+#   2 - git 命令不可用
+#   4 - 无效参数
+#   5 - 未找到指定编号的循环
+version_get_loop_by_number() {
+    local loop_number="$1"
+    local target_dir="${2:-.}"
+
+    # 验证参数
+    if [[ -z "$loop_number" ]]; then
+        if type log_error &>/dev/null; then
+            log_error "Loop number is required"
+        fi
+        echo "Error: Loop number is required" >&2
+        return 4
+    fi
+
+    # 确保 loop_number 是数字
+    if ! [[ "$loop_number" =~ ^[0-9]+$ ]]; then
+        if type log_error &>/dev/null; then
+            log_error "Invalid loop number: $loop_number"
+        fi
+        echo "Error: Invalid loop number: $loop_number" >&2
+        return 4
+    fi
+
+    # 检查 git 是否可用
+    if ! _version_check_git; then
+        if type log_error &>/dev/null; then
+            log_error "Git is not installed"
+        fi
+        echo "Error: Git is not installed" >&2
+        return $VERSION_ERR_GIT_NOT_INSTALLED
+    fi
+
+    # 保存当前目录
+    local original_dir="$PWD"
+
+    # 如果指定了目录，切换到该目录
+    if [[ "$target_dir" != "." ]]; then
+        if [[ ! -d "$target_dir" ]]; then
+            if type log_error &>/dev/null; then
+                log_error "Directory does not exist: $target_dir"
+            fi
+            echo "Error: Directory does not exist: $target_dir" >&2
+            return $VERSION_ERR_INVALID_PATH
+        fi
+        cd "$target_dir" || return $VERSION_ERR_INVALID_PATH
+    fi
+
+    # 检查是否在 Git 仓库内
+    if ! git rev-parse --git-dir >/dev/null 2>&1; then
+        if type log_error &>/dev/null; then
+            log_error "Not a git repository: $target_dir"
+        fi
+        echo "Error: Not a git repository" >&2
+        cd "$original_dir" || true
+        return $VERSION_ERR_NOT_GIT_REPO
+    fi
+
+    # 搜索指定循环编号的提交
+    local commit_hash
+    commit_hash=$(git log --grep="morty\[loop:${loop_number}," --pretty=format:"%h" -n 1 2>/dev/null)
+
+    if [[ -z "$commit_hash" ]]; then
+        if type log_error &>/dev/null; then
+            log_error "Loop $loop_number not found"
+        fi
+        echo "Error: Loop $loop_number not found" >&2
+        cd "$original_dir" || true
+        return 5
+    fi
+
+    echo "$commit_hash"
+
+    cd "$original_dir" || true
+    return 0
+}
+
+# ============================================
 # 初始化
 # ============================================
 

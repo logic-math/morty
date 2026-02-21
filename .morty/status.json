@@ -3,15 +3,15 @@
   "state": "running",
   "current": {
     "module": "version_manager",
-    "job": "job_2",
+    "job": "job_3",
     "status": "RUNNING",
-    "start_time": "2026-02-21T20:04:56Z",
+    "start_time": "2026-02-21T20:13:15Z",
     "completed_at": "2026-02-22T03:43:00Z"
   },
   "session": {
     "start_time": "2026-02-21T16:13:36Z",
-    "last_update": "2026-02-21T20:04:57Z",
-    "total_loops": 30
+    "last_update": "2026-02-21T20:13:15Z",
+    "total_loops": 31
   },
   "modules": {
     "cli": {
@@ -726,21 +726,57 @@
           }
         },
         "job_2": {
+          "status": "COMPLETED",
+          "loop_count": 1,
+          "retry_count": 0,
+          "tasks_total": 5,
+          "tasks_completed": 6,
+          "debug_logs": [],
+          "started_at": "2026-02-21T20:04:56Z",
+          "completed_at": "2026-02-21T20:13:15Z",
+          "tasks": {
+            "task_1": {
+              "description": "实现 `version_create_loop_commit()`",
+              "status": "COMPLETED",
+              "completed_at": "2026-02-22T04:05:00Z"
+            },
+            "task_2": {
+              "description": "实现提交信息生成器（包含循环编号、状态、变更统计）",
+              "status": "COMPLETED",
+              "completed_at": "2026-02-22T04:06:00Z"
+            },
+            "task_3": {
+              "description": "实现自动暂存变更（受 gitignore 限制）",
+              "status": "COMPLETED",
+              "completed_at": "2026-02-22T04:07:00Z"
+            },
+            "task_4": {
+              "description": "实现提交前的变更检查（无变更则不提交）",
+              "status": "COMPLETED",
+              "completed_at": "2026-02-22T04:08:00Z"
+            },
+            "task_5": {
+              "description": "实现 `version_get_current_loop_number()`",
+              "status": "COMPLETED",
+              "completed_at": "2026-02-22T04:09:00Z"
+            }
+          }
+        },
+        "job_3": {
           "status": "RUNNING",
           "loop_count": 1,
           "retry_count": 0,
           "tasks_total": 5,
-          "tasks_completed": 0,
+          "tasks_completed": 1,
           "debug_logs": [],
-          "started_at": "2026-02-21T20:04:56Z"
-        },
-        "job_3": {
-          "status": "PENDING",
-          "loop_count": 0,
-          "retry_count": 0,
-          "tasks_total": 5,
-          "tasks_completed": 0,
-          "debug_logs": []
+          "started_at": "2026-02-21T20:13:15Z",
+          "tasks": {
+            "task_1": {
+              "description": "实现 `version_reset_to_commit()`",
+              "status": "COMPLETED",
+              "completed_at": "2026-02-22T12:00:00Z"
+            }
+          }
         }
       }
     }
