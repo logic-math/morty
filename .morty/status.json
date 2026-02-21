@@ -3,15 +3,15 @@
   "state": "running",
   "current": {
     "module": "doing",
-    "job": "job_1",
-    "status": "COMPLETED",
-    "start_time": "2026-02-21T18:14:52Z",
+    "job": "job_2",
+    "status": "RUNNING",
+    "start_time": "2026-02-21T18:25:03Z",
     "completed_at": "2026-02-22T02:35:00Z"
   },
   "session": {
     "start_time": "2026-02-21T16:13:36Z",
-    "last_update": "2026-02-22T02:35:00Z",
-    "total_loops": 12
+    "last_update": "2026-02-21T18:33:09Z",
+    "total_loops": 14
   },
   "modules": {
     "cli": {
@@ -187,10 +187,10 @@
           "loop_count": 1,
           "retry_count": 0,
           "tasks_total": 5,
-          "tasks_completed": 5,
+          "tasks_completed": 6,
           "debug_logs": [],
           "started_at": "2026-02-21T18:14:52Z",
-          "completed_at": "2026-02-22T02:35:00Z",
+          "completed_at": "2026-02-21T18:25:02Z",
           "tasks": {
             "task_1": {
               "description": "创建 `morty_doing.sh` 脚本",
@@ -220,12 +220,40 @@
           }
         },
         "job_2": {
-          "status": "PENDING",
-          "loop_count": 0,
+          "status": "RUNNING",
+          "loop_count": 1,
           "retry_count": 0,
           "tasks_total": 5,
-          "tasks_completed": 0,
-          "debug_logs": []
+          "tasks_completed": 5,
+          "debug_logs": [],
+          "started_at": "2026-02-21T18:25:03Z",
+          "tasks": {
+            "task_1": {
+              "description": "实现 `doing_execute_job()`",
+              "status": "COMPLETED",
+              "completed_at": "2026-02-22T10:30:00Z"
+            },
+            "task_2": {
+              "description": "构建执行提示词",
+              "status": "COMPLETED",
+              "completed_at": "2026-02-22T10:31:00Z"
+            },
+            "task_3": {
+              "description": "调用 ai_cli 后台执行",
+              "status": "COMPLETED",
+              "completed_at": "2026-02-22T10:32:00Z"
+            },
+            "task_4": {
+              "description": "捕获执行结果（通过日志或输出文件）",
+              "status": "COMPLETED",
+              "completed_at": "2026-02-22T10:33:00Z"
+            },
+            "task_5": {
+              "description": "解析执行结果，更新状态",
+              "status": "COMPLETED",
+              "completed_at": "2026-02-22T10:34:00Z"
+            }
+          }
         },
         "job_3": {
           "status": "PENDING",
@@ -365,14 +393,14 @@
   "summary": {
     "total_modules": 7,
     "completed_modules": 0,
-    "running_modules": 0,
-    "pending_modules": 7,
+    "running_modules": 1,
+    "pending_modules": 6,
     "blocked_modules": 0,
     "total_jobs": 24,
     "completed_jobs": 0,
-    "running_jobs": 0,
+    "running_jobs": 1,
     "failed_jobs": 0,
     "blocked_jobs": 0,
-    "progress_percentage": 0
+    "progress_percentage": 4
   }
 }

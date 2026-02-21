@@ -117,6 +117,8 @@ doing_parse_args() {
 # 加载现有状态
 doing_load_status() {
     if [[ ! -f "$STATUS_FILE" ]]; then
+        log WARN "状态文件不存在: $STATUS_FILE"
+        log INFO "首次运行，已初始化状态"
         return 1
     fi
 
@@ -128,6 +130,7 @@ doing_load_status() {
         fi
     fi
 
+    log INFO "状态文件加载成功: $STATUS_FILE"
     return 0
 }
 
@@ -669,6 +672,52 @@ doing_record_loop() {
 # Job 执行引擎 (Job 2)
 # ============================================
 
+# 全局变量用于信号处理
+declare -g CURRENT_MODULE=""
+declare -g CURRENT_JOB=""
+declare -g INTERRUPT_RECEIVED=false
+
+# 信号处理函数 - Ctrl+C 优雅中断
+doing_interrupt_handler() {
+    log WARN ""
+    log WARN "收到中断信号 (Ctrl+C)，正在优雅退出..."
+    INTERRUPT_RECEIVED=true
+
+    # 如果正在执行 Job，保存当前状态
+    if [[ -n "$CURRENT_MODULE" && -n "$CURRENT_JOB" ]]; then
+        log INFO "保存当前 Job 状态: $CURRENT_MODULE/$CURRENT_JOB"
+
+        # 更新状态为中断前的状态（保持 RUNNING 或标记为 FAILED）
+        local timestamp=$(get_iso_timestamp)
+        local temp_file=$(mktemp)
+
+        if command -v jq &> /dev/null; then
+            jq --arg mod "$CURRENT_MODULE" \
+               --arg job "$CURRENT_JOB" \
+               --arg ts "$timestamp" \
+               '.modules[$mod].jobs[$job].interrupted_at = $ts |
+                .current.status = "INTERRUPTED" |
+                .session.last_update = $ts' \
+               "$STATUS_FILE" > "$temp_file" && mv "$temp_file" "$STATUS_FILE"
+        fi
+
+        log INFO "状态已保存，可以稍后从断点恢复"
+    fi
+
+    # 清理临时文件
+    if [[ -n "$PLAN_PARSE_RESULT" && -f "$PLAN_PARSE_RESULT" ]]; then
+        rm -f "$PLAN_PARSE_RESULT"
+    fi
+
+    log INFO "退出 Doing 模式"
+    exit 130  # 128 + SIGINT(2)
+}
+
+# 设置信号捕获
+doing_setup_signal_handlers() {
+    trap 'doing_interrupt_handler' INT TERM
+}
+
 # 获取 Job 状态
 doing_get_job_status() {
     local module="$1"
@@ -736,6 +785,104 @@ doing_get_loop_count() {
         "$STATUS_FILE" 2>/dev/null || echo "0"
 }
 
+# 解析执行结果 (RALPH_STATUS)
+doing_parse_execution_result() {
+    local output_file="$1"
+
+    local result_status=""
+    local tasks_completed=0
+    local tasks_total=0
+    local summary=""
+    local module=""
+    local job=""
+
+    # 检查输出文件是否存在
+    if [[ ! -f "$output_file" ]]; then
+        log ERROR "输出文件不存在: $output_file"
+        echo "status=FAILED;tasks_completed=0;tasks_total=0;summary=输出文件不存在"
+        return 1
+    fi
+
+    # 提取 RALPH_STATUS 块
+    local ralph_status=$(grep -A10 "RALPH_STATUS" "$output_file" 2>/dev/null | grep -v "END_RALPH_STATUS" | head -12)
+
+    if [[ -z "$ralph_status" ]]; then
+        log WARN "未找到 RALPH_STATUS 块，尝试解析其他格式..."
+        # 如果没有 RALPH_STATUS，根据退出码判断
+        echo "status=UNKNOWN;tasks_completed=0;tasks_total=0;summary=无RALPH_STATUS"
+        return 0
+    fi
+
+    # 解析 JSON 字段
+    result_status=$(echo "$ralph_status" | grep -o '"status": *"[^"]*"' | cut -d'"' -f4)
+    tasks_completed=$(echo "$ralph_status" | grep -o '"tasks_completed": *[0-9]*' | grep -o '[0-9]*')
+    tasks_total=$(echo "$ralph_status" | grep -o '"tasks_total": *[0-9]*' | grep -o '[0-9]*')
+    summary=$(echo "$ralph_status" | grep -o '"summary": *"[^"]*"' | cut -d'"' -f4)
+    module=$(echo "$ralph_status" | grep -o '"module": *"[^"]*"' | cut -d'"' -f4)
+    job=$(echo "$ralph_status" | grep -o '"job": *"[^"]*"' | cut -d'"' -f4)
+
+    # 输出解析结果
+    echo "status=${result_status:-UNKNOWN};tasks_completed=${tasks_completed:-0};tasks_total=${tasks_total:-0};summary=${summary:-未知};module=${module:-};job=${job:-}"
+}
+
+# 更新 Task 详细状态（包括描述和完成标记）
+doing_update_task_detail() {
+    local module="$1"
+    local job="$2"
+    local task_index="$3"
+    local task_status="$4"
+    local task_description="$5"
+
+    if ! command -v jq &> /dev/null; then
+        return 1
+    fi
+
+    local temp_file=$(mktemp)
+    local timestamp=$(get_iso_timestamp)
+
+    # 创建或更新 tasks 对象
+    jq --arg mod "$module" \
+       --arg job "$job" \
+       --arg idx "$task_index" \
+       --arg status "$task_status" \
+       --arg desc "$task_description" \
+       --arg ts "$timestamp" \
+       '.modules[$mod].jobs[$job].tasks[$idx] = {
+            "index": ($idx | tonumber),
+            "status": $status,
+            "description": $desc,
+            "updated_at": $ts
+        } |
+        .session.last_update = $ts' \
+       "$STATUS_FILE" > "$temp_file" && mv "$temp_file" "$STATUS_FILE"
+}
+
+# 从执行输出中提取 debug_log 信息
+doing_extract_debug_logs() {
+    local module="$1"
+    local job="$2"
+    local output_file="$3"
+
+    if [[ ! -f "$output_file" ]]; then
+        return 0
+    fi
+
+    # 查找错误信息
+    local errors=$(grep -n "ERROR\|FAILED\|错误\|失败" "$output_file" 2>/dev/null | head -5)
+
+    if [[ -n "$errors" ]]; then
+        log WARN "从输出中检测到错误信息，准备记录 debug_log"
+
+        # 提取错误详情
+        local phenomenon=$(echo "$errors" | head -1 | cut -d':' -f2- | tr -d '"' | head -c 200)
+        local reproduction="查看日志文件: $output_file"
+        local hypotheses="执行过程中出现错误，可能原因: 1)代码问题 2)环境配置 3)依赖缺失"
+        local fix="需要人工检查日志并修复问题"
+
+        doing_add_debug_log "$module" "$job" "$phenomenon" "$reproduction" "$hypotheses" "$fix"
+    fi
+}
+
 # 添加 debug_log
 doing_add_debug_log() {
     local module="$1"
@@ -756,10 +903,10 @@ doing_add_debug_log() {
     # 构建 debug_log 条目
     local debug_entry=$(jq -n \
         --arg ts "$timestamp" \
-        --param phenomenon "$phenomenon" \
-        --param reproduction "$reproduction" \
-        --param hypotheses "$hypotheses" \
-        --param fix "$fix" \
+        --arg phenomenon "$phenomenon" \
+        --arg reproduction "$reproduction" \
+        --arg hypotheses "$hypotheses" \
+        --arg fix "$fix" \
         '{
             id: now,
             timestamp: $ts,
@@ -836,6 +983,11 @@ doing_execute_job() {
     local module="$1"
     local job="$2"
 
+    # 设置全局变量用于信号处理
+    CURRENT_MODULE="$module"
+    CURRENT_JOB="$job"
+    INTERRUPT_RECEIVED=false
+
     log INFO "执行 Job: $module/$job"
 
     local tasks_total=$(doing_get_tasks_total "$module" "$job")
@@ -869,9 +1021,19 @@ doing_execute_job() {
         ((task_index++))
     done
 
+    # 检查是否收到中断信号
+    if [[ "$INTERRUPT_RECEIVED" == true ]]; then
+        log WARN "Job 执行被中断"
+        return 130
+    fi
+
     # 所有 Task 完成，标记 Job 为 COMPLETED
     doing_update_job_status "$module" "$job" "COMPLETED"
     log SUCCESS "Job $module/$job 完成"
+
+    # 重置全局变量
+    CURRENT_MODULE=""
+    CURRENT_JOB=""
 
     return 0
 }
@@ -961,6 +1123,12 @@ doing_run_task() {
     local task_index="$3"
     local task_desc="$4"
 
+    # 检查是否收到中断信号
+    if [[ "$INTERRUPT_RECEIVED" == true ]]; then
+        log WARN "    Task 执行被中断"
+        return 130
+    fi
+
     log INFO "    调用 ai_cli 执行 Task..."
 
     # 构建提示词
@@ -986,31 +1154,97 @@ doing_run_task() {
     # 执行 ai_cli
     local output_file="$DOING_LOGS/${module}_${job}_task${task_index}_output.log"
     log INFO "    执行 ai_cli..."
+    log INFO "    输出日志: $output_file"
 
-    if cat "$prompt_file" | "${ai_args[@]}" 2>&1 | tee "$output_file"; then
-        local exit_code=0
-    else
-        local exit_code=$?
-    fi
+    # 使用子shell执行 ai_cli，以便可以捕获中断信号
+    local exit_code=0
+    (
+        cat "$prompt_file" | "${ai_args[@]}" 2>&1
+    ) > "$output_file" &
+    local ai_pid=$!
+
+    # 等待子进程完成，同时检查中断信号
+    while kill -0 $ai_pid 2>/dev/null; do
+        if [[ "$INTERRUPT_RECEIVED" == true ]]; then
+            log WARN "    中断 Task 执行..."
+            kill -TERM $ai_pid 2>/dev/null || true
+            wait $ai_pid 2>/dev/null || true
+            return 130
+        fi
+        sleep 0.5
+    done
+
+    wait $ai_pid
+    exit_code=$?
 
     log INFO "    ai_cli 退出码: $exit_code"
 
+    # 输出日志内容到控制台（用于实时查看）
+    if [[ -f "$output_file" ]]; then
+        cat "$output_file"
+    fi
+
+    # 解析执行结果
+    log INFO "    解析执行结果..."
+    local parsed_result
+    parsed_result=$(doing_parse_execution_result "$output_file")
+
+    # 提取解析结果
+    local result_status=$(echo "$parsed_result" | grep -o 'status=[^;]*' | cut -d'=' -f2)
+    local result_tasks_completed=$(echo "$parsed_result" | grep -o 'tasks_completed=[^;]*' | cut -d'=' -f2)
+    local result_tasks_total=$(echo "$parsed_result" | grep -o 'tasks_total=[^;]*' | cut -d'=' -f2)
+    local result_summary=$(echo "$parsed_result" | grep -o 'summary=[^;]*' | cut -d'=' -f2)
+
+    log INFO "    解析结果: status=$result_status, tasks=$result_tasks_completed/$result_tasks_total"
+
+    # 更新 Task 详细状态
+    if [[ "$result_status" == "COMPLETED" ]]; then
+        doing_update_task_detail "$module" "$job" "$task_index" "COMPLETED" "$task_desc"
+    else
+        doing_update_task_detail "$module" "$job" "$task_index" "$result_status" "$task_desc"
+    fi
+
     # 检查输出中是否有成功标记
     if [[ $exit_code -eq 0 ]]; then
-        # 检查 RALPH_STATUS 中的状态
-        if grep -q '"status":.*"COMPLETED"' "$output_file" 2>/dev/null; then
-            log SUCCESS "    Task 执行完成"
-            return 0
-        elif grep -q '"status":.*"FAILED"' "$output_file" 2>/dev/null; then
-            log ERROR "    Task 执行失败 (RALPH 报告 FAILED)"
-            return 1
-        else
-            # 默认认为成功
-            log SUCCESS "    Task 执行完成"
-            return 0
-        fi
+        # 根据解析的状态判断
+        case "$result_status" in
+            "COMPLETED")
+                log SUCCESS "    Task 执行完成 (RALPH 报告 COMPLETED)"
+                log INFO "    摘要: $result_summary"
+                return 0
+                ;;
+            "FAILED")
+                log ERROR "    Task 执行失败 (RALPH 报告 FAILED)"
+                log ERROR "    失败原因: $result_summary"
+                # 记录 debug_log
+                doing_extract_debug_logs "$module" "$job" "$output_file"
+                return 1
+                ;;
+            *)
+                # 检查是否有错误输出
+                if grep -qi "error\|failed\|失败" "$output_file" 2>/dev/null; then
+                    log WARN "    输出中包含错误信息，请检查日志"
+                    doing_extract_debug_logs "$module" "$job" "$output_file"
+                fi
+                # 默认认为成功
+                log SUCCESS "    Task 执行完成 (退出码: 0)"
+                return 0
+                ;;
+        esac
+    elif [[ $exit_code -eq 130 ]]; then
+        log WARN "    Task 被中断"
+        return 130
     else
         log ERROR "    ai_cli 执行失败 (退出码: $exit_code)"
+        # 尝试从输出中提取错误信息
+        if [[ -f "$output_file" ]]; then
+            local error_msg=$(tail -20 "$output_file" | grep -i "error\|failed" | head -1 || echo "")
+            if [[ -n "$error_msg" ]]; then
+                log ERROR "    错误信息: $error_msg"
+            fi
+        fi
+        # 记录 debug_log
+        doing_extract_debug_logs "$module" "$job" "$output_file"
         return 1
     fi
 }
@@ -1030,6 +1264,9 @@ doing_get_first_pending_job() {
 # ============================================
 
 doing_main() {
+    # 设置信号处理程序（必须在最开始设置）
+    doing_setup_signal_handlers
+
     # 解析命令行参数
     doing_parse_args "$@"
 
@@ -1037,6 +1274,8 @@ doing_main() {
     log INFO "╔════════════════════════════════════════════════════════════╗"
     log INFO "║              MORTY DOING 模式 - 分层 TDD 开发              ║"
     log INFO "╚════════════════════════════════════════════════════════════╝"
+    log INFO ""
+    log INFO "提示: 按 Ctrl+C 可优雅中断执行并保存状态"
     log INFO ""
 
     # 检查前置条件
