@@ -1,0 +1,32 @@
+Task #3 completed successfully. Here's the summary:
+
+## 执行摘要
+
+**Task 3 已完成**: 从 config 获取 ai_cli 命令
+
+### 修改内容
+
+1. **morty_research.sh** (`/opt/meituan/dolphinfs_sunquan20/ai_coding/Coding/morty/morty_research.sh`):
+   - 添加了 `source "$SCRIPT_DIR/lib/config.sh"` 导入配置模块
+   - 添加了 `config_load` 调用初始化配置
+   - 使用 `AI_CLI=$(config_get "cli.command" "claude")` 从配置读取 CLI 命令，默认值为 "claude"
+   - 更新了命令构建部分，使用 `$AI_CLI` 替代原来的 `$CLAUDE_CMD`
+
+2. **bin/morty_research.sh** 已包含相同实现
+
+### 验证
+- `config_get "cli.command" "claude"` 正确调用，返回配置文件中的 cli.command 值或默认 "claude"
+- 配置加载流程完整：`source config.sh` → `config_load()` → `config_get()`
+
+<!-- RALPH_STATUS -->
+{
+  "module": "research",
+  "job": "job_1",
+  "status": "RUNNING",
+  "tasks_completed": 3,
+  "tasks_total": 7,
+  "loop_count": 1,
+  "debug_issues": 0,
+  "summary": "Task 3完成：从config获取ai_cli命令，已更新morty_research.sh添加config_get调用，使用AI_CLI=$(config_get \"cli.command\" \"claude\")读取配置，默认值为claude"
+}
+<!-- END_RALPH_STATUS -->

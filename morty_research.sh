@@ -5,9 +5,13 @@ set -e
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "$SCRIPT_DIR/lib/common.sh"
+source "$SCRIPT_DIR/lib/config.sh"
 
-# 配置
-CLAUDE_CMD="${CLAUDE_CODE_CLI:-ai_cli}"
+# 加载配置
+config_load
+
+# 从配置获取 AI CLI 命令
+AI_CLI=$(config_get "cli.command" "claude")
 RESEARCH_PROMPT="$SCRIPT_DIR/prompts/research.md"
 
 show_help() {
@@ -78,7 +82,7 @@ log INFO ""
 
 # 构建 Claude 命令
 CLAUDE_ARGS=(
-    "$CLAUDE_CMD"
+    "$AI_CLI"
     "--dangerously-skip-permissions"
     "--allowedTools" "Read" "Write" "Glob" "Grep" "WebSearch" "WebFetch" "Edit" "Task"
 )

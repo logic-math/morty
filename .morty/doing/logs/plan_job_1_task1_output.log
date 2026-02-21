@@ -1,0 +1,32 @@
+Task completed. Here's the summary:
+
+## Completed Tasks
+
+1. **Created `morty_plan.sh` script** - Updated existing script with proper structure
+2. **Read `prompts/plan.md` as system prompt** - Loads system prompt from file (line 124)
+3. **Get ai_cli command from config** - Uses `AI_CLI=$(config_get "cli.command" "claude")` (line 14)
+4. **Build Claude command parameters** - Constructs command array with plan mode (lines 185-190)
+5. **Invoke in Plan mode** - Calls `$AI_CLI --permission-mode plan -p "$PROMPT"` (line 193)
+6. **Create `.morty/plan/` directory** - mkdir -p on line 108
+7. **Verify output directory** - Checks for generated .md files (lines 201-218)
+
+## Changes Made
+
+- `morty_plan.sh:8` - Added `source "$SCRIPT_DIR/lib/config.sh"`
+- `morty_plan.sh:11` - Added `config_load` call
+- `morty_plan.sh:14` - Added `AI_CLI=$(config_get "cli.command" "claude")`
+- `morty_plan.sh:185-190` - Updated to use `--permission-mode plan` with `-p` flag
+- Git commit created: `4aedd81`
+
+<!-- RALPH_STATUS -->
+{
+  "module": "plan",
+  "job": "job_1",
+  "status": "COMPLETED",
+  "tasks_completed": 7,
+  "tasks_total": 7,
+  "loop_count": 1,
+  "debug_issues": 0,
+  "summary": "完成 morty_plan.sh 脚本创建，集成 config 系统，支持 --permission-mode plan 调用"
+}
+<!-- END_RALPH_STATUS -->

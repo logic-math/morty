@@ -1,10 +1,8 @@
-[2026-02-21 01:01:30] [INFO] [doing:job_1] Job doing:job_1 started
-[2026-02-21 01:01:30] [INFO] [doing:job_1] Message 1 from job
-[2026-02-21 01:01:31] [WARN] [doing:job_1] Warning in job
-[2026-02-21 01:01:31] [ERROR] [doing:job_1] Error in job
-[2026-02-21 01:01:32] [INFO] Job-specific detail
-[2026-02-21 01:01:32] [INFO] [doing:job_1] Job doing:job_1 success (duration: 2s)
+[2026-02-22 03:38:45] [INFO] [doing:job_1] Job doing:job_1 started
+[2026-02-22 03:38:45] [INFO] [doing:job_1] 这是一条测试消息
+[2026-02-22 03:38:45] [INFO] Job 独立日志消息
+[2026-02-22 03:38:47] [INFO] [doing:job_1] Job doing:job_1 completed (duration: 2s)
 
-=== Job success ===
-End time: 2026-02-21 01:01:32
+=== Job completed ===
+End time: 2026-02-22 03:38:47
 Duration: 2s

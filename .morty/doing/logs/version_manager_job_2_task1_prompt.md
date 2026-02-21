@@ -122,24 +122,24 @@ loop:[验证器]
 
 # 当前 Job 上下文
 
-**模块**: logging
-**Job**: job_3
+**模块**: version_manager
+**Job**: job_2
 **当前 Task**: #1
-**Task 描述**: 实现 `log_job_start(module, job)` 创建 Job 日志上下文
+**Task 描述**: 实现 `version_create_loop_commit()`
 
 ## 任务列表
 
-- [x] 实现 `log_job_start(module, job)` 创建 Job 日志上下文\n- [ ] 实现 `log_job_end()` 关闭 Job 日志上下文\n- [ ] 实现 `log_job(message)` 写入 Job 独立日志\n- [ ] 在 Job 日志中自动记录开始时间、结束时间、执行时长\n- [ ] 支持 Job 日志与主日志同时写入\n
+- [ ] 实现 `version_create_loop_commit()`\n- [ ] 实现提交信息生成器（包含循环编号、状态、变更统计）\n- [ ] 实现自动暂存变更（受 gitignore 限制）\n- [ ] 实现提交前的变更检查（无变更则不提交）\n- [ ] 实现 `version_get_current_loop_number()`\n
 
 ## 验证器
 
-- 调用 `log_job_start "doing" "job_1"` 后，应创建 `.morty/logs/jobs/doing_job1.log`\n- Job 执行期间的所有日志应同时写入主日志和 Job 独立日志\n- Job 独立日志应包含 Job 开始和结束的时间戳\n- Job 失败时应记录错误详情和堆栈信息（如可用）\n- Job 日志文件大小应可通过配置限制\n- 无\n
+- 调用 `version_create_loop_commit 5 completed` 后，应创建包含 "morty\n- 提交信息应包含完整的循环元数据（时间戳、变更统计、文件列表）\n- 无变更时调用应跳过提交并返回相应状态\n- `version_get_current_loop_number()` 应从最新提交中解析出正确的循环编号\n- 提交应保留 `.morty/logs/` 目录（不应被清理）\n- 无\n
 
 ## 执行指令
 
 请按照 Doing 模式的循环步骤执行：
 1. 读取 .morty/status.json 了解当前状态
-2. 执行当前 Task: 实现 `log_job_start(module, job)` 创建 Job 日志上下文
+2. 执行当前 Task: 实现 `version_create_loop_commit()`
 3. 如有问题，记录 debug_log
 4. 更新状态文件
 5. 输出 RALPH_STATUS

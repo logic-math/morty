@@ -123,23 +123,23 @@ loop:[验证器]
 # 当前 Job 上下文
 
 **模块**: logging
-**Job**: job_3
+**Job**: job_4
 **当前 Task**: #1
-**Task 描述**: 实现 `log_job_start(module, job)` 创建 Job 日志上下文
+**Task 描述**: 实现 JSON 格式日志输出
 
 ## 任务列表
 
-- [x] 实现 `log_job_start(module, job)` 创建 Job 日志上下文\n- [ ] 实现 `log_job_end()` 关闭 Job 日志上下文\n- [ ] 实现 `log_job(message)` 写入 Job 独立日志\n- [ ] 在 Job 日志中自动记录开始时间、结束时间、执行时长\n- [ ] 支持 Job 日志与主日志同时写入\n
+- [ ] 实现 JSON 格式日志输出\n- [ ] 支持上下文数据自动序列化为 JSON 字段\n- [ ] 添加 `log_structured()` 函数用于机器可读日志\n- [ ] 实现日志格式切换（文本/JSON）\n- [ ] 确保特殊字符正确转义\n
 
 ## 验证器
 
-- 调用 `log_job_start "doing" "job_1"` 后，应创建 `.morty/logs/jobs/doing_job1.log`\n- Job 执行期间的所有日志应同时写入主日志和 Job 独立日志\n- Job 独立日志应包含 Job 开始和结束的时间戳\n- Job 失败时应记录错误详情和堆栈信息（如可用）\n- Job 日志文件大小应可通过配置限制\n- 无\n
+- 当配置 `log_format\n- JSON 日志应包含 timestamp, level, module, message 字段\n- 上下文对象应被正确序列化为 JSON 字段\n- 包含特殊字符的消息应被正确转义\n- JSON 日志应可被标准日志分析工具解析（如 jq）\n- 无\n
 
 ## 执行指令
 
 请按照 Doing 模式的循环步骤执行：
 1. 读取 .morty/status.json 了解当前状态
-2. 执行当前 Task: 实现 `log_job_start(module, job)` 创建 Job 日志上下文
+2. 执行当前 Task: 实现 JSON 格式日志输出
 3. 如有问题，记录 debug_log
 4. 更新状态文件
 5. 输出 RALPH_STATUS

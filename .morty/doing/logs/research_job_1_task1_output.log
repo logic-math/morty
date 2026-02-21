@@ -1,0 +1,14 @@
+Commit created. Task 1 completed successfully.
+
+<!-- RALPH_STATUS -->
+{
+  "module": "research",
+  "job": "job_1",
+  "status": "RUNNING",
+  "tasks_completed": 1,
+  "tasks_total": 7,
+  "loop_count": 1,
+  "debug_issues": 0,
+  "summary": "成功创建 morty_research.sh 脚本，实现研究流程启动功能。脚本从 config 读取 cli.command，加载 prompts/research.md 系统提示词，以 Plan 模式调用 AI CLI，并确保 .morty/research/ 目录存在。"
+}
+<!-- END_RALPH_STATUS -->

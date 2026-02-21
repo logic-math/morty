@@ -5,3 +5,6 @@
 [2026-02-21 01:01:32] [INFO] [doing:job_1] Job doing:job_1 success (duration: 2s)
 [2026-02-22 03:13:56] [INFO] 测试消息
 [2026-02-22 03:13:56] [WARN] 这条WARN消息应该出现
+[2026-02-22 03:38:45] [INFO] [doing:job_1] Job doing:job_1 started
+[2026-02-22 03:38:45] [INFO] [doing:job_1] 这是一条测试消息
+[2026-02-22 03:38:47] [INFO] [doing:job_1] Job doing:job_1 completed (duration: 2s)

@@ -39,7 +39,7 @@ loop:[验证器]
 这是一个 Job 完成检查器
 
 0. 如果当前 Job 的所有 Tasks 已完成且验证器通过,则检查通过,结束循环。
-1. 如果当前 Job 存在未解决的 debug_log,则检查不通过,需要重试。
+1. 如果当前 Job 存在朐�解决的 debug_log,则检查不通过,需要重试。
 2. 如果验证器执行失败,则检查不通过,记录 debug_log 并准备重试。
 3. 如果达到最大重试次数,则标记 Job 为 BLOCKED,结束循环。
 4. 其他情况下,继续执行下一个 Task 或重试当前 Task。
@@ -122,24 +122,24 @@ loop:[验证器]
 
 # 当前 Job 上下文
 
-**模块**: logging
-**Job**: job_3
+**模块**: plan
+**Job**: job_1
 **当前 Task**: #1
-**Task 描述**: 实现 `log_job_start(module, job)` 创建 Job 日志上下文
+**Task 描述**: 创建 `morty_plan.sh` 脚本
 
 ## 任务列表
 
-- [x] 实现 `log_job_start(module, job)` 创建 Job 日志上下文\n- [ ] 实现 `log_job_end()` 关闭 Job 日志上下文\n- [ ] 实现 `log_job(message)` 写入 Job 独立日志\n- [ ] 在 Job 日志中自动记录开始时间、结束时间、执行时长\n- [ ] 支持 Job 日志与主日志同时写入\n
+- [ ] 创建 `morty_plan.sh` 脚本\n- [ ] 读取 `prompts/plan.md` 作为系统提示词\n- [ ] 从 config 获取 ai_cli 命令：`AI_CLI=$(config_get "cli.command" "claude")`\n- [ ] 构建 Claude 命令参数：\n- [ ] 以 Plan 模式调用：`$AI_CLI --permission-mode plan -p "$PROMPT"`\n- [ ] 创建 `.morty/plan/` 目录\n- [ ] 验证输出目录是否生成内容：\n
 
 ## 验证器
 
-- 调用 `log_job_start "doing" "job_1"` 后，应创建 `.morty/logs/jobs/doing_job1.log`\n- Job 执行期间的所有日志应同时写入主日志和 Job 独立日志\n- Job 独立日志应包含 Job 开始和结束的时间戳\n- Job 失败时应记录错误详情和堆栈信息（如可用）\n- Job 日志文件大小应可通过配置限制\n- 无\n
+- `morty plan` 能够启动规划流程\n- 脚本从 config 读取 `cli.command` 作为 ai_cli 命令\n- 以 Plan 模式调用 ai_cli，传递系统提示词\n- Plan 文件生成到 `.morty/plan/` 目录\n- 无\n
 
 ## 执行指令
 
 请按照 Doing 模式的循环步骤执行：
 1. 读取 .morty/status.json 了解当前状态
-2. 执行当前 Task: 实现 `log_job_start(module, job)` 创建 Job 日志上下文
+2. 执行当前 Task: 创建 `morty_plan.sh` 脚本
 3. 如有问题，记录 debug_log
 4. 更新状态文件
 5. 输出 RALPH_STATUS

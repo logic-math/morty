@@ -1,0 +1,14 @@
+Job 已完成。输出 RALPH_STATUS：
+
+<!-- RALPH_STATUS -->
+{
+  "module": "research",
+  "job": "job_1",
+  "status": "COMPLETED",
+  "tasks_completed": 7,
+  "tasks_total": 7,
+  "loop_count": 1,
+  "debug_issues": 0,
+  "summary": "完成 Research Job 1 所有 Tasks。验证了 morty_research.sh 脚本存在且可执行，脚本从 config 读取 cli.command 配置，构建 Claude 命令参数（--dangerously-skip-permissions 和 --allowedTools），确认 .morty/research/ 目录已创建。所有 7 个任务已完成，已创建 Git 提交。"
+}
+<!-- END_RALPH_STATUS -->
