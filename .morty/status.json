@@ -3,15 +3,15 @@
   "state": "running",
   "current": {
     "module": "logging",
-    "job": "job_2",
+    "job": "job_3",
     "status": "RUNNING",
-    "start_time": "2026-02-21T19:28:43Z",
+    "start_time": "2026-02-21T19:36:36Z",
     "completed_at": "2026-02-22T00:00:00Z"
   },
   "session": {
     "start_time": "2026-02-21T16:13:36Z",
-    "last_update": "2026-02-21T19:28:43Z",
-    "total_loops": 22
+    "last_update": "2026-02-21T19:36:36Z",
+    "total_loops": 23
   },
   "modules": {
     "cli": {
@@ -473,10 +473,10 @@
           "loop_count": 1,
           "retry_count": 0,
           "tasks_total": 5,
-          "tasks_completed": 5,
+          "tasks_completed": 6,
           "debug_logs": [],
           "started_at": "2026-02-21T19:28:43Z",
-          "completed_at": "2026-02-22T03:35:00Z",
+          "completed_at": "2026-02-21T19:36:35Z",
           "tasks": {
             "task_1": {
               "description": "实现日志文件大小检查",
@@ -506,12 +506,41 @@
           }
         },
         "job_3": {
-          "status": "PENDING",
-          "loop_count": 0,
+          "status": "COMPLETED",
+          "loop_count": 1,
           "retry_count": 0,
           "tasks_total": 5,
-          "tasks_completed": 0,
-          "debug_logs": []
+          "tasks_completed": 5,
+          "debug_logs": [],
+          "started_at": "2026-02-21T19:36:36Z",
+          "completed_at": "2026-02-22T03:38:47Z",
+          "tasks": {
+            "task_1": {
+              "description": "实现 `log_job_start(module, job)` 创建 Job 日志上下文",
+              "status": "COMPLETED",
+              "completed_at": "2026-02-22T03:38:00Z"
+            },
+            "task_2": {
+              "description": "实现 `log_job_end()` 关闭 Job 日志上下文",
+              "status": "COMPLETED",
+              "completed_at": "2026-02-22T03:38:00Z"
+            },
+            "task_3": {
+              "description": "实现 `log_job(message)` 写入 Job 独立日志",
+              "status": "COMPLETED",
+              "completed_at": "2026-02-22T03:38:00Z"
+            },
+            "task_4": {
+              "description": "在 Job 日志中自动记录开始时间、结束时间、执行时长",
+              "status": "COMPLETED",
+              "completed_at": "2026-02-22T03:38:00Z"
+            },
+            "task_5": {
+              "description": "支持 Job 日志与主日志同时写入",
+              "status": "COMPLETED",
+              "completed_at": "2026-02-22T03:38:00Z"
+            }
+          }
         },
         "job_4": {
           "status": "PENDING",
