@@ -2,67 +2,96 @@
   "version": "2.0",
   "state": "running",
   "current": {
-    "module": "cli",
+    "module": "config",
     "job": "job_1",
     "status": "RUNNING",
-    "start_time": "2026-02-21T16:13:39Z"
+    "start_time": "2026-02-21T16:42:45Z"
   },
   "session": {
     "start_time": "2026-02-21T16:13:36Z",
-    "last_update": "2026-02-21T16:13:40Z",
-    "total_loops": 1
+    "last_update": "2026-02-21T16:51:37Z",
+    "total_loops": 7
   },
   "modules": {
     "cli": {
-      "status": "pending",
+      "status": "completed",
       "jobs": {
         "job_1": {
-          "status": "RUNNING",
-          "loop_count": 1,
+          "status": "COMPLETED",
+          "loop_count": 3,
           "retry_count": 0,
           "tasks_total": 5,
-          "tasks_completed": 1,
+          "tasks_completed": 5,
           "debug_logs": [],
           "started_at": "2026-02-21T16:13:39Z",
+          "completed_at": "2026-02-22T01:05:00Z",
           "tasks": {
             "task_1": {
               "description": "创建 `morty` 主命令脚本",
               "status": "COMPLETED",
               "completed_at": "2026-02-22T00:28:00Z"
+            },
+            "task_2": {
+              "description": "实现 `cli_register_command()`",
+              "status": "COMPLETED",
+              "completed_at": "2026-02-22T00:45:00Z"
+            },
+            "task_3": {
+              "description": "实现 `cli_parse_args()`",
+              "status": "COMPLETED",
+              "completed_at": "2026-02-22T00:48:00Z"
+            },
+            "task_4": {
+              "description": "实现 `cli_route()`",
+              "status": "COMPLETED",
+              "completed_at": "2026-02-22T01:00:00Z"
+            },
+            "task_5": {
+              "description": "实现 `cli_execute()`",
+              "status": "COMPLETED",
+              "completed_at": "2026-02-22T01:05:00Z"
             }
-          }
-        },
+          },
+          "completed_at": "2026-02-22T01:05:00Z"
         "job_2": {
-          "status": "PENDING",
-          "loop_count": 0,
+          "status": "COMPLETED",
+          "loop_count": 1,
           "retry_count": 0,
           "tasks_total": 10,
-          "tasks_completed": 0,
-          "debug_logs": []
+          "tasks_completed": 10,
+          "debug_logs": [],
+          "started_at": "2026-02-21T16:41:06Z",
+          "completed_at": "2026-02-21T16:41:51Z"
         },
         "job_3": {
-          "status": "PENDING",
-          "loop_count": 0,
+          "status": "COMPLETED",
+          "loop_count": 1,
           "retry_count": 0,
           "tasks_total": 7,
-          "tasks_completed": 0,
-          "debug_logs": []
+          "tasks_completed": 7,
+          "debug_logs": [],
+          "started_at": "2026-02-21T16:41:52Z",
+          "completed_at": "2026-02-21T16:42:21Z"
         },
         "job_4": {
-          "status": "PENDING",
-          "loop_count": 0,
+          "status": "COMPLETED",
+          "loop_count": 1,
           "retry_count": 0,
           "tasks_total": 3,
-          "tasks_completed": 0,
-          "debug_logs": []
+          "tasks_completed": 3,
+          "debug_logs": [],
+          "started_at": "2026-02-21T16:42:22Z",
+          "completed_at": "2026-02-21T16:42:33Z"
         },
         "job_5": {
-          "status": "PENDING",
-          "loop_count": 0,
+          "status": "COMPLETED",
+          "loop_count": 1,
           "retry_count": 0,
           "tasks_total": 3,
-          "tasks_completed": 0,
-          "debug_logs": []
+          "tasks_completed": 3,
+          "debug_logs": [],
+          "started_at": "2026-02-21T16:42:34Z",
+          "completed_at": "2026-02-21T16:42:44Z"
         }
       }
     },
@@ -70,12 +99,13 @@
       "status": "pending",
       "jobs": {
         "job_1": {
-          "status": "PENDING",
-          "loop_count": 0,
+          "status": "RUNNING",
+          "loop_count": 1,
           "retry_count": 0,
           "tasks_total": 6,
-          "tasks_completed": 0,
-          "debug_logs": []
+          "tasks_completed": 2,
+          "debug_logs": [],
+          "started_at": "2026-02-21T16:42:45Z"
         },
         "job_2": {
           "status": "PENDING",

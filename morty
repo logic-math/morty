@@ -24,19 +24,18 @@ PURPLE='\033[0;35m'
 CYAN='\033[0;36m'
 NC='\033[0m'
 
-# 命令注册表 (关联数组)
-declare -A CLI_COMMAND_HANDLERS
-declare -A CLI_COMMAND_DESCRIPTIONS
-declare -A CLI_COMMAND_OPTIONS
-declare -a CLI_COMMAND_ORDER
+# ============================================================================
+# 加载库文件
+# ============================================================================
 
-# 参数解析结果
-declare -a CLI_POSITIONAL_ARGS
-declare -A CLI_OPTION_ARGS
-declare -a CLI_OPTION_FLAGS
+# 确定脚本所在目录
+MORTY_SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
-# 解析状态
-declare -i CLI_PARSE_ERROR=0
+# 加载库文件
+source "${MORTY_SCRIPT_DIR}/lib/cli_parse_args.sh"
+source "${MORTY_SCRIPT_DIR}/lib/cli_register_command.sh"
+source "${MORTY_SCRIPT_DIR}/lib/cli_route.sh"
+source "${MORTY_SCRIPT_DIR}/lib/cli_execute.sh"
 
 # ============================================================================
 # 错误处理和日志
@@ -67,6 +66,9 @@ cli_verbose() {
     fi
 }
 
+# 设置调试输出函数供库使用
+CLI_DEBUG_FN="cli_debug"
+
 # 显示调试信息 (debug 模式)
 # Usage: cli_debug <message>
 cli_debug() {
@@ -77,250 +79,89 @@ cli_debug() {
 }
 
 # ============================================================================
-# 命令注册系统
+# 命令注册系统 (使用 lib/cli_register_command.sh)
 # ============================================================================
 
-# 注册一个命令
-# Usage: cli_register_command <name> <handler> <description> [options]
-#   name: 命令名称 (如: doing, stat, reset)
-#   handler: 处理函数或脚本路径
-#   description: 命令描述
-#   options: 可选，命令支持的选项列表 (如: "--restart --module --job")
+# 注: 核心命令注册函数已从 lib/cli_register_command.sh 加载
+# 以下是对库函数的包装，保持一致的错误处理风格
+
+# 注册命令（带错误处理包装）
 cli_register_command() {
     local name="$1"
     local handler="$2"
     local description="$3"
     local options="${4:-}"
 
-    # 验证参数
-    if [[ -z "$name" ]]; then
-        cli_error "cli_register_command: 命令名称不能为空"
-    fi
-    if [[ -z "$handler" ]]; then
-        cli_error "cli_register_command: 处理函数不能为空 ($name)"
-    fi
-    if [[ -z "$description" ]]; then
-        cli_error "cli_register_command: 命令描述不能为空 ($name)"
+    if [[ -z "$name" || -z "$handler" || -z "$description" ]]; then
+        cli_error "cli_register_command: 参数不能为空"
     fi
 
-    # 注册命令
-    CLI_COMMAND_HANDLERS["$name"]="$handler"
-    CLI_COMMAND_DESCRIPTIONS["$name"]="$description"
-    CLI_COMMAND_OPTIONS["$name"]="$options"
-    CLI_COMMAND_ORDER+=("$name")
+    # 调用库函数
+    if ! _cli_register_command_impl "$name" "$handler" "$description" "$options"; then
+        cli_error "注册命令失败: $name"
+    fi
 
     cli_debug "注册命令: $name -> $handler"
 }
 
-# 检查命令是否已注册
-# Usage: cli_is_command_registered <name>
-# Returns: 0=已注册, 1=未注册
-cli_is_command_registered() {
-    local name="$1"
-    [[ -n "${CLI_COMMAND_HANDLERS[$name]:-}" ]]
-}
+# 内部实现调用库函数
+_cli_register_command_impl() {
+    # 直接使用库中的实现
+    local name="${1:-}"
+    local handler="${2:-}"
+    local description="${3:-}"
+    local options="${4:-}"
 
-# 获取命令的处理函数
-# Usage: cli_get_handler <name>
-cli_get_handler() {
-    local name="$1"
-    echo "${CLI_COMMAND_HANDLERS[$name]:-}"
-}
-
-# 获取命令的描述
-# Usage: cli_get_description <name>
-cli_get_description() {
-    local name="$1"
-    echo "${CLI_COMMAND_DESCRIPTIONS[$name]:-}"
-}
-
-# 获取命令的选项列表
-# Usage: cli_get_options <name>
-cli_get_options() {
-    local name="$1"
-    echo "${CLI_COMMAND_OPTIONS[$name]:-}"
-}
-
-# 获取所有已注册的命令列表
-# Usage: cli_get_commands
-cli_get_commands() {
-    printf '%s\n' "${CLI_COMMAND_ORDER[@]}"
-}
-
-# ============================================================================
-# 参数解析系统
-# ============================================================================
-
-# 清空解析结果
-cli_parse_reset() {
-    CLI_POSITIONAL_ARGS=()
-    CLI_OPTION_ARGS=()
-    CLI_OPTION_FLAGS=()
-    CLI_PARSE_ERROR=0
-}
-
-# 解析命令行参数
-# Usage: cli_parse_args <args...>
-# Results stored in: CLI_POSITIONAL_ARGS, CLI_OPTION_ARGS, CLI_OPTION_FLAGS
-cli_parse_args() {
-    cli_parse_reset
-
-    local args=("$@")
-    local i=0
-    local len=${#args[@]}
-
-    cli_debug "开始解析参数: ${args[*]}"
-
-    while [[ $i -lt $len ]]; do
-        local arg="${args[$i]}"
-
-        # 检查是否为选项
-        if [[ "$arg" == --* ]]; then
-            # 长选项 (--option)
-            local option="$arg"
-            local value=""
-
-            # 检查是否有 = 赋值 (--option=value)
-            if [[ "$option" == *=* ]]; then
-                value="${option#*=}"
-                option="${option%%=*}"
-            fi
-
-            # 检查是否需要取下一个参数作为值
-            if [[ -z "$value" && $((i + 1)) -lt $len ]]; then
-                local next_arg="${args[$((i + 1))]}"
-                if [[ ! "$next_arg" == -* ]]; then
-                    value="$next_arg"
-                    i=$((i + 1))
-                fi
-            fi
-
-            if [[ -n "$value" ]]; then
-                CLI_OPTION_ARGS["$option"]="$value"
-                cli_debug "解析选项: $option = $value"
-            else
-                CLI_OPTION_FLAGS+=("$option")
-                cli_debug "解析标志: $option"
-            fi
-
-        elif [[ "$arg" == -* ]]; then
-            # 短选项 (-a 或 -abc)
-            local flags="${arg#-}"
-            local j=0
-            local flag_len=${#flags}
-
-            while [[ $j -lt $flag_len ]]; do
-                local flag="-${flags:$j:1}"
-
-                # 检查是否需要取下一个参数作为值
-                if [[ $((j + 1)) -eq $flag_len && $((i + 1)) -lt $len ]]; then
-                    local next_arg="${args[$((i + 1))]}"
-                    if [[ ! "$next_arg" == -* ]]; then
-                        CLI_OPTION_ARGS["$flag"]="$next_arg"
-                        cli_debug "解析短选项: $flag = $next_arg"
-                        i=$((i + 1))
-                    else
-                        CLI_OPTION_FLAGS+=("$flag")
-                        cli_debug "解析短标志: $flag"
-                    fi
-                else
-                    CLI_OPTION_FLAGS+=("$flag")
-                    cli_debug "解析短标志: $flag"
-                fi
-
-                j=$((j + 1))
-            done
-
-        else
-            # 位置参数
-            CLI_POSITIONAL_ARGS+=("$arg")
-            cli_debug "解析位置参数: $arg"
-        fi
-
-        i=$((i + 1))
-    done
-}
-
-# 检查是否设置了某个选项
-# Usage: cli_has_option <option>
-# Returns: 0=设置, 1=未设置
-cli_has_option() {
-    local option="$1"
-    [[ -n "${CLI_OPTION_ARGS[$option]:-}" ]] && return 0
-    for flag in "${CLI_OPTION_FLAGS[@]}"; do
-        [[ "$flag" == "$option" ]] && return 0
-    done
-    return 1
-}
-
-# 获取选项的值
-# Usage: cli_get_option_value <option> [default_value]
-cli_get_option_value() {
-    local option="$1"
-    local default_value="${2:-}"
-    echo "${CLI_OPTION_ARGS[$option]:-$default_value}"
-}
-
-# 获取位置参数
-# Usage: cli_get_positional_args
-cli_get_positional_args() {
-    printf '%s\n' "${CLI_POSITIONAL_ARGS[@]}"
-}
-
-# 获取第 N 个位置参数 (从0开始)
-# Usage: cli_get_positional_arg <index>
-cli_get_positional_arg() {
-    local index="$1"
-    if [[ $index -lt ${#CLI_POSITIONAL_ARGS[@]} ]]; then
-        echo "${CLI_POSITIONAL_ARGS[$index]}"
-    fi
-}
-
-# 获取位置参数数量
-# Usage: cli_get_positional_count
-cli_get_positional_count() {
-    echo ${#CLI_POSITIONAL_ARGS[@]}
-}
-
-# ============================================================================
-# 命令路由系统
-# ============================================================================
-
-# 路由命令到对应的处理函数
-# Usage: cli_route <command> [args...]
-cli_route() {
-    local command="${1:-}"
-    shift || true
-
-    # 如果没有指定命令，显示帮助
-    if [[ -z "$command" ]]; then
-        cli_show_global_help
-        return 0
+    if [[ -z "$name" ]]; then
+        echo "错误: cli_register_command: 命令名称不能为空" >&2
+        return 1
     fi
 
-    cli_debug "路由命令: $command"
+    if [[ -z "$handler" ]]; then
+        echo "错误: cli_register_command: 处理函数不能为空 ($name)" >&2
+        return 1
+    fi
+
+    if [[ -z "$description" ]]; then
+        echo "错误: cli_register_command: 命令描述不能为空 ($name)" >&2
+        return 1
+    fi
 
     # 检查命令是否已注册
-    if ! cli_is_command_registered "$command"; then
-        # 检查是否为特殊命令
-        case "$command" in
-            help|--help|-h)
-                cli_show_global_help
-                return 0
-                ;;
-            version|--version|-v)
-                cli_show_version
-                return 0
-                ;;
-            *)
-                cli_error "未知命令 '$command'。运行 'morty help' 查看可用命令。" 2
-                ;;
-        esac
+    if [[ -n "${_CLI_COMMAND_HANDLERS[$name]:-}" ]]; then
+        echo "警告: 命令 '$name' 已存在，将被覆盖" >&2
     fi
 
-    # 执行命令
-    cli_execute "$command" "$@"
+    # 注册命令
+    _CLI_COMMAND_HANDLERS["$name"]="$handler"
+    _CLI_COMMAND_DESCRIPTIONS["$name"]="$description"
+    _CLI_COMMAND_OPTIONS["$name"]="$options"
+
+    # 维护命令顺序
+    local found=false
+    for cmd in "${_CLI_COMMAND_ORDER[@]}"; do
+        if [[ "$cmd" == "$name" ]]; then
+            found=true
+            break
+        fi
+    done
+    [[ "$found" == "false" ]] && _CLI_COMMAND_ORDER+=("$name")
+
+    return 0
 }
+
+# ============================================================================
+# 参数解析系统 (使用 lib/cli_parse_args.sh)
+# ============================================================================
+
+# 注: 所有参数解析函数已从 lib/cli_parse_args.sh 加载
+# CLI_POSITIONAL_ARGS, CLI_OPTION_ARGS, CLI_OPTION_FLAGS 在库中定义
+
+# ============================================================================
+# 命令路由系统 (使用 lib/cli_route.sh 和 lib/cli_execute.sh)
+# ============================================================================
+
+# 注: 路由和执行函数已从库文件加载
 
 # ============================================================================
 # 命令执行系统
@@ -373,13 +214,13 @@ EOF
 
     # 计算最大命令长度用于对齐
     local max_len=0
-    for cmd in "${CLI_COMMAND_ORDER[@]}"; do
+    for cmd in "${_CLI_COMMAND_ORDER[@]}"; do
         local len=${#cmd}
         [[ $len -gt $max_len ]] && max_len=$len
     done
 
     # 显示命令列表
-    for cmd in "${CLI_COMMAND_ORDER[@]}"; do
+    for cmd in "${_CLI_COMMAND_ORDER[@]}"; do
         local desc
         desc=$(cli_get_description "$cmd")
         printf "    %-${max_len}s    %s\n" "$cmd" "$desc"
@@ -567,7 +408,7 @@ cli_init_commands() {
         "显示帮助信息" \
         ""
 
-    cli_debug "命令注册完成，共注册 ${#CLI_COMMAND_ORDER[@]} 个命令"
+    cli_debug "命令注册完成，共注册 ${#_CLI_COMMAND_ORDER[@]} 个命令"
 }
 
 # 检查前置依赖
