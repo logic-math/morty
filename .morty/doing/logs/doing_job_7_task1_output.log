@@ -1,0 +1,14 @@
+Job 7 已完成。输出执行摘要：
+
+<!-- RALPH_STATUS -->
+{
+  "module": "doing",
+  "job": "job_7",
+  "status": "COMPLETED",
+  "tasks_completed": 4,
+  "tasks_total": 4,
+  "loop_count": 1,
+  "debug_issues": 0,
+  "summary": "成功实现精简上下文功能。实现 doing_build_compact_context() 函数生成精简 JSON 上下文；更新 doing_build_prompt() 使用精简上下文；prompts/doing.md 已包含完整精简上下文文档；创建测试脚本验证所有功能通过。Git 提交已创建。"
+}
+<!-- END_RALPH_STATUS -->

@@ -37,6 +37,8 @@ readonly LOG_LEVEL_LOOP=5
 : "${LOG_MAIN_FILE:=${LOG_DIR}/morty.log}"
 : "${LOG_MAX_SIZE:=10485760}"  # 10MB
 : "${LOG_MAX_FILES:=5}"
+: "${LOG_ARCHIVE_BY_DATE:=false}"  # 是否按日期归档
+: "${LOG_ARCHIVE_DIR:=${LOG_DIR}/archive}"  # 日期归档目录
 
 # 日志级别名称映射（用于输出）
 declare -A _LOG_LEVEL_NAMES=(
@@ -691,9 +693,139 @@ log_get_job_file() {
     echo "${_LOG_JOB_FILE:-}"
 }
 
+# 设置是否按日期归档
+# Usage: log_set_archive_by_date <true|false>
+log_set_archive_by_date() {
+    local enabled="$1"
+    case "${enabled}" in
+        true|1|yes)
+            LOG_ARCHIVE_BY_DATE="true"
+            ;;
+        false|0|no)
+            LOG_ARCHIVE_BY_DATE="false"
+            ;;
+        *)
+            echo "ERROR: Invalid value: ${enabled}. Use 'true' or 'false'." >&2
+            return 1
+            ;;
+    esac
+}
+
+# 设置归档目录
+# Usage: log_set_archive_dir <directory>
+log_set_archive_dir() {
+    local dir="$1"
+    if [[ -n "${dir}" ]]; then
+        LOG_ARCHIVE_DIR="${dir}"
+        # 确保目录存在
+        if [[ ! -d "${LOG_ARCHIVE_DIR}" ]]; then
+            mkdir -p "${LOG_ARCHIVE_DIR}" 2>/dev/null || {
+                echo "ERROR: Failed to create archive directory: ${LOG_ARCHIVE_DIR}" >&2
+                return 1
+            }
+        fi
+    fi
+}
+
+# 获取归档目录
+log_get_archive_dir() {
+    echo "${LOG_ARCHIVE_DIR:-${LOG_DIR}/archive}"
+}
+
+# 手动归档当前日志文件
+# Usage: log_archive_current [log_file]
+log_archive_current() {
+    local log_file="${1:-${LOG_MAIN_FILE}}"
+
+    if [[ ! -f "${log_file}" ]]; then
+        log_warn "Log file does not exist: ${log_file}"
+        return 1
+    fi
+
+    _log_archive_by_date "${log_file}"
+
+    # 创建新的空日志文件
+    touch "${log_file}"
+}
+
 # ============================================
 # 日志轮转（将在 Job 2 中实现完整功能）
 # ============================================
+
+# 动态获取归档目录
+# 根据当前 LOG_DIR 计算，支持运行时修改
+_log_get_archive_dir() {
+    # 如果 LOG_ARCHIVE_DIR 是绝对路径，使用它；否则基于 LOG_DIR 计算
+    if [[ "${LOG_ARCHIVE_DIR}" == /* ]]; then
+        echo "${LOG_ARCHIVE_DIR}"
+    else
+        echo "${LOG_DIR}/archive"
+    fi
+}
+
+# 按日期归档日志文件
+# Usage: _log_archive_by_date <file_path>
+# 将日志文件移动到日期归档目录，文件名包含日期
+_log_archive_by_date() {
+    local file_path="$1"
+
+    # 检查文件是否存在
+    if [[ ! -f "${file_path}" ]]; then
+        return 0
+    fi
+
+    # 动态计算归档目录（支持运行时修改 LOG_DIR）
+    local archive_dir
+    archive_dir=$(_log_get_archive_dir)
+    if [[ ! -d "${archive_dir}" ]]; then
+        mkdir -p "${archive_dir}" 2>/dev/null || {
+            log_warn "Failed to create archive directory: ${archive_dir}"
+            return 1
+        }
+    fi
+
+    # 获取文件修改日期
+    local file_date
+    file_date=$(stat -f%Sm -t "%Y-%m-%d" "${file_path}" 2>/dev/null || \
+                stat -c%y "${file_path}" 2>/dev/null | cut -d' ' -f1 || \
+                date +%Y-%m-%d)
+
+    # 获取文件名（不含路径）
+    local file_name
+    file_name=$(basename "${file_path}")
+
+    # 构建归档文件名: morty.log.1 -> archive/morty-2024-01-15.log.1.gz
+    local archive_name="${file_name%.log*}-${file_date}${file_name#*.log}"
+    # 确保扩展名正确
+    if [[ "${file_name}" == *.log.* ]]; then
+        local ext="${file_name##*.log.}"
+        archive_name="${file_name%%.log.*}-${file_date}.log.${ext}"
+    else
+        archive_name="${file_name%.log}-${file_date}.log"
+    fi
+
+    local archive_path="${archive_dir}/${archive_name}"
+
+    # 如果文件已存在，添加序号
+    local counter=1
+    while [[ -f "${archive_path}" ]] || [[ -f "${archive_path}.gz" ]]; do
+        archive_path="${archive_dir}/${archive_name%.log}-${counter}.log"
+        if [[ "${file_name}" == *.log.* ]]; then
+            archive_path="${archive_dir}/${archive_name%.log.*}-${counter}.log.${ext}"
+        fi
+        counter=$((counter + 1))
+    done
+
+    # 移动并压缩文件
+    if mv "${file_path}" "${archive_path}" 2>/dev/null; then
+        _log_compress_file "${archive_path}"
+        log_debug "Archived ${file_path} to ${archive_path}"
+        return 0
+    else
+        log_warn "Failed to archive ${file_path}"
+        return 1
+    fi
+}
 
 # 清理超出最大保留数的旧日志文件（包括压缩文件）
 _log_cleanup_old_logs() {
@@ -773,7 +905,16 @@ _log_rotate_if_needed() {
     file_size=$(stat -f%z "${log_file}" 2>/dev/null || stat -c%s "${log_file}" 2>/dev/null || echo "0")
 
     if [[ ${file_size} -ge ${LOG_MAX_SIZE} ]]; then
-        # 执行轮转
+        # 检查是否启用日期归档
+        if [[ "${LOG_ARCHIVE_BY_DATE}" == "true" ]]; then
+            # 按日期归档模式：直接将当前日志归档到日期目录
+            _log_archive_by_date "${log_file}"
+            # 创建新的空日志文件
+            touch "${log_file}"
+            return 0
+        fi
+
+        # 标准轮转模式
         local base_name="${log_file}"
         local max_files="${LOG_MAX_FILES}"
 
