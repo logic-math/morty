@@ -809,12 +809,13 @@
           "loop_count": 1,
           "retry_count": 0,
           "tasks_total": 6,
-          "tasks_completed": 0,
+          "tasks_completed": 1,
           "debug_logs": [],
           "tasks": {
             "task_1": {
               "description": "创建 `lib/install.sh` 模块",
-              "status": "PENDING"
+              "status": "COMPLETED",
+              "completed_at": "2026-02-22T15:15:00Z"
             },
             "task_2": {
               "description": "实现 `install_check_deps()`: 检查所有必需依赖",
