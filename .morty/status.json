@@ -3,15 +3,15 @@
   "state": "running",
   "current": {
     "module": "install",
-    "job": "job_5",
+    "job": "job_6",
     "status": "COMPLETED",
-    "start_time": "2026-02-22T15:53:19Z",
-    "completed_at": "2026-02-22T16:30:00Z"
+    "start_time": "2026-02-22T15:57:01Z",
+    "completed_at": "2026-02-23T00:00:00Z"
   },
   "session": {
     "start_time": "2026-02-21T16:13:36Z",
-    "last_update": "2026-02-22T15:53:19Z",
-    "total_loops": 42
+    "last_update": "2026-02-23T00:00:00Z",
+    "total_loops": 44
   },
   "modules": {
     "cli": {
@@ -802,7 +802,7 @@
       }
     },
     "install": {
-      "status": "pending",
+      "status": "completed",
       "jobs": {
         "job_1": {
           "status": "COMPLETED",
@@ -974,7 +974,7 @@
           "loop_count": 1,
           "retry_count": 0,
           "tasks_total": 6,
-          "tasks_completed": 6,
+          "tasks_completed": 7,
           "debug_logs": [],
           "tasks": {
             "task_1": {
@@ -1009,45 +1009,54 @@
             }
           },
           "started_at": "2026-02-22T15:53:19Z",
-          "completed_at": "2026-02-22T16:30:00Z"
+          "completed_at": "2026-02-22T15:57:00Z"
         },
         "job_6": {
-          "status": "PENDING",
-          "loop_count": 0,
+          "status": "COMPLETED",
+          "loop_count": 1,
           "retry_count": 0,
           "tasks_total": 7,
-          "tasks_completed": 0,
+          "tasks_completed": 7,
           "debug_logs": [],
           "tasks": {
             "task_1": {
               "description": "实现 `install_get_version()`: 获取当前安装版本",
-              "status": "PENDING"
+              "status": "COMPLETED",
+              "completed_at": "2026-02-23T00:00:00Z"
             },
             "task_2": {
               "description": "实现 `install_get_full_version()`: 获取详细版本信息",
-              "status": "PENDING"
+              "status": "COMPLETED",
+              "completed_at": "2026-02-23T00:00:00Z"
             },
             "task_3": {
               "description": "实现 `install_check_update()`: 检查是否有新版本",
-              "status": "PENDING"
+              "status": "COMPLETED",
+              "completed_at": "2026-02-23T00:00:00Z"
             },
             "task_4": {
               "description": "集成到 `morty version` 命令",
-              "status": "PENDING"
+              "status": "COMPLETED",
+              "completed_at": "2026-02-23T00:00:00Z"
             },
             "task_5": {
               "description": "集成到 `morty upgrade --check` 命令",
-              "status": "PENDING"
+              "status": "COMPLETED",
+              "completed_at": "2026-02-23T00:00:00Z"
             },
             "task_6": {
               "description": "添加版本兼容性检查",
-              "status": "PENDING"
+              "status": "COMPLETED",
+              "completed_at": "2026-02-23T00:00:00Z"
             },
             "task_7": {
               "description": "添加隔离环境健康检查",
-              "status": "PENDING"
+              "status": "COMPLETED",
+              "completed_at": "2026-02-23T00:00:00Z"
             }
-          }
+          },
+          "started_at": "2026-02-22T15:57:01Z",
+          "completed_at": "2026-02-23T00:00:00Z"
         }
       }
     }

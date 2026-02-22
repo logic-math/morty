@@ -859,7 +859,8 @@ Morty - 简化的 AI 开发循环
     fix <prd.md>            迭代式 PRD 改进(问题修复/功能增强/架构优化)
     loop [options]          启动开发循环(集成监控)
     reset [options]         版本回滚和循环管理
-    version                 显示版本
+    version [--verbose]     显示版本 (verbose 显示详细信息)
+    upgrade [--check]       升级 Morty (check 仅检查更新)
 
 示例:
     morty research                     # 启动研究模式
@@ -870,6 +871,8 @@ Morty - 简化的 AI 开发循环
     morty loop                         # 启动带监控的开发循环
     morty reset -l                     # 查看循环提交历史
     morty reset -c abc123              # 回滚到指定 commit
+    morty version --verbose            # 显示详细版本信息
+    morty upgrade --check              # 检查是否有新版本
 
 HELP
 }
@@ -877,6 +880,25 @@ HELP
 # Show version
 show_version() {
     echo "Morty version $VERSION"
+}
+
+# Show verbose version information
+show_version_verbose() {
+    echo "Morty version $VERSION"
+    echo ""
+    echo "Installation Information:"
+    echo "  MORTY_HOME:    $MORTY_HOME"
+    echo "  VERSION_FILE:  $VERSION_FILE"
+    echo ""
+
+    # Show sandbox status if available
+    if [[ -f "$MORTY_HOME/lib/install.sh" ]]; then
+        source "$MORTY_HOME/lib/install.sh" 2>/dev/null
+        if command -v install_get_full_version &>/dev/null; then
+            echo "Detailed Information:"
+            install_get_full_version "$MORTY_HOME" 2>/dev/null | jq . 2>/dev/null || echo "  (JSON details not available)"
+        fi
+    fi
 }
 
 # Command routing
@@ -905,8 +927,60 @@ case "${1:-}" in
         shift
         exec "$MORTY_HOME/bin/morty_reset.sh" "$@"
         ;;
+    upgrade)
+        shift
+        # Source install module for upgrade functions
+        if [[ -f "$MORTY_HOME/lib/install.sh" ]]; then
+            source "$MORTY_HOME/lib/install.sh" 2>/dev/null
+        fi
+
+        # Handle --check flag
+        if [[ "${1:-}" == "--check" ]]; then
+            echo "Checking for updates..."
+            if command -v install_check_update &>/dev/null; then
+                local update_info
+                update_info=$(install_check_update)
+                local update_available
+                update_available=$(echo "$update_info" | jq -r '.update_available')
+                local current_version
+                current_version=$(echo "$update_info" | jq -r '.current_version')
+                local latest_version
+                latest_version=$(echo "$update_info" | jq -r '.latest_version')
+
+                if [[ "$update_available" == "true" ]]; then
+                    echo ""
+                    echo "A new version is available!"
+                    echo "  Current:  $current_version"
+                    echo "  Latest:   $latest_version"
+                    echo ""
+                    echo "Run 'morty upgrade' to upgrade."
+                else
+                    echo "You are running the latest version ($current_version)."
+                fi
+            else
+                echo "Update checking not available."
+                echo "Current version: $VERSION"
+            fi
+            exit 0
+        fi
+
+        # Perform upgrade
+        echo "Upgrading Morty..."
+        if command -v install_do_upgrade &>/dev/null; then
+            install_do_upgrade "$@"
+        else
+            echo "Upgrade functionality not available."
+            echo "Please re-install manually."
+            exit 1
+        fi
+        ;;
     version|--version|-v)
-        show_version
+        # Check for --verbose flag
+        if [[ "${2:-}" == "--verbose" || "${2:-}" == "-v" ]]; then
+            show_version_verbose
+        else
+            show_version
+        fi
         ;;
     help|--help|-h|"")
         show_help
@@ -1190,6 +1264,131 @@ EOF
 
     log_debug "Configuration initialized successfully"
     return 0
+}
+
+# ============================================
+# Version Information
+# ============================================
+
+# Get the installed version from the installation directory
+# Usage: install_get_version() [prefix]
+# Returns: version string or "unknown"
+install_get_version() {
+    local prefix="${1:-$INSTALL_DEFAULT_PREFIX}"
+    prefix="${prefix/#\~/$HOME}"
+
+    local version_file="$prefix/VERSION"
+
+    if [[ -f "$version_file" ]]; then
+        head -1 "$version_file" 2>/dev/null | tr -d '[:space:]'
+    else
+        echo "unknown"
+    fi
+}
+
+# Get full version information including sandbox status
+# Usage: install_get_full_version() [prefix]
+# Returns: JSON with detailed version info
+install_get_full_version() {
+    local prefix="${1:-$INSTALL_DEFAULT_PREFIX}"
+    prefix="${prefix/#\~/$HOME}"
+
+    local version
+    version=$(install_get_version "$prefix")
+
+    local install_path="$prefix"
+    local config_path="$prefix/.morty"
+    local bin_path="$prefix/bin"
+    local lib_path="$prefix/lib"
+
+    # Check if installation exists
+    local is_installed="false"
+    if [[ -d "$prefix" && -f "$prefix/VERSION" ]]; then
+        is_installed="true"
+    fi
+
+    # Get sandbox status
+    local sandbox_status
+    sandbox_status=$(install_get_sandbox_status "$prefix")
+
+    # Build JSON output
+    cat <<EOF
+{
+  "version": "$version",
+  "is_installed": $is_installed,
+  "install_path": "$install_path",
+  "config_path": "$config_path",
+  "bin_path": "$bin_path",
+  "lib_path": "$lib_path",
+  "sandbox": $sandbox_status
+}
+EOF
+}
+
+# Get sandbox environment status
+# Usage: install_get_sandbox_status() [prefix]
+# Returns: JSON with sandbox status
+install_get_sandbox_status() {
+    local prefix="${1:-$INSTALL_DEFAULT_PREFIX}"
+    prefix="${prefix/#\~/$HOME}"
+
+    local morty_dir="$prefix/.morty"
+    local status_file="$morty_dir/status.json"
+
+    local has_pending_ops="false"
+    local current_module="null"
+    local current_job="null"
+    local job_status="null"
+    local total_loops=0
+
+    if [[ -f "$status_file" ]]; then
+        # Parse status.json if jq is available
+        if command -v jq &>/dev/null; then
+            has_pending_ops=$(jq -r '.current.job != null' "$status_file" 2>/dev/null || echo "false")
+            current_module=$(jq -r '.current.module // "null"' "$status_file" 2>/dev/null)
+            current_job=$(jq -r '.current.job // "null"' "$status_file" 2>/dev/null)
+            job_status=$(jq -r '.current.status // "null"' "$status_file" 2>/dev/null)
+            total_loops=$(jq -r '.session.total_loops // 0' "$status_file" 2>/dev/null)
+        else
+            # Basic parsing without jq
+            if grep -q '"job":' "$status_file" 2>/dev/null; then
+                has_pending_ops="true"
+            fi
+        fi
+    fi
+
+    # Check for pending operations in doing directory
+    local doing_dir="$morty_dir/doing"
+    local pending_tasks=0
+    if [[ -d "$doing_dir" ]]; then
+        pending_tasks=$(find "$doing_dir" -name "*.md" 2>/dev/null | wc -l)
+    fi
+
+    # Build proper JSON with quoted strings
+    local json_module="null"
+    local json_job="null"
+    local json_status="null"
+
+    if [[ -n "$current_module" && "$current_module" != "null" ]]; then
+        json_module="\"$current_module\""
+    fi
+    if [[ -n "$current_job" && "$current_job" != "null" ]]; then
+        json_job="\"$current_job\""
+    fi
+    if [[ -n "$job_status" && "$job_status" != "null" ]]; then
+        json_status="\"$job_status\""
+    fi
+
+    cat <<EOF
+{
+  "has_pending_operations": $has_pending_ops,
+  "current_module": $json_module,
+  "current_job": $json_job,
+  "job_status": $json_status,
+  "total_loops": $total_loops,
+  "pending_tasks": $pending_tasks
+}
+EOF
 }
 
 # ============================================
@@ -2156,6 +2355,224 @@ install_do_uninstall() {
     fi
 
     return 0
+}
+
+# ============================================
+# Version Compatibility Check
+# ============================================
+
+# Check version compatibility between components
+# Usage: install_check_version_compat() [prefix]
+# Returns: 0 if compatible, 1 if incompatible
+# Outputs: JSON with compatibility status
+install_check_version_compat() {
+    local prefix="${1:-$INSTALL_DEFAULT_PREFIX}"
+    prefix="${prefix/#\~/$HOME}"
+
+    local current_version
+    current_version=$(install_get_version "$prefix")
+
+    # Minimum compatible versions
+    local min_cli_version="2.0.0"
+    local min_lib_version="2.0.0"
+
+    local compatible="true"
+    local issues=()
+
+    # Check if installation exists
+    if [[ "$current_version" == "unknown" ]]; then
+        compatible="false"
+        issues+=("Installation not found or VERSION file missing")
+    else
+        # Check CLI scripts version compatibility
+        local bin_dir="$prefix/bin"
+        if [[ -d "$bin_dir" ]]; then
+            for script in "$bin_dir"/morty_*.sh; do
+                if [[ -f "$script" ]]; then
+                    # Check if script has version marker
+                    if grep -q "MORTY_VERSION" "$script" 2>/dev/null; then
+                        local script_version
+                        script_version=$(grep "MORTY_VERSION" "$script" | head -1 | sed 's/.*MORTY_VERSION=//' | tr -d '"')
+                        if ! install_compare_versions "$script_version" "$min_cli_version"; then
+                            compatible="false"
+                            issues+=("Script $(basename "$script") version $script_version is too old (required >= $min_cli_version)")
+                        fi
+                    fi
+                fi
+            done
+        fi
+
+        # Check library compatibility
+        local lib_dir="$prefix/lib"
+        if [[ -d "$lib_dir" ]]; then
+            for lib in "$lib_dir"/*.sh; do
+                if [[ -f "$lib" ]]; then
+                    # Basic check: library should not be empty
+                    if [[ ! -s "$lib" ]]; then
+                        compatible="false"
+                        issues+=("Library $(basename "$lib") is empty")
+                    fi
+                fi
+            done
+        fi
+    fi
+
+    # Output JSON result
+    local json_issues="[]"
+    if [[ ${#issues[@]} -gt 0 ]]; then
+        json_issues="["
+        local first=true
+        for issue in "${issues[@]}"; do
+            if [[ "$first" == "true" ]]; then
+                first=false
+            else
+                json_issues+=","
+            fi
+            json_issues+="\"$issue\""
+        done
+        json_issues+="]"
+    fi
+
+    cat <<EOF
+{
+  "compatible": $compatible,
+  "current_version": "$current_version",
+  "min_required_version": "$min_cli_version",
+  "issues": $json_issues
+}
+EOF
+
+    if [[ "$compatible" == "true" ]]; then
+        return 0
+    else
+        return 1
+    fi
+}
+
+# ============================================
+# Sandbox Health Check
+# ============================================
+
+# Perform health check on sandbox environment
+# Usage: install_check_sandbox_health() [prefix]
+# Returns: 0 if healthy, 1 if issues found
+# Outputs: JSON with health status
+install_check_sandbox_health() {
+    local prefix="${1:-$INSTALL_DEFAULT_PREFIX}"
+    prefix="${prefix/#\~/$HOME}"
+
+    local morty_dir="$prefix/.morty"
+    local status_file="$morty_dir/status.json"
+
+    local healthy="true"
+    local checks=()
+
+    # Check 1: Installation directory exists
+    if [[ -d "$prefix" ]]; then
+        checks+=("{\"name\": \"installation_directory\", \"status\": \"PASS\", \"message\": \"Installation directory exists\"}")
+    else
+        healthy="false"
+        checks+=("{\"name\": \"installation_directory\", \"status\": \"FAIL\", \"message\": \"Installation directory not found: $prefix\"}")
+    fi
+
+    # Check 2: VERSION file exists
+    if [[ -f "$prefix/VERSION" ]]; then
+        local version
+        version=$(head -1 "$prefix/VERSION" 2>/dev/null)
+        checks+=("{\"name\": \"version_file\", \"status\": \"PASS\", \"message\": \"VERSION file exists: $version\"}")
+    else
+        healthy="false"
+        checks+=("{\"name\": \"version_file\", \"status\": \"FAIL\", \"message\": \"VERSION file not found\"}")
+    fi
+
+    # Check 3: Required directories exist
+    local required_dirs=("bin" "lib" "prompts")
+    for dir in "${required_dirs[@]}"; do
+        if [[ -d "$prefix/$dir" ]]; then
+            checks+=("{\"name\": \"directory_$dir\", \"status\": \"PASS\", \"message\": \"$dir/ directory exists\"}")
+        else
+            healthy="false"
+            checks+=("{\"name\": \"directory_$dir\", \"status\": \"FAIL\", \"message\": \"$dir/ directory not found\"}")
+        fi
+    done
+
+    # Check 4: Status file exists and is valid JSON
+    if [[ -f "$status_file" ]]; then
+        if command -v jq &>/dev/null; then
+            if jq empty "$status_file" 2>/dev/null; then
+                checks+=("{\"name\": \"status_file\", \"status\": \"PASS\", \"message\": \"status.json is valid JSON\"}")
+            else
+                healthy="false"
+                checks+=("{\"name\": \"status_file\", \"status\": \"WARN\", \"message\": \"status.json is not valid JSON\"}")
+            fi
+        else
+            checks+=("{\"name\": \"status_file\", \"status\": \"PASS\", \"message\": \"status.json exists (jq not available for validation)\"}")
+        fi
+    else
+        # Not critical, just a warning
+        checks+=("{\"name\": \"status_file\", \"status\": \"WARN\", \"message\": \"status.json not found\"}")
+    fi
+
+    # Check 5: Check for stale operations (job stuck in RUNNING for too long)
+    if [[ -f "$status_file" ]] && command -v jq &>/dev/null; then
+        local current_status
+        current_status=$(jq -r '.current.status // "null"' "$status_file" 2>/dev/null)
+        if [[ "$current_status" == "RUNNING" ]]; then
+            local last_update
+            last_update=$(jq -r '.session.last_update // empty' "$status_file" 2>/dev/null)
+            if [[ -n "$last_update" ]]; then
+                # Check if last update is more than 1 hour ago
+                local last_epoch current_epoch
+                last_epoch=$(date -d "$last_update" +%s 2>/dev/null || echo "0")
+                current_epoch=$(date +%s)
+                local diff=$((current_epoch - last_epoch))
+                if [[ $diff -gt 3600 ]]; then
+                    healthy="false"
+                    checks+=("{\"name\": \"stale_operation\", \"status\": \"FAIL\", \"message\": \"Job appears stuck in RUNNING state for $((diff / 60)) minutes\"}")
+                else
+                    checks+=("{\"name\": \"active_operation\", \"status\": \"PASS\", \"message\": \"Job is actively running\"}")
+                fi
+            fi
+        fi
+    fi
+
+    # Check 6: Logs directory writable
+    local logs_dir="$morty_dir/logs"
+    if [[ -d "$logs_dir" ]]; then
+        if [[ -w "$logs_dir" ]]; then
+            checks+=("{\"name\": \"logs_writable\", \"status\": \"PASS\", \"message\": \"Logs directory is writable\"}")
+        else
+            healthy="false"
+            checks+=("{\"name\": \"logs_writable\", \"status\": \"FAIL\", \"message\": \"Logs directory is not writable\"}")
+        fi
+    fi
+
+    # Build JSON output
+    local json_checks="["
+    local first=true
+    for check in "${checks[@]}"; do
+        if [[ "$first" == "true" ]]; then
+            first=false
+        else
+            json_checks+=","
+        fi
+        json_checks+="$check"
+    done
+    json_checks+="]"
+
+    cat <<EOF
+{
+  "healthy": $healthy,
+  "prefix": "$prefix",
+  "checks": $json_checks
+}
+EOF
+
+    if [[ "$healthy" == "true" ]]; then
+        return 0
+    else
+        return 1
+    fi
 }
 
 # ============================================
