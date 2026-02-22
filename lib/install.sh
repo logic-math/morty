@@ -449,11 +449,55 @@ install_validate_prefix() {
 # Check for existing installation
 # Usage: install_check_existing <prefix>
 # Returns: 0 if no existing installation, 1 if exists
+# Outputs: JSON object with installation status details
 install_check_existing() {
     local prefix="$1"
     prefix="${prefix/#\~/$HOME}"
 
+    local exists="false"
+    local has_bin="false"
+    local has_lib="false"
+    local has_prompts="false"
+    local has_version="false"
+    local version=""
+    local install_time=""
+
     if [[ -d "$prefix" ]]; then
+        exists="true"
+
+        # Check for required subdirectories
+        [[ -d "$prefix/bin" ]] && has_bin="true"
+        [[ -d "$prefix/lib" ]] && has_lib="true"
+        [[ -d "$prefix/prompts" ]] && has_prompts="true"
+
+        # Check for version file
+        if [[ -f "$prefix/VERSION" ]]; then
+            has_version="true"
+            version=$(cat "$prefix/VERSION" 2>/dev/null | head -1)
+        fi
+
+        # Get installation time (directory modification time)
+        if [[ -d "$prefix/bin" ]]; then
+            install_time=$(stat -c %Y "$prefix/bin" 2>/dev/null || stat -f %m "$prefix/bin" 2>/dev/null)
+        fi
+    fi
+
+    # Output JSON result
+    cat <<EOF
+{
+  "exists": $exists,
+  "prefix": "$prefix",
+  "has_bin": $has_bin,
+  "has_lib": $has_lib,
+  "has_prompts": $has_prompts,
+  "has_version": $has_version,
+  "version": "${version:-null}",
+  "install_time": ${install_time:-null},
+  "is_complete": $([[ "$has_bin" == "true" && "$has_lib" == "true" && "$has_prompts" == "true" ]] && echo "true" || echo "false")
+}
+EOF
+
+    if [[ "$exists" == "true" ]]; then
         return 1
     fi
 
@@ -468,18 +512,164 @@ install_ensure_dirs() {
     prefix="${prefix/#\~/$HOME}"
 
     local dirs=("bin" "lib" "prompts")
+    local created_dirs=()
 
     for dir in "${dirs[@]}"; do
         local full_path="$prefix/$dir"
         if [[ ! -d "$full_path" ]]; then
             mkdir -p "$full_path" || {
                 log_error "Failed to create directory: $full_path"
+                # Cleanup partially created directories
+                for created in "${created_dirs[@]}"; do
+                    [[ -d "$created" ]] && rmdir "$created" 2>/dev/null
+                done
                 return 1
             }
+            created_dirs+=("$full_path")
         fi
     done
 
     return 0
+}
+
+# ============================================
+# Conflict Handling
+# ============================================
+
+# Backup existing installation
+# Usage: install_backup_existing <prefix>
+# Returns: 0 on success, 1 on failure
+# Outputs: Path to backup directory
+install_backup_existing() {
+    local prefix="$1"
+    prefix="${prefix/#\~/$HOME}"
+
+    if [[ ! -d "$prefix" ]]; then
+        log_warn "No existing installation to backup at $prefix"
+        echo ""
+        return 0
+    fi
+
+    # Create backup with timestamp
+    local timestamp=$(date +%Y%m%d_%H%M%S)
+    local backup_dir="${prefix}.backup.${timestamp}"
+
+    # Check if version file exists to include in backup name
+    if [[ -f "$prefix/VERSION" ]]; then
+        local version=$(cat "$prefix/VERSION" 2>/dev/null | head -1 | tr -d '[:space:]')
+        if [[ -n "$version" ]]; then
+            backup_dir="${prefix}.backup.${version}.${timestamp}"
+        fi
+    fi
+
+    # Copy existing installation to backup
+    cp -r "$prefix" "$backup_dir" || {
+        log_error "Failed to create backup at $backup_dir"
+        return 1
+    }
+
+    log_info "Created backup: $backup_dir"
+    echo "$backup_dir"
+    return 0
+}
+
+# Handle installation conflict (existing installation found)
+# Usage: install_handle_conflict <prefix> <force> [action]
+#   prefix: installation path
+#   force: "true" to force overwrite (backup first), "false" to prompt
+#   action: optional - "backup", "overwrite", "cancel"
+# Returns: 0 to proceed, 1 to cancel
+install_handle_conflict() {
+    local prefix="$1"
+    local force="${2:-false}"
+    local action="${3:-}"
+
+    prefix="${prefix/#\~/$HOME}"
+
+    # Check if installation exists
+    local check_result
+    check_result=$(install_check_existing "$prefix")
+    local exists=$(echo "$check_result" | jq -r '.exists')
+
+    if [[ "$exists" != "true" ]]; then
+        # No existing installation, proceed
+        return 0
+    fi
+
+    local version=$(echo "$check_result" | jq -r '.version // "unknown"')
+    local is_complete=$(echo "$check_result" | jq -r '.is_complete')
+
+    log_warn "Existing installation found at $prefix"
+
+    if [[ "$version" != "null" && "$version" != "unknown" ]]; then
+        log_info "Version: $version"
+    fi
+
+    if [[ "$force" == "true" ]]; then
+        # Force mode: backup and proceed
+        log_info "Force mode enabled - creating backup before overwrite"
+        local backup_dir
+        backup_dir=$(install_backup_existing "$prefix")
+        if [[ $? -ne 0 ]]; then
+            log_error "Failed to create backup, aborting"
+            return 1
+        fi
+        log_info "Backup created at: $backup_dir"
+
+        # Remove existing installation
+        rm -rf "$prefix" || {
+            log_error "Failed to remove existing installation"
+            return 1
+        }
+
+        return 0
+    fi
+
+    # Non-force mode: check action parameter or prompt
+    if [[ -n "$action" ]]; then
+        case "$action" in
+            backup)
+                local backup_dir
+                backup_dir=$(install_backup_existing "$prefix")
+                if [[ $? -ne 0 ]]; then
+                    return 1
+                fi
+                rm -rf "$prefix" || {
+                    log_error "Failed to remove existing installation"
+                    return 1
+                }
+                return 0
+                ;;
+            overwrite)
+                rm -rf "$prefix" || {
+                    log_error "Failed to remove existing installation"
+                    return 1
+                }
+                return 0
+                ;;
+            cancel)
+                log_info "Installation cancelled by user"
+                return 1
+                ;;
+            *)
+                log_error "Unknown action: $action"
+                return 1
+                ;;
+        esac
+    fi
+
+    # No action specified and not in force mode - return error with guidance
+    log_error "Installation already exists at $prefix"
+    echo ""
+    echo "Options:"
+    echo "  1. Use --force to backup and overwrite"
+    echo "  2. Use --action backup   to backup then overwrite"
+    echo "  3. Use --action overwrite to overwrite without backup"
+    echo "  4. Use --action cancel   to cancel installation"
+    echo "  5. Choose a different --prefix"
+    echo ""
+
+    return 1
 }
 
 # ============================================
