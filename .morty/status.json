@@ -3,15 +3,15 @@
   "state": "running",
   "current": {
     "module": "install",
-    "job": "job_1",
-    "status": "COMPLETED",
-    "start_time": "2026-02-22T22:54:06Z",
+    "job": "job_2",
+    "status": "RUNNING",
+    "start_time": "2026-02-22T23:05:03Z",
     "completed_at": "2026-02-23T00:15:00Z"
   },
   "session": {
     "start_time": "2026-02-21T16:13:36Z",
-    "last_update": "2026-02-23T00:15:00Z",
-    "total_loops": 47
+    "last_update": "2026-02-22T23:05:03Z",
+    "total_loops": 48
   },
   "modules": {
     "cli": {
@@ -809,7 +809,7 @@
           "loop_count": 1,
           "retry_count": 0,
           "tasks_total": 5,
-          "tasks_completed": 5,
+          "tasks_completed": 6,
           "debug_logs": [],
           "tasks": {
             "task_1": {
@@ -839,19 +839,20 @@
             }
           },
           "started_at": "2026-02-22T22:54:06Z",
-          "completed_at": "2026-02-23T00:15:00Z"
+          "completed_at": "2026-02-22T23:05:02Z"
         },
         "job_2": {
-          "status": "PENDING",
-          "loop_count": 0,
+          "status": "RUNNING",
+          "loop_count": 1,
           "retry_count": 0,
           "tasks_total": 4,
-          "tasks_completed": 0,
+          "tasks_completed": 1,
           "debug_logs": [],
           "tasks": {
             "task_1": {
               "description": "实现系统依赖检查: Bash >= 4.0, Git >= 2.0",
-              "status": "PENDING"
+              "status": "COMPLETED",
+              "completed_at": "2026-02-23T00:20:00Z"
             },
             "task_2": {
               "description": "实现 curl/wget 下载工具检查",
@@ -865,7 +866,8 @@
               "description": "实现友好的错误提示和修复建议",
               "status": "PENDING"
             }
-          }
+          },
+          "started_at": "2026-02-22T23:05:03Z"
         },
         "job_3": {
           "status": "PENDING",

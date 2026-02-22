@@ -339,6 +339,22 @@ bootstrap_main() {
     log_info "Bin dir: $BOOTSTRAP_BIN_DIR"
     echo ""
 
+    # Check system dependencies
+    if ! bootstrap_check_system_deps; then
+        log_error "System dependency check failed"
+        return 1
+    fi
+    echo ""
+
+    # Check installation environment (only for install/reinstall)
+    if [[ "$BOOTSTRAP_COMMAND" == "install" ]] || [[ "$BOOTSTRAP_COMMAND" == "reinstall" ]]; then
+        if ! bootstrap_check_install_env; then
+            log_error "Installation environment check failed"
+            return 1
+        fi
+        echo ""
+    fi
+
     # Dispatch to command handler
     case "$BOOTSTRAP_COMMAND" in
         install)
@@ -358,6 +374,270 @@ bootstrap_main() {
             return 1
             ;;
     esac
+}
+
+# ============================================================================
+# Dependency Checking
+# ============================================================================
+
+# Check system dependencies (bash, git, curl/wget)
+# Usage: bootstrap_check_system_deps
+# Returns: 0 if all dependencies satisfied, 1 otherwise
+bootstrap_check_system_deps() {
+    local all_passed=true
+
+    log_info "Checking system dependencies..."
+
+    # Check Bash version >= 4.0
+    local bash_version
+    bash_version="${BASH_VERSION%%[^0-9.]*}"
+    if ! bootstrap_check_version "$bash_version" "$MIN_BASH_VERSION"; then
+        log_error "Bash version $bash_version is too old (required: >= $MIN_BASH_VERSION)"
+        bootstrap_show_fix_suggestion "bash" "$MIN_BASH_VERSION"
+        all_passed=false
+    else
+        log_debug "Bash version: $bash_version (OK)"
+    fi
+
+    # Check Git version >= 2.0
+    if command -v git &> /dev/null; then
+        local git_version
+        git_version=$(git --version 2>/dev/null | sed -n 's/.*version \([0-9.]*\).*/\1/p')
+        if [[ -n "$git_version" ]]; then
+            if ! bootstrap_check_version "$git_version" "$MIN_GIT_VERSION"; then
+                log_warn "Git version $git_version is old (recommended: >= $MIN_GIT_VERSION)"
+                # Git is optional, so we just warn
+            else
+                log_debug "Git version: $git_version (OK)"
+            fi
+        fi
+    else
+        log_warn "Git not found (recommended for some features)"
+    fi
+
+    # Check for curl or wget
+    if command -v curl &> /dev/null; then
+        log_debug "Found curl for downloads"
+    elif command -v wget &> /dev/null; then
+        log_debug "Found wget for downloads"
+    else
+        log_error "Neither curl nor wget found"
+        log_error "Please install curl or wget to download Morty releases"
+        echo ""
+        echo "  Ubuntu/Debian: sudo apt-get install curl"
+        echo "  CentOS/RHEL:   sudo yum install curl"
+        echo "  macOS:         brew install curl"
+        echo "  Alpine:        apk add curl"
+        echo ""
+        all_passed=false
+    fi
+
+    if [[ "$all_passed" == "true" ]]; then
+        log_success "System dependencies check passed"
+        return 0
+    else
+        return 1
+    fi
+}
+
+# Check installation environment
+# Usage: bootstrap_check_install_env
+# Returns: 0 if environment is ready, 1 otherwise
+bootstrap_check_install_env() {
+    local all_passed=true
+
+    log_info "Checking installation environment..."
+
+    # Check if target directory is writable
+    local target_dir
+    target_dir="$BOOTSTRAP_PREFIX"
+    local parent_dir
+    parent_dir=$(dirname "$target_dir")
+
+    # Create parent directory if it doesn't exist
+    if [[ ! -d "$parent_dir" ]]; then
+        if ! mkdir -p "$parent_dir" 2>/dev/null; then
+            log_error "Cannot create parent directory: $parent_dir"
+            bootstrap_show_fix_suggestion "permission" "$parent_dir"
+            all_passed=false
+        fi
+    fi
+
+    # Check if we can write to the target location
+    if [[ -d "$target_dir" ]]; then
+        # Directory exists, check if writable
+        if [[ ! -w "$target_dir" ]]; then
+            log_error "Target directory exists but is not writable: $target_dir"
+            bootstrap_show_fix_suggestion "permission" "$target_dir"
+            all_passed=false
+        fi
+    else
+        # Try to create the directory
+        if ! mkdir -p "$target_dir" 2>/dev/null; then
+            log_error "Cannot create target directory: $target_dir"
+            bootstrap_show_fix_suggestion "permission" "$target_dir"
+            all_passed=false
+        else
+            # Clean up the test directory
+            rmdir "$target_dir" 2>/dev/null || true
+        fi
+    fi
+
+    # Check if bin directory parent is writable
+    local bin_parent
+    bin_parent=$(dirname "$BOOTSTRAP_BIN_DIR")
+    if [[ ! -d "$bin_parent" ]]; then
+        if ! mkdir -p "$bin_parent" 2>/dev/null; then
+            log_error "Cannot create bin directory parent: $bin_parent"
+            bootstrap_show_fix_suggestion "permission" "$bin_parent"
+            all_passed=false
+        fi
+    fi
+
+    # Check disk space (at least 50MB free)
+    local required_space=50
+    local available_space
+    available_space=$(df -m "$parent_dir" 2>/dev/null | awk 'NR==2 {print $4}')
+    if [[ -n "$available_space" ]]; then
+        if [[ "$available_space" -lt "$required_space" ]]; then
+            log_error "Insufficient disk space: ${available_space}MB available, ${required_space}MB required"
+            all_passed=false
+        else
+            log_debug "Available disk space: ${available_space}MB (OK)"
+        fi
+    else
+        log_warn "Could not determine available disk space"
+    fi
+
+    # Check if Morty is already installed
+    if [[ -d "$BOOTSTRAP_PREFIX" ]] && [[ -f "$BOOTSTRAP_PREFIX/bin/morty" ]]; then
+        log_warn "Morty appears to already be installed at: $BOOTSTRAP_PREFIX"
+        log_warn "Use './bootstrap.sh reinstall' to overwrite the existing installation"
+        log_warn "Use './bootstrap.sh upgrade' to upgrade to a newer version"
+        all_passed=false
+    fi
+
+    if [[ "$all_passed" == "true" ]]; then
+        log_success "Installation environment check passed"
+        return 0
+    else
+        return 1
+    fi
+}
+
+# Compare two version strings
+# Usage: bootstrap_check_version <current> <minimum>
+# Returns: 0 if current >= minimum, 1 otherwise
+bootstrap_check_version() {
+    local current="$1"
+    local minimum="$2"
+
+    # Use sort -V for version comparison if available
+    if command -v sort &> /dev/null && echo "test" | sort -V &> /dev/null; then
+        local higher
+        higher=$(printf '%s\n%s\n' "$minimum" "$current" | sort -V | tail -n1)
+        [[ "$higher" == "$current" ]]
+        return $?
+    else
+        # Fallback: simple numeric comparison
+        # This handles X.Y format but not X.Y.Z with letters
+        local current_major current_minor
+        local minimum_major minimum_minor
+
+        current_major="${current%%.*}"
+        current_minor="${current#*.}"
+        current_minor="${current_minor%%.*}"
+
+        minimum_major="${minimum%%.*}"
+        minimum_minor="${minimum#*.}"
+        minimum_minor="${minimum_minor%%.*}"
+
+        # Default to 0 if empty
+        current_major="${current_major:-0}"
+        current_minor="${current_minor:-0}"
+        minimum_major="${minimum_major:-0}"
+        minimum_minor="${minimum_minor:-0}"
+
+        if [[ "$current_major" -gt "$minimum_major" ]]; then
+            return 0
+        elif [[ "$current_major" -eq "$minimum_major" ]] && [[ "$current_minor" -ge "$minimum_minor" ]]; then
+            return 0
+        else
+            return 1
+        fi
+    fi
+}
+
+# Show friendly fix suggestions for common issues
+# Usage: bootstrap_show_fix_suggestion <issue_type> [details]
+bootstrap_show_fix_suggestion() {
+    local issue="$1"
+    local details="${2:-}"
+
+    echo ""
+    echo "Fix suggestion:"
+    echo "==============="
+
+    case "$issue" in
+        "bash")
+            local min_version="$details"
+            echo "Your Bash version is too old. Morty requires Bash >= $min_version."
+            echo ""
+            echo "To upgrade Bash:"
+            echo "  Ubuntu/Debian:  sudo apt-get update && sudo apt-get install bash"
+            echo "  CentOS/RHEL 7:  sudo yum install bash"
+            echo "  CentOS/RHEL 8+: sudo dnf install bash"
+            echo "  macOS:          brew install bash"
+            echo "  Alpine:         apk add bash"
+            echo ""
+            echo "After installation, restart your terminal or run:"
+            echo "  exec bash"
+            ;;
+        "git")
+            echo "Git is not installed or too old."
+            echo ""
+            echo "To install Git:"
+            echo "  Ubuntu/Debian:  sudo apt-get install git"
+            echo "  CentOS/RHEL:    sudo yum install git"
+            echo "  macOS:          brew install git"
+            echo "  Alpine:         apk add git"
+            ;;
+        "permission")
+            local dir="$details"
+            echo "Permission denied when accessing: $dir"
+            echo ""
+            echo "Possible solutions:"
+            echo "  1. Change the installation prefix to a directory you own:"
+            echo "     ./bootstrap.sh install --prefix ~/my-morty"
+            echo ""
+            echo "  2. Create the directory with correct permissions:"
+            echo "     mkdir -p $dir"
+            echo "     chmod u+rwx $dir"
+            echo ""
+            echo "  3. Use sudo (not recommended for personal installations):"
+            echo "     sudo ./bootstrap.sh install --prefix $dir"
+            ;;
+        "existing")
+            local install_dir="$details"
+            echo "Morty is already installed at: $install_dir"
+            echo ""
+            echo "Options:"
+            echo "  1. Upgrade to the latest version:"
+            echo "     ./bootstrap.sh upgrade"
+            echo ""
+            echo "  2. Reinstall (keeps configuration):"
+            echo "     ./bootstrap.sh reinstall"
+            echo ""
+            echo "  3. Uninstall first:"
+            echo "     ./bootstrap.sh uninstall"
+            ;;
+        *)
+            echo "Unknown issue: $issue"
+            echo "Please check the error message above and try again."
+            ;;
+    esac
+
+    echo ""
 }
 
 # ============================================================================
