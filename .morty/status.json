@@ -3,15 +3,15 @@
   "state": "running",
   "current": {
     "module": "install",
-    "job": "job_1",
+    "job": "job_2",
     "status": "RUNNING",
-    "start_time": "2026-02-22T15:10:48Z",
+    "start_time": "2026-02-22T15:29:51Z",
     "completed_at": "2026-02-22T12:10:00Z"
   },
   "session": {
     "start_time": "2026-02-21T16:13:36Z",
-    "last_update": "2026-02-22T15:30:00Z",
-    "total_loops": 35
+    "last_update": "2026-02-22T15:35:00Z",
+    "total_loops": 37
   },
   "modules": {
     "cli": {
@@ -805,11 +805,11 @@
       "status": "pending",
       "jobs": {
         "job_1": {
-          "status": "RUNNING",
+          "status": "COMPLETED",
           "loop_count": 1,
           "retry_count": 0,
           "tasks_total": 6,
-          "tasks_completed": 5,
+          "tasks_completed": 6,
           "debug_logs": [],
           "tasks": {
             "task_1": {
@@ -840,19 +840,21 @@
               "status": "PENDING"
             }
           },
-          "started_at": "2026-02-22T15:10:48Z"
+          "started_at": "2026-02-22T15:10:48Z",
+          "completed_at": "2026-02-22T15:29:51Z"
         },
         "job_2": {
-          "status": "PENDING",
-          "loop_count": 0,
+          "status": "RUNNING",
+          "loop_count": 1,
           "retry_count": 0,
           "tasks_total": 6,
-          "tasks_completed": 0,
+          "tasks_completed": 1,
           "debug_logs": [],
           "tasks": {
             "task_1": {
               "description": "实现 `install_get_default_prefix()`: 获取默认安装路径",
-              "status": "PENDING"
+              "status": "COMPLETED",
+              "completed_at": "2026-02-22T15:35:00Z"
             },
             "task_2": {
               "description": "实现 `install_validate_prefix()`: 验证安装路径有效",
@@ -874,7 +876,8 @@
               "description": "处理已存在安装时的冲突（备份、覆盖、取消）",
               "status": "PENDING"
             }
-          }
+          },
+          "started_at": "2026-02-22T15:29:51Z"
         },
         "job_3": {
           "status": "PENDING",
