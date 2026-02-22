@@ -1,0 +1,28 @@
+## Task 3 完成
+
+已实现并验证 `install_check_bash_version()` 函数：
+
+**功能验证结果：**
+- Bash 版本检查返回 PASS (当前版本 5.1.9 >= 4.0)
+- 版本比较逻辑测试通过所有边缘情况：
+  - `5.1.9 >= 4.0` → true
+  - `4.0 >= 4.0` → true
+  - `3.9 >= 4.0` → false
+  - `4.1 >= 4.0` → true
+
+**完成操作：**
+- 更新 `.morty/status.json` 标记 Task 3 为 COMPLETED
+- 创建 Git 提交 `2402280`
+
+<!-- RALPH_STATUS -->
+{
+  "module": "install",
+  "job": "job_1",
+  "status": "RUNNING",
+  "tasks_completed": 3,
+  "tasks_total": 6,
+  "loop_count": 1,
+  "debug_issues": 0,
+  "summary": "Task 3 install_check_bash_version() completed and verified. Function correctly validates Bash >= 4.0 requirement and returns structured JSON result."
+}
+<!-- END_RALPH_STATUS -->

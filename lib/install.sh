@@ -205,8 +205,15 @@ install_check_ai_cli() {
         version=""
     else
         # Try to get version (claude --version)
-        version=$($ai_cmd --version 2>/dev/null | head -1 | awk '{print $NF}')
-        if [[ -z "$version" ]]; then
+        # Expected format: "2.1.50 (Claude Code)" or "Claude Code 2.1.50"
+        local raw_version=$($ai_cmd --version 2>/dev/null | head -1)
+        if [[ "$raw_version" =~ ^[0-9]+\.[0-9]+ ]]; then
+            # Format: "2.1.50 (Claude Code)" - extract version number
+            version=$(echo "$raw_version" | awk '{print $1}')
+        elif [[ "$raw_version" =~ Claude[[:space:]]Code[[:space:]][0-9]+\.[0-9]+ ]]; then
+            # Format: "Claude Code 2.1.50" - extract last field
+            version=$(echo "$raw_version" | awk '{print $NF}')
+        else
             version="unknown"
         fi
         status="PASS"
