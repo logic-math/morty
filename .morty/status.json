@@ -10,7 +10,7 @@
   },
   "session": {
     "start_time": "2026-02-21T16:13:36Z",
-    "last_update": "2026-02-23T00:00:00Z",
+    "last_update": "2026-02-22T16:05:43Z",
     "total_loops": 44
   },
   "modules": {
@@ -804,6 +804,32 @@
     "install": {
       "status": "completed",
       "jobs": {
+        "job_0": {
+          "status": "PENDING",
+          "loop_count": 0,
+          "retry_count": 0,
+          "tasks_total": 4,
+          "tasks_completed": 0,
+          "debug_logs": [],
+          "tasks": {
+            "task_1": {
+              "description": "创建 `bootstrap.sh` 独立安装脚本",
+              "status": "PENDING"
+            },
+            "task_2": {
+              "description": "实现系统依赖检查和自动下载安装",
+              "status": "PENDING"
+            },
+            "task_3": {
+              "description": "支持 curl | bash 一键安装方式",
+              "status": "PENDING"
+            },
+            "task_4": {
+              "description": "提供手动安装指南文档",
+              "status": "PENDING"
+            }
+          }
+        },
         "job_1": {
           "status": "COMPLETED",
           "loop_count": 1,
@@ -1016,7 +1042,7 @@
           "loop_count": 1,
           "retry_count": 0,
           "tasks_total": 7,
-          "tasks_completed": 7,
+          "tasks_completed": 8,
           "debug_logs": [],
           "tasks": {
             "task_1": {
@@ -1056,7 +1082,7 @@
             }
           },
           "started_at": "2026-02-22T15:57:01Z",
-          "completed_at": "2026-02-23T00:00:00Z"
+          "completed_at": "2026-02-22T16:05:43Z"
         }
       }
     }
@@ -1067,7 +1093,7 @@
     "running_modules": 2,
     "pending_modules": 2,
     "blocked_modules": 0,
-    "total_jobs": 31,
+    "total_jobs": 32,
     "completed_jobs": 23,
     "running_jobs": 1,
     "failed_jobs": 0,

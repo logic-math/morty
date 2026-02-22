@@ -1,0 +1,24 @@
+Job 6 已成功完成！以下是本次执行的总结：
+
+<!-- RALPH_STATUS -->
+{
+  "module": "install",
+  "job": "job_6",
+  "status": "COMPLETED",
+  "tasks_completed": 7,
+  "tasks_total": 7,
+  "loop_count": 1,
+  "debug_issues": 0,
+  "summary": "Successfully implemented version information and management functions including: install_get_version(), install_get_full_version(), install_get_sandbox_status(), version compatibility check, sandbox health check, and integration with 'morty version --verbose' and 'morty upgrade --check' commands. All tests passed and Git commit created."
+}
+<!-- END_RALPH_STATUS -->
+
+**完成的功能:**
+
+1. **`install_get_version()`** - 从安装目录的 VERSION 文件获取当前版本
+2. **`install_get_full_version()`** - 返回包含版本、安装路径、配置路径和沙盒状态的详细 JSON 信息
+3. **`install_get_sandbox_status()`** - 检查并返回隔离环境的运行状态（是否有待完成的操作、当前 Job 等）
+4. **`morty version --verbose`** - 集成详细版本信息显示
+5. **`morty upgrade --check`** - 集成更新检查功能
+6. **`install_check_version_compat()`** - 版本兼容性检查，验证组件版本是否匹配
+7. **`install_check_sandbox_health()`** - 隔离环境健康检查，验证目录结构、文件完整性等

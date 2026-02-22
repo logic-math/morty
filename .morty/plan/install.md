@@ -4,6 +4,14 @@
 
 **模块职责**: 提供 Morty 的安装、升级和卸载功能，支持一键安装、配置迁移、版本检查和清理卸载。确保开发环境和生产环境的同构性。
 
+**初始安装问题（Bootstrap）**:
+> 当环境中没有 Morty 时，用户无法运行 `morty install`。因此需要提供 **bootstrap（自举）安装** 方案。
+
+**Bootstrap 安装方式**:
+1. **`bootstrap.sh` 脚本**: 独立的初始安装脚本，无需 Morty 即可运行
+2. **`curl | bash` 一键安装**: 从远程下载并执行安装
+3. **手动安装**: 下载 release 包手动解压安装
+
 **对应 Research**: 生产测试.md - 安装和升级测试；install.sh 现有实现
 
 **依赖模块**: config, logging
@@ -101,6 +109,80 @@ dependencies:
 ```
 
 ## Jobs (Loop 块列表)
+
+---
+
+### Job 0: Bootstrap 自举安装（解决初始安装问题）
+
+**目标**: 提供独立的初始安装方案，无需 Morty 即可安装 Morty
+
+**前置条件**: 无（这是第一个 Job，用户环境中还没有 Morty）
+
+**Tasks (Todo 列表)**:
+
+- [ ] **创建 `bootstrap.sh` 独立安装脚本**
+  - [ ] 实现系统依赖检查（bash >= 4.0, git >= 2.0）
+  - [ ] 实现 `MORTY_HOME` 环境变量检查和设置提示
+  - [ ] 实现安装目录创建（`$HOME/.morty/`）
+  - [ ] 实现从 GitHub Release 下载最新版本
+  - [ ] 实现解压和文件复制到安装目录
+  - [ ] 实现符号链接创建（`$HOME/.local/bin/morty`）
+  - [ ] 实现安装后验证（`morty version` 可执行）
+  - [ ] 提供 PATH 配置提示
+
+- [ ] **支持多种安装来源**
+  - [ ] GitHub Release（默认）
+  - [ ] 本地源码目录（开发模式）
+  - [ ] 指定版本号安装
+
+- [ ] **提供 `curl | bash` 一键安装方式**
+  - [ ] 托管 `bootstrap.sh` 到可访问的 URL
+  - [ ] 支持命令：`curl -sSL https://get.morty.dev | bash`
+
+- [ ] **提供手动安装指南文档**
+  - [ ] 下载 release 包步骤
+  - [ ] 解压到指定目录步骤
+  - [ ] 创建符号链接步骤
+
+**验证器**（测试时遵循隔离执行原则）:
+
+> **测试原则**: 测试 bootstrap 安装时，必须在临时目录中进行，不得污染当前环境。
+
+- **功能验证**:
+  - 在干净环境（无 Morty）中运行 `bootstrap.sh` 应成功安装
+  - 安装后 `morty version` 应能正常运行
+  - `morty` 命令应能通过 `$HOME/.local/bin/morty` 访问
+  - 如果 `$HOME/.local/bin` 不在 PATH 中，应给出明确的配置提示
+
+- **隔离执行原则（测试时强制执行）**:
+  - 测试必须使用 `bootstrap.sh --prefix /tmp/morty_test_xxx` 指向临时目录
+  - 测试完成后必须清理临时目录
+  - 当前 shell 环境不应被修改（除了可选的 PATH 提示）
+
+**Bootstrap 脚本使用方式**:
+
+```bash
+# 方式 1: curl 一键安装（推荐）
+curl -sSL https://raw.githubusercontent.com/user/morty/main/bootstrap.sh | bash
+
+# 方式 2: 下载后执行
+wget https://raw.githubusercontent.com/user/morty/main/bootstrap.sh
+chmod +x bootstrap.sh
+./bootstrap.sh
+
+# 方式 3: 指定版本安装
+curl -sSL https://get.morty.dev | bash -s -- --version 2.1.0
+
+# 方式 4: 开发模式（从本地源码安装）
+./bootstrap.sh --source ./ --prefix ~/.morty-dev
+```
+
+**与 `morty install` 的关系**:
+- `bootstrap.sh`: 首次安装，系统中没有 Morty 时使用
+- `morty install`: 重新安装或修复安装，已有 Morty 时使用
+
+**调试日志**:
+- 无
 
 ---
 
@@ -341,6 +423,17 @@ dependencies:
 
 ```bash
 # lib/install.sh
+
+# ============================================================================
+# Bootstrap 自举安装（独立脚本，无需 Morty 即可运行）
+# ============================================================================
+# bootstrap.sh 中的函数
+bootstrap_check_deps()              # 检查系统依赖
+bootstrap_download_release()        # 从 GitHub Release 下载
+bootstrap_install_from_source()     # 从本地源码安装
+bootstrap_create_symlink()          # 创建命令链接
+bootstrap_verify_install()          # 验证安装结果
+bootstrap_print_next_steps()        # 打印后续步骤
 
 # ============================================================================
 # 依赖检查

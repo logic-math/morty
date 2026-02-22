@@ -16,7 +16,7 @@
 | version_manager | version_manager.md | 3 | config, logging | 已实现 |
 | doing | doing.md | 7 | config, logging, version_manager | 已实现 |
 | cli | cli.md | 5 | 所有模块 | 已实现 |
-| install | install.md | 6 | config, logging | 规划中 |
+| install | install.md | 7 | config, logging | 规划中 |
 | 生产测试 | 生产测试.md | 6 | 所有功能模块 | 规划中 |
 
 **注意**: plan_mode 和 research_mode 由用户手动实现，不包含在 doing 执行计划中。
@@ -161,9 +161,9 @@ morty stat --watch      # 持续监控
 | version_manager | 3 | 提交格式、回滚 |
 | doing | 7 | 状态机、黑箱执行、重试、Git 提交 |
 | cli | 5 | 路由、stat、reset、帮助 |
-| install | 6 | 依赖检查、安装、升级、卸载 |
+| install | 7 | Bootstrap、依赖检查、安装、升级、卸载 |
 
-**总计**: 31 个 Jobs (29 个已实现，剩余 2 个)
+**总计**: 32 个 Jobs (29 个已实现，剩余 3 个)
 
 ---
 
