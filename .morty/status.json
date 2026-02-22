@@ -892,6 +892,20 @@
             "task_3": { "description": "编写 INSTALL.md 安装指南", "status": "PENDING" },
             "task_4": { "description": "在 README.md 中添加安装说明", "status": "PENDING" }
           }
+        },
+        "job_7": {
+          "status": "PENDING",
+          "loop_count": 0,
+          "retry_count": 0,
+          "tasks_total": 4,
+          "tasks_completed": 0,
+          "debug_logs": [],
+          "tasks": {
+            "task_1": { "description": "识别并列出所有过时代码文件", "status": "PENDING" },
+            "task_2": { "description": "删除 morty_fix.sh, morty_loop.sh, lib/loop_monitor.sh, install.sh", "status": "PENDING" },
+            "task_3": { "description": "验证清理后核心功能正常", "status": "PENDING" },
+            "task_4": { "description": "更新文档移除过时命令引用", "status": "PENDING" }
+          }
         }
       }
     }
@@ -902,7 +916,7 @@
     "running_modules": 2,
     "pending_modules": 2,
     "blocked_modules": 0,
-    "total_jobs": 31,
+    "total_jobs": 32,
     "completed_jobs": 23,
     "running_jobs": 1,
     "failed_jobs": 0,
