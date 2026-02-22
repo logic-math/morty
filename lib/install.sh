@@ -673,6 +673,450 @@ install_handle_conflict() {
 }
 
 # ============================================
+# File Installation
+# ============================================
+
+# Copy all necessary files to target directory
+# Usage: install_copy_files <source_dir> <target_dir>
+# Returns: 0 on success, 1 on failure
+install_copy_files() {
+    local source_dir="$1"
+    local target_dir="$2"
+
+    if [[ -z "$source_dir" || -z "$target_dir" ]]; then
+        log_error "Source and target directories are required"
+        return 1
+    fi
+
+    # Expand ~ to $HOME
+    source_dir="${source_dir/#\~/$HOME}"
+    target_dir="${target_dir/#\~/$HOME}"
+
+    # Validate source directory exists
+    if [[ ! -d "$source_dir" ]]; then
+        log_error "Source directory does not exist: $source_dir"
+        return 1
+    fi
+
+    # Validate target directory exists (should be created by install_ensure_dirs)
+    if [[ ! -d "$target_dir" ]]; then
+        log_error "Target directory does not exist: $target_dir"
+        return 1
+    fi
+
+    log_info "Copying files from $source_dir to $target_dir..."
+
+    # Define files to copy to bin/
+    local bin_scripts=(
+        "morty_fix.sh"
+        "morty_loop.sh"
+        "morty_reset.sh"
+        "morty_research.sh"
+        "morty_plan.sh"
+        "morty_doing.sh"
+    )
+
+    # Copy bin scripts
+    local bin_dir="$target_dir/bin"
+    if [[ ! -d "$bin_dir" ]]; then
+        mkdir -p "$bin_dir" || {
+            log_error "Failed to create bin directory: $bin_dir"
+            return 1
+        }
+    fi
+
+    for script in "${bin_scripts[@]}"; do
+        local src="$source_dir/$script"
+        local dst="$bin_dir/$script"
+
+        if [[ -f "$src" ]]; then
+            cp "$src" "$dst" || {
+                log_error "Failed to copy $script to $bin_dir"
+                return 1
+            }
+            log_debug "Copied $script to $bin_dir"
+        else
+            log_warn "Source file not found: $src"
+        fi
+    done
+
+    # Create main morty command
+    install_create_main_command "$bin_dir" || {
+        log_error "Failed to create main morty command"
+        return 1
+    }
+
+    # Copy lib files
+    local lib_src="$source_dir/lib"
+    local lib_dst="$target_dir/lib"
+
+    if [[ -d "$lib_src" ]]; then
+        # Create lib directory if not exists
+        if [[ ! -d "$lib_dst" ]]; then
+            mkdir -p "$lib_dst" || {
+                log_error "Failed to create lib directory: $lib_dst"
+                return 1
+            }
+        fi
+
+        # Copy all .sh files from lib/
+        for src_file in "$lib_src"/*.sh; do
+            if [[ -f "$src_file" ]]; then
+                local filename=$(basename "$src_file")
+                cp "$src_file" "$lib_dst/$filename" || {
+                    log_error "Failed to copy lib/$filename"
+                    return 1
+                }
+                log_debug "Copied lib/$filename"
+            fi
+        done
+    else
+        log_warn "Source lib directory not found: $lib_src"
+    fi
+
+    # Copy prompts files
+    local prompts_src="$source_dir/prompts"
+    local prompts_dst="$target_dir/prompts"
+
+    if [[ -d "$prompts_src" ]]; then
+        # Create prompts directory if not exists
+        if [[ ! -d "$prompts_dst" ]]; then
+            mkdir -p "$prompts_dst" || {
+                log_error "Failed to create prompts directory: $prompts_dst"
+                return 1
+            }
+        fi
+
+        # Copy all .md files from prompts/
+        for src_file in "$prompts_src"/*.md; do
+            if [[ -f "$src_file" ]]; then
+                local filename=$(basename "$src_file")
+                cp "$src_file" "$prompts_dst/$filename" || {
+                    log_error "Failed to copy prompts/$filename"
+                    return 1
+                }
+                log_debug "Copied prompts/$filename"
+            fi
+        done
+    else
+        log_warn "Source prompts directory not found: $prompts_src"
+    fi
+
+    log_success "All files copied successfully"
+    return 0
+}
+
+# Create main morty command script
+# Usage: install_create_main_command <bin_dir>
+# Returns: 0 on success, 1 on failure
+install_create_main_command() {
+    local bin_dir="$1"
+
+    if [[ -z "$bin_dir" ]]; then
+        log_error "Bin directory is required"
+        return 1
+    fi
+
+    bin_dir="${bin_dir/#\~/$HOME}"
+
+    if [[ ! -d "$bin_dir" ]]; then
+        log_error "Bin directory does not exist: $bin_dir"
+        return 1
+    fi
+
+    local morty_cmd="$bin_dir/morty"
+
+    cat > "$morty_cmd" << 'EOF'
+#!/usr/bin/env bash
+# Morty - 简化的 AI 开发循环
+# Main command wrapper
+
+MORTY_HOME="${MORTY_HOME:-$HOME/.morty}"
+VERSION_FILE="$MORTY_HOME/VERSION"
+
+# Get version
+if [[ -f "$VERSION_FILE" ]]; then
+    VERSION=$(head -1 "$VERSION_FILE")
+else
+    VERSION="unknown"
+fi
+
+# Source common functions
+source "$MORTY_HOME/lib/common.sh" 2>/dev/null || true
+source "$MORTY_HOME/lib/logging.sh" 2>/dev/null || true
+
+# Show help
+show_help() {
+    cat << 'HELP'
+Morty - 简化的 AI 开发循环
+
+用法: morty <command> [options]
+
+命令:
+    research [topic]        交互式代码库/文档库研究
+    plan                    基于研究结果创建 TDD 开发计划
+    doing [options]         执行 Plan 的分层 TDD 开发
+    fix <prd.md>            迭代式 PRD 改进(问题修复/功能增强/架构优化)
+    loop [options]          启动开发循环(集成监控)
+    reset [options]         版本回滚和循环管理
+    version                 显示版本
+
+示例:
+    morty research                     # 启动研究模式
+    morty research "api架构"           # 研究指定主题
+    morty plan                         # 基于研究结果创建 TDD 计划
+    morty doing                        # 执行分层 TDD 开发
+    morty fix prd.md                   # 改进 PRD 并生成 .morty/ 目录
+    morty loop                         # 启动带监控的开发循环
+    morty reset -l                     # 查看循环提交历史
+    morty reset -c abc123              # 回滚到指定 commit
+
+HELP
+}
+
+# Show version
+show_version() {
+    echo "Morty version $VERSION"
+}
+
+# Command routing
+case "${1:-}" in
+    research)
+        shift
+        exec "$MORTY_HOME/bin/morty_research.sh" "$@"
+        ;;
+    plan)
+        shift
+        exec "$MORTY_HOME/bin/morty_plan.sh" "$@"
+        ;;
+    doing)
+        shift
+        exec "$MORTY_HOME/bin/morty_doing.sh" "$@"
+        ;;
+    fix)
+        shift
+        exec "$MORTY_HOME/bin/morty_fix.sh" "$@"
+        ;;
+    loop)
+        shift
+        exec "$MORTY_HOME/bin/morty_loop.sh" "$@"
+        ;;
+    reset)
+        shift
+        exec "$MORTY_HOME/bin/morty_reset.sh" "$@"
+        ;;
+    version|--version|-v)
+        show_version
+        ;;
+    help|--help|-h|"")
+        show_help
+        ;;
+    *)
+        echo "错误: 未知命令 '$1'" >&2
+        echo ""
+        show_help
+        exit 1
+        ;;
+esac
+EOF
+
+    chmod +x "$morty_cmd" || {
+        log_error "Failed to set permissions on morty command"
+        return 1
+    }
+
+    log_debug "Created main morty command at $morty_cmd"
+    return 0
+}
+
+# ============================================
+# Permission Management
+# ============================================
+
+# Set executable permissions on all installed files
+# Usage: install_set_permissions <prefix>
+# Returns: 0 on success, 1 on failure
+install_set_permissions() {
+    local prefix="$1"
+
+    if [[ -z "$prefix" ]]; then
+        log_error "Installation prefix is required"
+        return 1
+    fi
+
+    prefix="${prefix/#\~/$HOME}"
+
+    if [[ ! -d "$prefix" ]]; then
+        log_error "Installation directory does not exist: $prefix"
+        return 1
+    fi
+
+    log_info "Setting file permissions..."
+
+    # Set permissions on bin scripts (755)
+    local bin_dir="$prefix/bin"
+    if [[ -d "$bin_dir" ]]; then
+        chmod -R 755 "$bin_dir" 2>/dev/null || {
+            log_error "Failed to set permissions on $bin_dir"
+            return 1
+        }
+    fi
+
+    # Set permissions on lib scripts (644 for files, 755 for directories)
+    local lib_dir="$prefix/lib"
+    if [[ -d "$lib_dir" ]]; then
+        find "$lib_dir" -type f -name "*.sh" -exec chmod 644 {} \; 2>/dev/null || true
+        chmod 755 "$lib_dir" 2>/dev/null || true
+    fi
+
+    # Set permissions on prompts (644)
+    local prompts_dir="$prefix/prompts"
+    if [[ -d "$prompts_dir" ]]; then
+        find "$prompts_dir" -type f -name "*.md" -exec chmod 644 {} \; 2>/dev/null || true
+        chmod 755 "$prompts_dir" 2>/dev/null || true
+    fi
+
+    log_debug "File permissions set"
+    return 0
+}
+
+# ============================================
+# Symlink Management
+# ============================================
+
+# Create symlink for morty command
+# Usage: install_create_symlink <target> <link_name>
+# Returns: 0 on success, 1 on failure
+install_create_symlink() {
+    local target="$1"
+    local link_name="$2"
+
+    if [[ -z "$target" || -z "$link_name" ]]; then
+        log_error "Target and link name are required"
+        return 1
+    fi
+
+    target="${target/#\~/$HOME}"
+    link_name="${link_name/#\~/$HOME}"
+
+    if [[ ! -f "$target" ]]; then
+        log_error "Target does not exist: $target"
+        return 1
+    fi
+
+    # Create parent directory if needed
+    local link_parent=$(dirname "$link_name")
+    if [[ ! -d "$link_parent" ]]; then
+        mkdir -p "$link_parent" || {
+            log_error "Failed to create parent directory: $link_parent"
+            return 1
+        }
+    fi
+
+    # Remove existing symlink if it exists
+    if [[ -L "$link_name" ]]; then
+        rm "$link_name" || {
+            log_error "Failed to remove existing symlink: $link_name"
+            return 1
+        }
+    fi
+
+    # Remove existing file if it exists
+    if [[ -f "$link_name" ]]; then
+        rm "$link_name" || {
+            log_error "Failed to remove existing file: $link_name"
+            return 1
+        }
+    fi
+
+    # Create symlink
+    ln -s "$target" "$link_name" || {
+        log_error "Failed to create symlink: $link_name -> $target"
+        return 1
+    }
+
+    log_info "Created symlink: $link_name -> $target"
+    return 0
+}
+
+# ============================================
+# Version Management
+# ============================================
+
+# Get the repository root directory
+# Returns: path to repository root
+install_get_repo_root() {
+    local script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+    local repo_root="$(dirname "$script_dir")"
+    echo "$repo_root"
+}
+
+# Get the current version from the repository
+# Returns: version string
+install_get_current_version() {
+    local repo_root
+    repo_root=$(install_get_repo_root)
+
+    # Try to get version from VERSION file
+    if [[ -f "$repo_root/VERSION" ]]; then
+        head -1 "$repo_root/VERSION"
+        return 0
+    fi
+
+    # Try to get version from git
+    if command -v git &>/dev/null && [[ -d "$repo_root/.git" ]]; then
+        git -C "$repo_root" describe --tags --always 2>/dev/null || echo "2.0.0-dev"
+        return 0
+    fi
+
+    # Default version
+    echo "2.0.0"
+}
+
+# Write version file to installation directory
+# Usage: install_write_version <prefix> <version>
+# Returns: 0 on success, 1 on failure
+install_write_version() {
+    local prefix="$1"
+    local version="$2"
+
+    if [[ -z "$prefix" ]]; then
+        log_error "Installation prefix is required"
+        return 1
+    fi
+
+    prefix="${prefix/#\~/$HOME}"
+
+    if [[ ! -d "$prefix" ]]; then
+        log_error "Installation directory does not exist: $prefix"
+        return 1
+    fi
+
+    # Write version file
+    echo "${version:-2.0.0}" > "$prefix/VERSION" || {
+        log_error "Failed to write version file"
+        return 1
+    }
+
+    log_debug "Version file written: $version"
+    return 0
+}
+
+# ============================================
+# Configuration Initialization
+# ============================================
+
+# Initialize default configuration
+# Usage: install_init_config()
+# Returns: 0 on success, 1 on failure
+install_init_config() {
+    # This is a stub for now, configuration will be implemented in Job 4/5
+    # For now, we just return success
+    log_debug "Configuration initialization stub called"
+    return 0
+}
+
+# ============================================
 # Version Utilities
 # ============================================
 
@@ -749,9 +1193,54 @@ install_do_install() {
 
     log_success "Installation directories created"
 
-    # TODO: Copy files, create symlinks, set permissions
-    # These will be implemented in Job 3
+    # Copy files from source to installation directory
+    local source_dir
+    source_dir=$(install_get_repo_root)
+    if [[ $? -ne 0 || -z "$source_dir" ]]; then
+        log_error "Failed to determine source directory"
+        return 1
+    fi
 
+    if ! install_copy_files "$source_dir" "$prefix"; then
+        log_error "Failed to copy files"
+        return 1
+    fi
+
+    log_success "Files copied successfully"
+
+    # Set permissions on all installed files
+    if ! install_set_permissions "$prefix"; then
+        log_error "Failed to set permissions"
+        return 1
+    fi
+
+    log_success "Permissions set successfully"
+
+    # Create symlink to bin directory
+    local morty_cmd="$prefix/bin/morty"
+    local symlink_path="$bin_dir/morty"
+
+    if ! install_create_symlink "$morty_cmd" "$symlink_path"; then
+        log_error "Failed to create symlink"
+        return 1
+    fi
+
+    log_success "Symlink created successfully"
+
+    # Write version file
+    local version
+    version=$(install_get_current_version)
+    if ! install_write_version "$prefix" "$version"; then
+        log_error "Failed to write version file"
+        return 1
+    fi
+
+    log_success "Version file written"
+
+    # Print PATH instructions
+    install_print_path_instructions "$bin_dir"
+
+    log_success "Installation completed successfully!"
     return 0
 }
 
