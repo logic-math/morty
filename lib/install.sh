@@ -1233,7 +1233,360 @@ install_compare_versions() {
 }
 
 # ============================================
-# Installation Execution (Stubs for future Jobs)
+# Configuration Backup and Restore (Upgrade)
+# ============================================
+
+# Backup existing configuration before upgrade
+# Usage: install_backup_config [prefix]
+# Returns: 0 on success, 1 on failure
+# Outputs: Path to backup file
+install_backup_config() {
+    local prefix="${1:-$INSTALL_DEFAULT_PREFIX}"
+    prefix="${prefix/#\~/$HOME}"
+
+    # Configuration files to backup
+    local config_files=(
+        ".morty/status.json"
+        "settings.json"
+    )
+
+    # Check if prefix directory exists
+    if [[ ! -d "$prefix" ]]; then
+        log_warn "Installation directory does not exist: $prefix"
+        echo ""
+        return 0
+    fi
+
+    # Create backup directory with timestamp
+    local timestamp=$(date +%Y%m%d_%H%M%S)
+    local backup_dir="${prefix}/.backup.${timestamp}"
+
+    # Try to include version in backup name
+    if [[ -f "$prefix/VERSION" ]]; then
+        local version
+        version=$(cat "$prefix/VERSION" 2>/dev/null | head -1 | tr -d '[:space:]')
+        if [[ -n "$version" ]]; then
+            backup_dir="${prefix}/.backup.${version}.${timestamp}"
+        fi
+    fi
+
+    # Create backup directory
+    if ! mkdir -p "$backup_dir"; then
+        log_error "Failed to create backup directory: $backup_dir"
+        return 1
+    fi
+
+    local backed_up_count=0
+
+    # Backup each config file if it exists
+    for rel_path in "${config_files[@]}"; do
+        local src_file="$prefix/$rel_path"
+        if [[ -f "$src_file" ]]; then
+            local dst_file="$backup_dir/$(basename "$rel_path")"
+            if cp "$src_file" "$dst_file"; then
+                log_debug "Backed up: $rel_path"
+                ((backed_up_count++))
+            else
+                log_warn "Failed to backup: $rel_path"
+            fi
+        fi
+    done
+
+    # Backup .morty directory content if it exists
+    local morty_dir="$prefix/.morty"
+    if [[ -d "$morty_dir" ]]; then
+        local morty_backup="$backup_dir/.morty"
+        if mkdir -p "$morty_backup"; then
+            # Copy important subdirectories
+            for subdir in logs plan research; do
+                local src_subdir="$morty_dir/$subdir"
+                if [[ -d "$src_subdir" ]]; then
+                    if cp -r "$src_subdir" "$morty_backup/"; then
+                        log_debug "Backed up .morty/$subdir/"
+                        ((backed_up_count++))
+                    else
+                        log_warn "Failed to backup .morty/$subdir/"
+                    fi
+                fi
+            done
+
+            # Copy status.json specifically
+            if [[ -f "$morty_dir/status.json" ]]; then
+                cp "$morty_dir/status.json" "$morty_backup/" 2>/dev/null || true
+            fi
+        fi
+    fi
+
+    if [[ $backed_up_count -gt 0 ]]; then
+        log_info "Configuration backed up to: $backup_dir"
+        echo "$backup_dir"
+        return 0
+    else
+        log_warn "No configuration files to backup"
+        # Remove empty backup directory
+        rmdir "$backup_dir" 2>/dev/null || true
+        echo ""
+        return 0
+    fi
+}
+
+# Restore user configuration after upgrade
+# Usage: install_restore_config <backup_dir> [prefix]
+# Returns: 0 on success, 1 on failure
+install_restore_config() {
+    local backup_dir="$1"
+    local prefix="${2:-$INSTALL_DEFAULT_PREFIX}"
+    prefix="${prefix/#\~/$HOME}"
+
+    if [[ -z "$backup_dir" || ! -d "$backup_dir" ]]; then
+        log_error "Invalid backup directory: $backup_dir"
+        return 1
+    fi
+
+    log_info "Restoring configuration from backup..."
+
+    local restored_count=0
+
+    # Restore status.json
+    if [[ -f "$backup_dir/status.json" ]]; then
+        local dst_dir="$prefix/.morty"
+        if [[ -d "$dst_dir" ]]; then
+            if cp "$backup_dir/status.json" "$dst_dir/"; then
+                log_debug "Restored: status.json"
+                ((restored_count++))
+            else
+                log_warn "Failed to restore: status.json"
+            fi
+        fi
+    fi
+
+    # Restore settings.json
+    if [[ -f "$backup_dir/settings.json" ]]; then
+        if cp "$backup_dir/settings.json" "$prefix/"; then
+            log_debug "Restored: settings.json"
+            ((restored_count++))
+        else
+            log_warn "Failed to restore: settings.json"
+        fi
+    fi
+
+    # Restore .morty subdirectories
+    local backup_morty="$backup_dir/.morty"
+    if [[ -d "$backup_morty" ]]; then
+        local dst_morty="$prefix/.morty"
+        for subdir in logs plan research; do
+            local src_subdir="$backup_morty/$subdir"
+            if [[ -d "$src_subdir" ]]; then
+                # Create destination if not exists
+                local dst_subdir="$dst_morty/$subdir"
+                mkdir -p "$dst_subdir" 2>/dev/null || true
+
+                # Copy files from backup
+                if cp -r "$src_subdir"/* "$dst_subdir/" 2>/dev/null; then
+                    log_debug "Restored: .morty/$subdir/"
+                    ((restored_count++))
+                fi
+            fi
+        done
+    fi
+
+    log_info "Restored $restored_count configuration items"
+    return 0
+}
+
+# Migrate configuration from old version to new version
+# Usage: install_migrate_config <old_version> <new_version> [prefix]
+# Returns: 0 on success, 1 on failure
+install_migrate_config() {
+    local old_version="$1"
+    local new_version="$2"
+    local prefix="${3:-$INSTALL_DEFAULT_PREFIX}"
+    prefix="${prefix/#\~/$HOME}"
+
+    if [[ -z "$old_version" || -z "$new_version" ]]; then
+        log_error "Both old_version and new_version are required"
+        return 1
+    fi
+
+    log_info "Migrating configuration from $old_version to $new_version..."
+
+    local settings_file="$prefix/settings.json"
+
+    # If settings.json doesn't exist, nothing to migrate
+    if [[ ! -f "$settings_file" ]]; then
+        log_debug "No settings.json found, skipping migration"
+        return 0
+    fi
+
+    # Parse major versions
+    local old_major=$(echo "$old_version" | cut -d. -f1)
+    local new_major=$(echo "$new_version" | cut -d. -f1)
+
+    # Migration logic based on version changes
+    local migrated=false
+
+    # Example: If upgrading from 1.x to 2.x
+    if [[ "$old_major" == "1" && "$new_major" == "2" ]]; then
+        log_info "Applying 1.x to 2.x migration rules..."
+
+        # Add new default fields that may be missing in old config
+        local temp_file
+        temp_file=$(mktemp)
+
+        # Use jq to merge with new defaults if available
+        if command -v jq &>/dev/null; then
+            # Add new fields with defaults if they don't exist
+            jq '
+                if has("defaults") then
+                    .defaults.max_loops //= 50 |
+                    .defaults.loop_delay //= 5 |
+                    .defaults.log_level //= "INFO" |
+                    .defaults.stat_refresh_interval //= 60
+                else
+                    . + {"defaults": {"max_loops": 50, "loop_delay": 5, "log_level": "INFO", "stat_refresh_interval": 60}}
+                end |
+                if has("paths") then
+                    .paths.work_dir //= ".morty" |
+                    .paths.log_dir //= ".morty/logs" |
+                    .paths.research_dir //= ".morty/research" |
+                    .paths.plan_dir //= ".morty/plan" |
+                    .paths.status_file //= ".morty/status.json"
+                else
+                    . + {"paths": {"work_dir": ".morty", "log_dir": ".morty/logs", "research_dir": ".morty/research", "plan_dir": ".morty/plan", "status_file": ".morty/status.json"}}
+                end |
+                .version = "'"$new_version"'"
+            ' "$settings_file" > "$temp_file" 2>/dev/null
+
+            if [[ $? -eq 0 ]]; then
+                mv "$temp_file" "$settings_file"
+                migrated=true
+                log_info "Configuration migrated successfully"
+            else
+                rm -f "$temp_file"
+                log_warn "Failed to migrate configuration with jq"
+            fi
+        else
+            # Without jq, just update version field
+            sed -i.bak "s/\"version\": \".*\"/\"version\": \"$new_version\"/" "$settings_file" 2>/dev/null || \
+            sed -i '' "s/\"version\": \".*\"/\"version\": \"$new_version\"/" "$settings_file" 2>/dev/null || true
+            rm -f "$settings_file.bak" 2>/dev/null || true
+            log_warn "jq not available, basic migration only (version update)"
+            migrated=true
+        fi
+    fi
+
+    # Update version in settings.json
+    if [[ "$migrated" == true ]]; then
+        log_success "Configuration migration completed"
+    else
+        log_debug "No migration rules applied for $old_version -> $new_version"
+    fi
+
+    return 0
+}
+
+# ============================================
+# Update Checking
+# ============================================
+
+# Check for available updates from remote repository
+# Usage: install_check_update()
+# Returns: 0 if update available, 1 if no update, 2 on error
+# Outputs: JSON with update information
+install_check_update() {
+    local repo_url="${MORTY_REPO_URL:-https://github.com/anthropics/morty}"
+    local current_version
+    current_version=$(install_get_current_version)
+
+    log_info "Checking for updates..."
+
+    # Get latest version from remote
+    local latest_version
+    latest_version=$(install_get_latest_version)
+
+    if [[ $? -ne 0 || -z "$latest_version" ]]; then
+        log_error "Failed to check for updates"
+        echo '{"update_available": false, "error": "Failed to fetch latest version"}'
+        return 2
+    fi
+
+    # Compare versions
+    local update_available=false
+    if ! install_compare_versions "$current_version" "$latest_version"; then
+        # current < latest, update available
+        update_available=true
+    fi
+
+    # Output JSON result
+    cat <<EOF
+{
+  "update_available": $update_available,
+  "current_version": "$current_version",
+  "latest_version": "$latest_version",
+  "repository": "$repo_url"
+}
+EOF
+
+    if [[ "$update_available" == true ]]; then
+        return 0
+    else
+        return 1
+    fi
+}
+
+# Get the latest version from remote repository
+# Usage: install_get_latest_version()
+# Returns: version string on success, empty on failure
+install_get_latest_version() {
+    local repo_url="${MORTY_REPO_URL:-https://github.com/anthropics/morty}"
+
+    # Try to get latest version from GitHub API
+    if command -v curl &>/dev/null; then
+        local api_url="${repo_url/github.com/api.github.com/repos}/releases/latest"
+        local response
+
+        response=$(curl -sL --max-time 10 "$api_url" 2>/dev/null)
+
+        if [[ -n "$response" ]]; then
+            local version
+            version=$(echo "$response" | jq -r '.tag_name // empty' 2>/dev/null)
+
+            if [[ -n "$version" && "$version" != "null" ]]; then
+                # Remove 'v' prefix if present
+                version="${version#v}"
+                echo "$version"
+                return 0
+            fi
+        fi
+    fi
+
+    # Fallback: try git ls-remote if we're in a git repo
+    if command -v git &>/dev/null; then
+        local repo_root
+        repo_root=$(install_get_repo_root)
+
+        if [[ -d "$repo_root/.git" ]]; then
+            local tags
+            tags=$(git -C "$repo_root" ls-remote --tags origin 2>/dev/null | tail -1)
+
+            if [[ -n "$tags" ]]; then
+                # Extract version from refs/tags/vX.Y.Z
+                local version
+                version=$(echo "$tags" | sed 's/.*refs\/tags\///; s/^v//')
+                if [[ -n "$version" ]]; then
+                    echo "$version"
+                    return 0
+                fi
+            fi
+        fi
+    fi
+
+    # Final fallback: return current version
+    install_get_current_version
+}
+
+# ============================================
+# Installation Execution
 # ============================================
 
 # Perform installation
@@ -1369,6 +1722,440 @@ install_print_path_instructions() {
     echo "Then reload your shell configuration:"
     echo "  source $shell_rc"
     echo ""
+}
+
+# ============================================
+# Uninstallation
+# ============================================
+
+# Safety check: Verify path is within expected installation directory
+# Usage: install_is_safe_to_remove <path>
+# Returns: 0 if safe, 1 otherwise
+install_is_safe_to_remove() {
+    local path="$1"
+
+    if [[ -z "$path" ]]; then
+        return 1
+    fi
+
+    # Expand ~ to $HOME
+    path="${path/#\~/$HOME}"
+
+    # Normalize path (remove trailing slashes, resolve ..)
+    path="$(cd "$(dirname "$path")" 2>/dev/null && pwd)/$(basename "$path")" 2>/dev/null || echo "$path"
+
+    # Get current working directory
+    local cwd
+    cwd="$(pwd)"
+
+    # SAFETY CHECK 1: Never delete current working directory or anything within it
+    if [[ "$path" == "$cwd" ]] || [[ "$path" == "$cwd"/* ]]; then
+        log_error "SAFETY VIOLATION: Cannot remove current working directory or its contents: $path"
+        return 1
+    fi
+
+    # SAFETY CHECK 2: Path must be within expected installation directories
+    local allowed_prefixes=(
+        "$INSTALL_DEFAULT_PREFIX"
+        "$INSTALL_DEFAULT_BIN_DIR"
+        "${HOME}/.morty"
+        "${HOME}/.local/bin"
+        "/tmp/morty"
+        "/tmp/morty_"
+    )
+
+    local is_allowed=false
+    for prefix in "${allowed_prefixes[@]}"; do
+        if [[ "$path" == "$prefix"* ]]; then
+            is_allowed=true
+            break
+        fi
+    done
+
+    # Also check for test directories
+    if [[ "$path" == "/tmp/morty_test"* ]] || [[ "$path" == "/tmp/morty"* ]]; then
+        is_allowed=true
+    fi
+
+    if [[ "$is_allowed" != "true" ]]; then
+        log_error "SAFETY VIOLATION: Path is not within allowed installation directories: $path"
+        return 1
+    fi
+
+    # SAFETY CHECK 3: Never delete system directories
+    local forbidden_paths=(
+        "/" "/bin" "/boot" "/dev" "/etc" "/home" "/lib" "/lib64"
+        "/mnt" "/opt" "/proc" "/root" "/run" "/sbin" "/srv" "/sys"
+        "/tmp" "/usr" "/var" "/usr/bin" "/usr/lib" "/usr/local"
+    )
+
+    for forbidden in "${forbidden_paths[@]}"; do
+        if [[ "$path" == "$forbidden" ]]; then
+            log_error "SAFETY VIOLATION: Cannot remove system directory: $path"
+            return 1
+        fi
+    done
+
+    return 0
+}
+
+# Remove installation files and directories
+# Usage: install_remove_files <prefix> [purge=false]
+# Returns: 0 on success, 1 on failure
+install_remove_files() {
+    local prefix="$1"
+    local purge="${2:-false}"
+
+    if [[ -z "$prefix" ]]; then
+        log_error "Installation prefix is required"
+        return 1
+    fi
+
+    # Expand ~ to $HOME
+    prefix="${prefix/#\~/$HOME}"
+
+    # Safety check
+    if ! install_is_safe_to_remove "$prefix"; then
+        return 1
+    fi
+
+    if [[ ! -d "$prefix" ]]; then
+        log_warn "Installation directory does not exist: $prefix"
+        return 0
+    fi
+
+    log_info "Removing installation files from $prefix..."
+
+    local failed_count=0
+
+    # Remove bin directory
+    if [[ -d "$prefix/bin" ]]; then
+        if install_is_safe_to_remove "$prefix/bin"; then
+            rm -rf "$prefix/bin" || {
+                log_error "Failed to remove $prefix/bin"
+                ((failed_count++))
+            }
+        else
+            ((failed_count++))
+        fi
+    fi
+
+    # Remove lib directory
+    if [[ -d "$prefix/lib" ]]; then
+        if install_is_safe_to_remove "$prefix/lib"; then
+            rm -rf "$prefix/lib" || {
+                log_error "Failed to remove $prefix/lib"
+                ((failed_count++))
+            }
+        else
+            ((failed_count++))
+        fi
+    fi
+
+    # Remove prompts directory
+    if [[ -d "$prefix/prompts" ]]; then
+        if install_is_safe_to_remove "$prefix/prompts"; then
+            rm -rf "$prefix/prompts" || {
+                log_error "Failed to remove $prefix/prompts"
+                ((failed_count++))
+            }
+        else
+            ((failed_count++))
+        fi
+    fi
+
+    # Remove VERSION file
+    if [[ -f "$prefix/VERSION" ]]; then
+        if install_is_safe_to_remove "$prefix/VERSION"; then
+            rm -f "$prefix/VERSION" || {
+                log_error "Failed to remove $prefix/VERSION"
+                ((failed_count++))
+            }
+        else
+            ((failed_count++))
+        fi
+    fi
+
+    # Handle .morty directory and configuration
+    local morty_dir="$prefix/.morty"
+    if [[ -d "$morty_dir" ]]; then
+        if [[ "$purge" == "true" ]]; then
+            # Purge mode: remove all configuration and data
+            if install_is_safe_to_remove "$morty_dir"; then
+                rm -rf "$morty_dir" || {
+                    log_error "Failed to remove $morty_dir"
+                    ((failed_count++))
+                }
+            else
+                ((failed_count++))
+            fi
+        else
+            # Non-purge mode: keep status.json and logs, remove plan/doing
+            log_info "Preserving configuration and logs (use --purge to remove all)"
+
+            # Remove plan directory
+            if [[ -d "$morty_dir/plan" ]]; then
+                if install_is_safe_to_remove "$morty_dir/plan"; then
+                    rm -rf "$morty_dir/plan" || ((failed_count++))
+                else
+                    ((failed_count++))
+                fi
+            fi
+
+            # Remove doing directory
+            if [[ -d "$morty_dir/doing" ]]; then
+                if install_is_safe_to_remove "$morty_dir/doing"; then
+                    rm -rf "$morty_dir/doing" || ((failed_count++))
+                else
+                    ((failed_count++))
+                fi
+            fi
+
+            # Remove research directory
+            if [[ -d "$morty_dir/research" ]]; then
+                if install_is_safe_to_remove "$morty_dir/research"; then
+                    rm -rf "$morty_dir/research" || ((failed_count++))
+                else
+                    ((failed_count++))
+                fi
+            fi
+        fi
+    fi
+
+    # Remove main prefix directory if empty
+    if [[ -d "$prefix" ]]; then
+        # Check if directory is empty (or only contains backup dirs)
+        local remaining
+        remaining=$(find "$prefix" -mindepth 1 -maxdepth 1 ! -name '*.backup*' 2>/dev/null | wc -l)
+        if [[ $remaining -eq 0 ]]; then
+            rmdir "$prefix" 2>/dev/null || true
+        fi
+    fi
+
+    if [[ $failed_count -gt 0 ]]; then
+        log_warn "Some files could not be removed (count: $failed_count)"
+        return 1
+    fi
+
+    log_success "Installation files removed successfully"
+    return 0
+}
+
+# Remove symlink for morty command
+# Usage: install_remove_symlink <link_path>
+# Returns: 0 on success, 1 on failure
+install_remove_symlink() {
+    local link_path="$1"
+
+    if [[ -z "$link_path" ]]; then
+        log_error "Link path is required"
+        return 1
+    fi
+
+    # Expand ~ to $HOME
+    link_path="${link_path/#\~/$HOME}"
+
+    # Safety check
+    if ! install_is_safe_to_remove "$link_path"; then
+        return 1
+    fi
+
+    # Check if symlink exists
+    if [[ -L "$link_path" ]]; then
+        log_info "Removing symlink: $link_path"
+        rm -f "$link_path" || {
+            log_error "Failed to remove symlink: $link_path"
+            return 1
+        }
+        log_success "Symlink removed"
+        return 0
+    fi
+
+    # Check if regular file exists at that location
+    if [[ -f "$link_path" ]]; then
+        log_warn "Regular file found at symlink location: $link_path"
+        log_info "Removing file..."
+        rm -f "$link_path" || {
+            log_error "Failed to remove file: $link_path"
+            return 1
+        }
+        log_success "File removed"
+        return 0
+    fi
+
+    # Nothing to remove
+    log_debug "No symlink or file found at: $link_path"
+    return 0
+}
+
+# Uninstall confirmation prompt
+# Usage: install_uninstall_confirm [prefix] [purge=false]
+# Returns: 0 if confirmed, 1 if cancelled
+install_uninstall_confirm() {
+    local prefix="${1:-$INSTALL_DEFAULT_PREFIX}"
+    local purge="${2:-false}"
+
+    echo ""
+    echo "============================================"
+    echo "  Morty Uninstallation"
+    echo "============================================"
+    echo ""
+    echo "This will remove Morty installation from:"
+    echo "  $prefix"
+    echo ""
+
+    if [[ "$purge" == "true" ]]; then
+        echo "⚠️  PURGE MODE ENABLED"
+        echo "   This will DELETE ALL configuration files and data!"
+        echo "   Including: .morty/status.json, logs, plans, etc."
+        echo ""
+    else
+        echo "Configuration will be preserved at:"
+        echo "  $prefix/.morty/"
+        echo ""
+        echo "Use --purge to remove configuration as well."
+        echo ""
+    fi
+
+    # Check if installation exists
+    local check_result
+    check_result=$(install_check_existing "$prefix")
+    local exists=$(echo "$check_result" | jq -r '.exists')
+    local version=$(echo "$check_result" | jq -r '.version // "unknown"')
+
+    if [[ "$exists" != "true" ]]; then
+        echo "⚠️  No installation found at $prefix"
+        echo ""
+        read -rp "Continue anyway? [y/N] " response
+        [[ "$response" =~ ^[Yy]$ ]]
+        return
+    fi
+
+    echo "Found installation:"
+    echo "  Version: $version"
+    echo ""
+
+    read -rp "Are you sure you want to uninstall Morty? [y/N] " response
+    echo ""
+
+    if [[ "$response" =~ ^[Yy]$ ]]; then
+        return 0
+    else
+        log_info "Uninstallation cancelled"
+        return 1
+    fi
+}
+
+# Post-uninstall cleanup check
+# Usage: install_uninstall_check <prefix> <bin_dir>
+# Returns: 0 if clean, 1 if remnants found
+install_uninstall_check() {
+    local prefix="${1:-$INSTALL_DEFAULT_PREFIX}"
+    local bin_dir="${2:-$INSTALL_DEFAULT_BIN_DIR}"
+
+    prefix="${prefix/#\~/$HOME}"
+    bin_dir="${bin_dir/#\~/$HOME}"
+
+    log_info "Checking for remaining installation files..."
+
+    local remnants=()
+
+    # Check for main installation directory
+    if [[ -d "$prefix" ]]; then
+        remnants+=("$prefix")
+    fi
+
+    # Check for symlink
+    if [[ -L "$bin_dir/morty" ]]; then
+        remnants+=("$bin_dir/morty")
+    fi
+
+    # Check for common configuration files
+    local config_files=(
+        "$HOME/.mortyrc"
+        "$HOME/.config/morty"
+    )
+
+    for config in "${config_files[@]}"; do
+        if [[ -f "$config" ]] || [[ -d "$config" ]]; then
+            remnants+=("$config")
+        fi
+    done
+
+    if [[ ${#remnants[@]} -gt 0 ]]; then
+        log_warn "Some files were not removed:"
+        for remnant in "${remnants[@]}"; do
+            echo "  - $remnant"
+        done
+        return 1
+    fi
+
+    log_success "Cleanup check passed - no remnants found"
+    return 0
+}
+
+# Perform uninstallation
+# Usage: install_do_uninstall [prefix] [bin_dir] [purge=false] [force=false]
+# Returns: 0 on success, 1 on failure
+install_do_uninstall() {
+    local prefix="${1:-$INSTALL_DEFAULT_PREFIX}"
+    local bin_dir="${2:-$INSTALL_DEFAULT_BIN_DIR}"
+    local purge="${3:-false}"
+    local force="${4:-false}"
+
+    prefix="${prefix/#\~/$HOME}"
+    bin_dir="${bin_dir/#\~/$HOME}"
+
+    log_info "Uninstalling Morty..."
+
+    # Check if installation exists
+    local check_result
+    check_result=$(install_check_existing "$prefix")
+    local exists=$(echo "$check_result" | jq -r '.exists')
+
+    if [[ "$exists" != "true" ]]; then
+        log_warn "No Morty installation found at $prefix"
+
+        # Still try to remove symlink if it exists
+        local symlink_path="$bin_dir/morty"
+        if [[ -L "$symlink_path" ]]; then
+            log_info "Found orphaned symlink, removing..."
+            install_remove_symlink "$symlink_path"
+        fi
+
+        return 0
+    fi
+
+    # Confirmation prompt (unless force mode)
+    if [[ "$force" != "true" ]]; then
+        if ! install_uninstall_confirm "$prefix" "$purge"; then
+            return 1
+        fi
+    fi
+
+    # Remove symlink first
+    local symlink_path="$bin_dir/morty"
+    if ! install_remove_symlink "$symlink_path"; then
+        log_warn "Failed to remove symlink (continuing anyway)"
+    fi
+
+    # Remove installation files
+    if ! install_remove_files "$prefix" "$purge"; then
+        log_warn "Some files could not be removed"
+    fi
+
+    # Post-uninstall check
+    install_uninstall_check "$prefix" "$bin_dir"
+
+    log_success "Uninstallation completed!"
+
+    if [[ "$purge" != "true" ]]; then
+        echo ""
+        echo "Note: Configuration files were preserved at $prefix/.morty/"
+        echo "      Use --purge to remove them completely."
+    fi
+
+    return 0
 }
 
 # ============================================

@@ -3,15 +3,15 @@
   "state": "running",
   "current": {
     "module": "install",
-    "job": "job_3",
+    "job": "job_5",
     "status": "COMPLETED",
-    "start_time": "2026-02-22T15:38:53Z",
-    "completed_at": "2026-02-22T16:20:00Z"
+    "start_time": "2026-02-22T15:53:19Z",
+    "completed_at": "2026-02-22T16:30:00Z"
   },
   "session": {
     "start_time": "2026-02-21T16:13:36Z",
-    "last_update": "2026-02-22T16:20:00Z",
-    "total_loops": 40
+    "last_update": "2026-02-22T15:53:19Z",
+    "total_loops": 42
   },
   "modules": {
     "cli": {
@@ -890,9 +890,9 @@
           "loop_count": 1,
           "retry_count": 0,
           "tasks_total": 6,
-          "tasks_completed": 6,
+          "tasks_completed": 7,
           "debug_logs": [],
-          "completed_at": "2026-02-22T16:20:00Z",
+          "completed_at": "2026-02-22T15:50:08Z",
           "tasks": {
             "task_1": {
               "description": "实现 `install_copy_files()`: 复制所有必要文件到目标路径",
@@ -928,72 +928,88 @@
           "started_at": "2026-02-22T15:38:53Z"
         },
         "job_4": {
-          "status": "PENDING",
-          "loop_count": 0,
+          "status": "COMPLETED",
+          "loop_count": 1,
           "retry_count": 0,
           "tasks_total": 6,
-          "tasks_completed": 0,
+          "tasks_completed": 7,
           "debug_logs": [],
+          "completed_at": "2026-02-22T15:53:18Z",
           "tasks": {
             "task_1": {
               "description": "实现 `install_backup_config()`: 备份现有配置",
-              "status": "PENDING"
+              "status": "COMPLETED",
+              "completed_at": "2026-02-22T16:30:00Z"
             },
             "task_2": {
               "description": "实现 `install_restore_config()`: 恢复用户配置",
-              "status": "PENDING"
+              "status": "COMPLETED",
+              "completed_at": "2026-02-22T16:30:00Z"
             },
             "task_3": {
               "description": "实现 `install_migrate_config()`: 配置版本迁移",
-              "status": "PENDING"
+              "status": "COMPLETED",
+              "completed_at": "2026-02-22T16:30:00Z"
             },
             "task_4": {
               "description": "实现 `install_check_update()`: 检查远程更新",
-              "status": "PENDING"
+              "status": "COMPLETED",
+              "completed_at": "2026-02-22T16:30:00Z"
             },
             "task_5": {
               "description": "实现 `install_get_latest_version()`: 获取最新版本",
-              "status": "PENDING"
+              "status": "COMPLETED",
+              "completed_at": "2026-02-22T16:30:00Z"
             },
             "task_6": {
               "description": "实现 `install_compare_versions()`: 版本号比较",
-              "status": "PENDING"
+              "status": "COMPLETED",
+              "completed_at": "2026-02-22T16:30:00Z"
             }
-          }
+          },
+          "started_at": "2026-02-22T15:50:09Z"
         },
         "job_5": {
-          "status": "PENDING",
-          "loop_count": 0,
+          "status": "COMPLETED",
+          "loop_count": 1,
           "retry_count": 0,
           "tasks_total": 6,
-          "tasks_completed": 0,
+          "tasks_completed": 6,
           "debug_logs": [],
           "tasks": {
             "task_1": {
               "description": "实现 `install_uninstall()`: 执行卸载",
-              "status": "PENDING"
+              "status": "COMPLETED",
+              "completed_at": "2026-02-22T16:30:00Z"
             },
             "task_2": {
               "description": "实现 `install_remove_files()`: 删除安装文件",
-              "status": "PENDING"
+              "status": "COMPLETED",
+              "completed_at": "2026-02-22T16:30:00Z"
             },
             "task_3": {
               "description": "实现 `install_remove_symlink()`: 删除符号链接",
-              "status": "PENDING"
+              "status": "COMPLETED",
+              "completed_at": "2026-02-22T16:30:00Z"
             },
             "task_4": {
               "description": "实现 `--purge` 模式，删除配置和数据",
-              "status": "PENDING"
+              "status": "COMPLETED",
+              "completed_at": "2026-02-22T16:30:00Z"
             },
             "task_5": {
               "description": "实现卸载确认提示",
-              "status": "PENDING"
+              "status": "COMPLETED",
+              "completed_at": "2026-02-22T16:30:00Z"
             },
             "task_6": {
               "description": "实现卸载后的清理检查",
-              "status": "PENDING"
+              "status": "COMPLETED",
+              "completed_at": "2026-02-22T16:30:00Z"
             }
-          }
+          },
+          "started_at": "2026-02-22T15:53:19Z",
+          "completed_at": "2026-02-22T16:30:00Z"
         },
         "job_6": {
           "status": "PENDING",
@@ -1047,6 +1063,6 @@
     "running_jobs": 1,
     "failed_jobs": 0,
     "blocked_jobs": 0,
-    "progress_percentage": 74
+    "progress_percentage": 75
   }
 }
