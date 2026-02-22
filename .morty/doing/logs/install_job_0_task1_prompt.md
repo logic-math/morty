@@ -39,7 +39,7 @@ loop:[验证器]
 这是一个 Job 完成检查器
 
 0. 如果当前 Job 的所有 Tasks 已完成且验证器通过,则检查通过,结束循环。
-1. 如果当前 Job 存在未解决的 debug_log,则检查不通过,需要重试。
+1. 如果当前 Job 存在朠�解决的 debug_log,则检查不通过,需要重试。
 2. 如果验证器执行失败,则检查不通过,记录 debug_log 并准备重试。
 3. 如果达到最大重试次数,则标记 Job 为 BLOCKED,结束循环。
 4. 其他情况下,继续执行下一个 Task 或重试当前 Task。
@@ -123,23 +123,23 @@ loop:[验证器]
 # 当前 Job 上下文
 
 **模块**: install
-**Job**: job_1
+**Job**: job_0
 **当前 Task**: #1
-**Task 描述**: 创建 `bootstrap.sh` 脚本，添加 shebang 和基础配置
+**Task 描述**: 
 
 ## 任务列表
 
-- [ ] 创建 `bootstrap.sh` 脚本，添加 shebang 和基础配置\n- [ ] 实现 `bootstrap_parse_args()`\n- [ ] 实现 `bootstrap_show_help()`\n- [ ] 实现 `bootstrap_validate_args()`\n- [ ] 实现 `bootstrap_main()`\n
+
 
 ## 验证器
 
-- `./bootstrap.sh --help` 应显示完整的帮助信息\n- `./bootstrap.sh install --prefix /tmp/test` 应正确解析参数\n- 不支持的子命令应报错并显示帮助\n- 冲突参数组合应报错（如 `install --purge`）\n- 无\n
+
 
 ## 执行指令
 
 请按照 Doing 模式的循环步骤执行：
 1. 读取 .morty/status.json 了解当前状态
-2. 执行当前 Task: 创建 `bootstrap.sh` 脚本，添加 shebang 和基础配置
+2. 执行当前 Task: 
 3. 如有问题，记录 debug_log
 4. 更新状态文件
 5. 输出 RALPH_STATUS

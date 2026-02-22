@@ -3,15 +3,15 @@
   "state": "running",
   "current": {
     "module": "install",
-    "job": "job_0",
-    "status": "RUNNING",
-    "start_time": "2026-02-22T22:07:39Z",
-    "completed_at": "2026-02-23T00:00:00Z"
+    "job": "job_1",
+    "status": "COMPLETED",
+    "start_time": "2026-02-22T22:54:06Z",
+    "completed_at": "2026-02-23T00:15:00Z"
   },
   "session": {
     "start_time": "2026-02-21T16:13:36Z",
-    "last_update": "2026-02-22T22:07:40Z",
-    "total_loops": 45
+    "last_update": "2026-02-23T00:15:00Z",
+    "total_loops": 47
   },
   "modules": {
     "cli": {
@@ -802,22 +802,44 @@
       }
     },
     "install": {
-      "status": "pending",
+      "status": "running",
       "jobs": {
         "job_1": {
-          "status": "PENDING",
-          "loop_count": 0,
+          "status": "COMPLETED",
+          "loop_count": 1,
           "retry_count": 0,
           "tasks_total": 5,
-          "tasks_completed": 0,
+          "tasks_completed": 5,
           "debug_logs": [],
           "tasks": {
-            "task_1": { "description": "创建 bootstrap.sh 脚本框架和参数解析", "status": "PENDING" },
-            "task_2": { "description": "实现子命令解析: install/reinstall/upgrade/uninstall", "status": "PENDING" },
-            "task_3": { "description": "实现选项解析: --prefix/--bin-dir/--version/--force/--purge", "status": "PENDING" },
-            "task_4": { "description": "实现帮助信息显示", "status": "PENDING" },
-            "task_5": { "description": "实现参数验证", "status": "PENDING" }
-          }
+            "task_1": {
+              "description": "创建 bootstrap.sh 脚本，添加 shebang 和基础配置",
+              "status": "COMPLETED",
+              "completed_at": "2026-02-23T00:05:00Z"
+            },
+            "task_2": {
+              "description": "实现 `bootstrap_parse_args()` 参数解析",
+              "status": "COMPLETED",
+              "completed_at": "2026-02-23T00:10:00Z"
+            },
+            "task_3": {
+              "description": "实现 `bootstrap_show_help()` 帮助信息",
+              "status": "COMPLETED",
+              "completed_at": "2026-02-23T00:10:00Z"
+            },
+            "task_4": {
+              "description": "实现 `bootstrap_validate_args()` 参数验证",
+              "status": "COMPLETED",
+              "completed_at": "2026-02-23T00:15:00Z"
+            },
+            "task_5": {
+              "description": "实现 `bootstrap_main()` 主入口函数",
+              "status": "COMPLETED",
+              "completed_at": "2026-02-23T00:15:00Z"
+            }
+          },
+          "started_at": "2026-02-22T22:54:06Z",
+          "completed_at": "2026-02-23T00:15:00Z"
         },
         "job_2": {
           "status": "PENDING",
@@ -827,10 +849,22 @@
           "tasks_completed": 0,
           "debug_logs": [],
           "tasks": {
-            "task_1": { "description": "实现系统依赖检查: Bash >= 4.0, Git >= 2.0", "status": "PENDING" },
-            "task_2": { "description": "实现 curl/wget 下载工具检查", "status": "PENDING" },
-            "task_3": { "description": "实现安装环境检查: 目录可写、磁盘空间", "status": "PENDING" },
-            "task_4": { "description": "实现友好的错误提示和修复建议", "status": "PENDING" }
+            "task_1": {
+              "description": "实现系统依赖检查: Bash >= 4.0, Git >= 2.0",
+              "status": "PENDING"
+            },
+            "task_2": {
+              "description": "实现 curl/wget 下载工具检查",
+              "status": "PENDING"
+            },
+            "task_3": {
+              "description": "实现安装环境检查: 目录可写、磁盘空间",
+              "status": "PENDING"
+            },
+            "task_4": {
+              "description": "实现友好的错误提示和修复建议",
+              "status": "PENDING"
+            }
           }
         },
         "job_3": {
@@ -841,12 +875,30 @@
           "tasks_completed": 0,
           "debug_logs": [],
           "tasks": {
-            "task_1": { "description": "实现 bootstrap_cmd_install() 首次安装", "status": "PENDING" },
-            "task_2": { "description": "实现 bootstrap_cmd_reinstall() 重新安装", "status": "PENDING" },
-            "task_3": { "description": "实现从 GitHub Release 下载安装", "status": "PENDING" },
-            "task_4": { "description": "实现从本地源码安装（开发模式）", "status": "PENDING" },
-            "task_5": { "description": "实现安装后验证（morty version）", "status": "PENDING" },
-            "task_6": { "description": "实现配置备份和恢复", "status": "PENDING" }
+            "task_1": {
+              "description": "实现 bootstrap_cmd_install() 首次安装",
+              "status": "PENDING"
+            },
+            "task_2": {
+              "description": "实现 bootstrap_cmd_reinstall() 重新安装",
+              "status": "PENDING"
+            },
+            "task_3": {
+              "description": "实现从 GitHub Release 下载安装",
+              "status": "PENDING"
+            },
+            "task_4": {
+              "description": "实现从本地源码安装（开发模式）",
+              "status": "PENDING"
+            },
+            "task_5": {
+              "description": "实现安装后验证（morty version）",
+              "status": "PENDING"
+            },
+            "task_6": {
+              "description": "实现配置备份和恢复",
+              "status": "PENDING"
+            }
           }
         },
         "job_4": {
@@ -857,11 +909,26 @@
           "tasks_completed": 0,
           "debug_logs": [],
           "tasks": {
-            "task_1": { "description": "实现 bootstrap_cmd_upgrade() 升级命令", "status": "PENDING" },
-            "task_2": { "description": "实现版本比较和最新版本获取", "status": "PENDING" },
-            "task_3": { "description": "实现升级前备份", "status": "PENDING" },
-            "task_4": { "description": "实现配置迁移", "status": "PENDING" },
-            "task_5": { "description": "实现升级失败回滚", "status": "PENDING" }
+            "task_1": {
+              "description": "实现 bootstrap_cmd_upgrade() 升级命令",
+              "status": "PENDING"
+            },
+            "task_2": {
+              "description": "实现版本比较和最新版本获取",
+              "status": "PENDING"
+            },
+            "task_3": {
+              "description": "实现升级前备份",
+              "status": "PENDING"
+            },
+            "task_4": {
+              "description": "实现配置迁移",
+              "status": "PENDING"
+            },
+            "task_5": {
+              "description": "实现升级失败回滚",
+              "status": "PENDING"
+            }
           }
         },
         "job_5": {
@@ -872,11 +939,26 @@
           "tasks_completed": 0,
           "debug_logs": [],
           "tasks": {
-            "task_1": { "description": "实现 bootstrap_cmd_uninstall() 卸载命令", "status": "PENDING" },
-            "task_2": { "description": "实现卸载预览和确认提示", "status": "PENDING" },
-            "task_3": { "description": "实现标准卸载（保留配置）", "status": "PENDING" },
-            "task_4": { "description": "实现 --purge 彻底卸载（删除配置）", "status": "PENDING" },
-            "task_5": { "description": "实现卸载前备份（误操作恢复）", "status": "PENDING" }
+            "task_1": {
+              "description": "实现 bootstrap_cmd_uninstall() 卸载命令",
+              "status": "PENDING"
+            },
+            "task_2": {
+              "description": "实现卸载预览和确认提示",
+              "status": "PENDING"
+            },
+            "task_3": {
+              "description": "实现标准卸载（保留配置）",
+              "status": "PENDING"
+            },
+            "task_4": {
+              "description": "实现 --purge 彻底卸载（删除配置）",
+              "status": "PENDING"
+            },
+            "task_5": {
+              "description": "实现卸载前备份（误操作恢复）",
+              "status": "PENDING"
+            }
           }
         },
         "job_6": {
@@ -887,10 +969,22 @@
           "tasks_completed": 0,
           "debug_logs": [],
           "tasks": {
-            "task_1": { "description": "支持管道执行（curl | bash）", "status": "PENDING" },
-            "task_2": { "description": "测试一键安装命令", "status": "PENDING" },
-            "task_3": { "description": "编写 INSTALL.md 安装指南", "status": "PENDING" },
-            "task_4": { "description": "在 README.md 中添加安装说明", "status": "PENDING" }
+            "task_1": {
+              "description": "支持管道执行（curl | bash）",
+              "status": "PENDING"
+            },
+            "task_2": {
+              "description": "测试一键安装命令",
+              "status": "PENDING"
+            },
+            "task_3": {
+              "description": "编写 INSTALL.md 安装指南",
+              "status": "PENDING"
+            },
+            "task_4": {
+              "description": "在 README.md 中添加安装说明",
+              "status": "PENDING"
+            }
           }
         },
         "job_7": {
@@ -901,10 +995,22 @@
           "tasks_completed": 0,
           "debug_logs": [],
           "tasks": {
-            "task_1": { "description": "识别并列出所有过时代码文件", "status": "PENDING" },
-            "task_2": { "description": "删除 morty_fix.sh, morty_loop.sh, lib/loop_monitor.sh, install.sh", "status": "PENDING" },
-            "task_3": { "description": "验证清理后核心功能正常", "status": "PENDING" },
-            "task_4": { "description": "更新文档移除过时命令引用", "status": "PENDING" }
+            "task_1": {
+              "description": "识别并列出所有过时代码文件",
+              "status": "PENDING"
+            },
+            "task_2": {
+              "description": "删除 morty_fix.sh, morty_loop.sh, lib/loop_monitor.sh, install.sh",
+              "status": "PENDING"
+            },
+            "task_3": {
+              "description": "验证清理后核心功能正常",
+              "status": "PENDING"
+            },
+            "task_4": {
+              "description": "更新文档移除过时命令引用",
+              "status": "PENDING"
+            }
           }
         }
       }
