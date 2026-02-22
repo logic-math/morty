@@ -3,15 +3,15 @@
   "state": "running",
   "current": {
     "module": "install",
-    "job": "job_2",
+    "job": "job_3",
     "status": "RUNNING",
-    "start_time": "2026-02-22T23:05:03Z",
+    "start_time": "2026-02-22T23:14:34Z",
     "completed_at": "2026-02-23T00:15:00Z"
   },
   "session": {
     "start_time": "2026-02-21T16:13:36Z",
-    "last_update": "2026-02-22T23:05:03Z",
-    "total_loops": 48
+    "last_update": "2026-02-22T23:24:38Z",
+    "total_loops": 49
   },
   "modules": {
     "cli": {
@@ -842,11 +842,11 @@
           "completed_at": "2026-02-22T23:05:02Z"
         },
         "job_2": {
-          "status": "RUNNING",
+          "status": "COMPLETED",
           "loop_count": 1,
           "retry_count": 0,
           "tasks_total": 4,
-          "tasks_completed": 1,
+          "tasks_completed": 5,
           "debug_logs": [],
           "tasks": {
             "task_1": {
@@ -856,30 +856,35 @@
             },
             "task_2": {
               "description": "实现 curl/wget 下载工具检查",
-              "status": "PENDING"
+              "status": "COMPLETED",
+              "completed_at": "2026-02-23T00:25:00Z"
             },
             "task_3": {
               "description": "实现安装环境检查: 目录可写、磁盘空间",
-              "status": "PENDING"
+              "status": "COMPLETED",
+              "completed_at": "2026-02-23T00:25:00Z"
             },
             "task_4": {
               "description": "实现友好的错误提示和修复建议",
-              "status": "PENDING"
+              "status": "COMPLETED",
+              "completed_at": "2026-02-23T00:30:00Z"
             }
           },
-          "started_at": "2026-02-22T23:05:03Z"
+          "started_at": "2026-02-22T23:05:03Z",
+          "completed_at": "2026-02-22T23:14:34Z"
         },
         "job_3": {
-          "status": "PENDING",
-          "loop_count": 0,
+          "status": "RUNNING",
+          "loop_count": 1,
           "retry_count": 0,
           "tasks_total": 6,
-          "tasks_completed": 0,
+          "tasks_completed": 4,
           "debug_logs": [],
           "tasks": {
             "task_1": {
               "description": "实现 bootstrap_cmd_install() 首次安装",
-              "status": "PENDING"
+              "status": "COMPLETED",
+              "completed_at": "2026-02-23T07:22:00Z"
             },
             "task_2": {
               "description": "实现 bootstrap_cmd_reinstall() 重新安装",
@@ -887,11 +892,13 @@
             },
             "task_3": {
               "description": "实现从 GitHub Release 下载安装",
-              "status": "PENDING"
+              "status": "COMPLETED",
+              "completed_at": "2026-02-23T07:30:00Z"
             },
             "task_4": {
               "description": "实现从本地源码安装（开发模式）",
-              "status": "PENDING"
+              "status": "COMPLETED",
+              "completed_at": "2026-02-23T07:30:00Z"
             },
             "task_5": {
               "description": "实现安装后验证（morty version）",
@@ -901,7 +908,8 @@
               "description": "实现配置备份和恢复",
               "status": "PENDING"
             }
-          }
+          },
+          "started_at": "2026-02-22T23:14:34Z"
         },
         "job_4": {
           "status": "PENDING",
