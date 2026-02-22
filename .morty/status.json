@@ -3,15 +3,15 @@
   "state": "running",
   "current": {
     "module": "install",
-    "job": "job_6",
-    "status": "COMPLETED",
-    "start_time": "2026-02-22T15:57:01Z",
+    "job": "job_0",
+    "status": "RUNNING",
+    "start_time": "2026-02-22T22:07:39Z",
     "completed_at": "2026-02-23T00:00:00Z"
   },
   "session": {
     "start_time": "2026-02-21T16:13:36Z",
-    "last_update": "2026-02-22T16:05:43Z",
-    "total_loops": 44
+    "last_update": "2026-02-22T22:07:40Z",
+    "total_loops": 45
   },
   "modules": {
     "cli": {
@@ -802,9 +802,24 @@
       }
     },
     "install": {
-      "status": "completed",
+      "status": "pending",
       "jobs": {
-        "job_0": {
+        "job_1": {
+          "status": "PENDING",
+          "loop_count": 0,
+          "retry_count": 0,
+          "tasks_total": 5,
+          "tasks_completed": 0,
+          "debug_logs": [],
+          "tasks": {
+            "task_1": { "description": "创建 bootstrap.sh 脚本框架和参数解析", "status": "PENDING" },
+            "task_2": { "description": "实现子命令解析: install/reinstall/upgrade/uninstall", "status": "PENDING" },
+            "task_3": { "description": "实现选项解析: --prefix/--bin-dir/--version/--force/--purge", "status": "PENDING" },
+            "task_4": { "description": "实现帮助信息显示", "status": "PENDING" },
+            "task_5": { "description": "实现参数验证", "status": "PENDING" }
+          }
+        },
+        "job_2": {
           "status": "PENDING",
           "loop_count": 0,
           "retry_count": 0,
@@ -812,277 +827,71 @@
           "tasks_completed": 0,
           "debug_logs": [],
           "tasks": {
-            "task_1": {
-              "description": "创建 `bootstrap.sh` 独立安装脚本",
-              "status": "PENDING"
-            },
-            "task_2": {
-              "description": "实现系统依赖检查和自动下载安装",
-              "status": "PENDING"
-            },
-            "task_3": {
-              "description": "支持 curl | bash 一键安装方式",
-              "status": "PENDING"
-            },
-            "task_4": {
-              "description": "提供手动安装指南文档",
-              "status": "PENDING"
-            }
-          }
-        },
-        "job_1": {
-          "status": "COMPLETED",
-          "loop_count": 1,
-          "retry_count": 0,
-          "tasks_total": 6,
-          "tasks_completed": 6,
-          "debug_logs": [],
-          "tasks": {
-            "task_1": {
-              "description": "创建 `lib/install.sh` 模块",
-              "status": "COMPLETED",
-              "completed_at": "2026-02-22T15:15:00Z"
-            },
-            "task_2": {
-              "description": "实现 `install_check_deps()`: 检查所有必需依赖",
-              "status": "PENDING"
-            },
-            "task_3": {
-              "description": "实现 `install_check_bash_version()`: 验证 Bash >= 4.0",
-              "status": "COMPLETED",
-              "completed_at": "2026-02-22T15:25:00Z"
-            },
-            "task_4": {
-              "description": "实现 `install_check_git_version()`: 验证 Git >= 2.0",
-              "status": "PENDING"
-            },
-            "task_5": {
-              "description": "实现 `install_check_ai_cli()`: 检查 Claude Code CLI",
-              "status": "COMPLETED",
-              "completed_at": "2026-02-22T15:30:00Z"
-            },
-            "task_6": {
-              "description": "实现友好的缺失依赖提示和安装指导",
-              "status": "PENDING"
-            }
-          },
-          "started_at": "2026-02-22T15:10:48Z",
-          "completed_at": "2026-02-22T15:29:51Z"
-        },
-        "job_2": {
-          "status": "COMPLETED",
-          "loop_count": 1,
-          "retry_count": 0,
-          "tasks_total": 6,
-          "tasks_completed": 7,
-          "debug_logs": [],
-          "started_at": "2026-02-22T15:29:51Z",
-          "completed_at": "2026-02-22T15:38:53Z",
-          "tasks": {
-            "task_1": {
-              "description": "实现 `install_get_default_prefix()`: 获取默认安装路径",
-              "status": "COMPLETED",
-              "completed_at": "2026-02-22T15:35:00Z"
-            },
-            "task_2": {
-              "description": "实现 `install_validate_prefix()`: 验证安装路径有效",
-              "status": "COMPLETED",
-              "completed_at": "2026-02-22T15:40:00Z"
-            },
-            "task_3": {
-              "description": "实现 `install_check_existing()`: 检查现有安装",
-              "status": "COMPLETED",
-              "completed_at": "2026-02-22T15:45:00Z"
-            },
-            "task_4": {
-              "description": "实现 `install_ensure_dirs()`: 创建必要的目录结构",
-              "status": "COMPLETED",
-              "completed_at": "2026-02-22T15:50:00Z"
-            },
-            "task_5": {
-              "description": "实现 PATH 检查，提示用户添加 PATH",
-              "status": "COMPLETED",
-              "completed_at": "2026-02-22T15:55:00Z"
-            },
-            "task_6": {
-              "description": "处理已存在安装时的冲突（备份、覆盖、取消）",
-              "status": "COMPLETED",
-              "completed_at": "2026-02-22T16:00:00Z"
-            }
+            "task_1": { "description": "实现系统依赖检查: Bash >= 4.0, Git >= 2.0", "status": "PENDING" },
+            "task_2": { "description": "实现 curl/wget 下载工具检查", "status": "PENDING" },
+            "task_3": { "description": "实现安装环境检查: 目录可写、磁盘空间", "status": "PENDING" },
+            "task_4": { "description": "实现友好的错误提示和修复建议", "status": "PENDING" }
           }
         },
         "job_3": {
-          "status": "COMPLETED",
-          "loop_count": 1,
+          "status": "PENDING",
+          "loop_count": 0,
           "retry_count": 0,
           "tasks_total": 6,
-          "tasks_completed": 7,
+          "tasks_completed": 0,
           "debug_logs": [],
-          "completed_at": "2026-02-22T15:50:08Z",
           "tasks": {
-            "task_1": {
-              "description": "实现 `install_copy_files()`: 复制所有必要文件到目标路径",
-              "status": "COMPLETED",
-              "completed_at": "2026-02-22T16:10:00Z"
-            },
-            "task_2": {
-              "description": "实现 `install_create_symlink()`: 创建命令符号链接",
-              "status": "COMPLETED",
-              "completed_at": "2026-02-22T16:12:00Z"
-            },
-            "task_3": {
-              "description": "实现 `install_set_permissions()`: 设置文件权限",
-              "status": "COMPLETED",
-              "completed_at": "2026-02-22T16:15:00Z"
-            },
-            "task_4": {
-              "description": "实现 `install_write_version()`: 写入版本文件",
-              "status": "COMPLETED",
-              "completed_at": "2026-02-22T16:14:00Z"
-            },
-            "task_5": {
-              "description": "实现 `install_init_config()`: 初始化默认配置",
-              "status": "COMPLETED",
-              "completed_at": "2026-02-22T16:16:00Z"
-            },
-            "task_6": {
-              "description": "更新 install.sh 调用 install 模块",
-              "status": "COMPLETED",
-              "completed_at": "2026-02-22T16:18:00Z"
-            }
-          },
-          "started_at": "2026-02-22T15:38:53Z"
+            "task_1": { "description": "实现 bootstrap_cmd_install() 首次安装", "status": "PENDING" },
+            "task_2": { "description": "实现 bootstrap_cmd_reinstall() 重新安装", "status": "PENDING" },
+            "task_3": { "description": "实现从 GitHub Release 下载安装", "status": "PENDING" },
+            "task_4": { "description": "实现从本地源码安装（开发模式）", "status": "PENDING" },
+            "task_5": { "description": "实现安装后验证（morty version）", "status": "PENDING" },
+            "task_6": { "description": "实现配置备份和恢复", "status": "PENDING" }
+          }
         },
         "job_4": {
-          "status": "COMPLETED",
-          "loop_count": 1,
+          "status": "PENDING",
+          "loop_count": 0,
           "retry_count": 0,
-          "tasks_total": 6,
-          "tasks_completed": 7,
+          "tasks_total": 5,
+          "tasks_completed": 0,
           "debug_logs": [],
-          "completed_at": "2026-02-22T15:53:18Z",
           "tasks": {
-            "task_1": {
-              "description": "实现 `install_backup_config()`: 备份现有配置",
-              "status": "COMPLETED",
-              "completed_at": "2026-02-22T16:30:00Z"
-            },
-            "task_2": {
-              "description": "实现 `install_restore_config()`: 恢复用户配置",
-              "status": "COMPLETED",
-              "completed_at": "2026-02-22T16:30:00Z"
-            },
-            "task_3": {
-              "description": "实现 `install_migrate_config()`: 配置版本迁移",
-              "status": "COMPLETED",
-              "completed_at": "2026-02-22T16:30:00Z"
-            },
-            "task_4": {
-              "description": "实现 `install_check_update()`: 检查远程更新",
-              "status": "COMPLETED",
-              "completed_at": "2026-02-22T16:30:00Z"
-            },
-            "task_5": {
-              "description": "实现 `install_get_latest_version()`: 获取最新版本",
-              "status": "COMPLETED",
-              "completed_at": "2026-02-22T16:30:00Z"
-            },
-            "task_6": {
-              "description": "实现 `install_compare_versions()`: 版本号比较",
-              "status": "COMPLETED",
-              "completed_at": "2026-02-22T16:30:00Z"
-            }
-          },
-          "started_at": "2026-02-22T15:50:09Z"
+            "task_1": { "description": "实现 bootstrap_cmd_upgrade() 升级命令", "status": "PENDING" },
+            "task_2": { "description": "实现版本比较和最新版本获取", "status": "PENDING" },
+            "task_3": { "description": "实现升级前备份", "status": "PENDING" },
+            "task_4": { "description": "实现配置迁移", "status": "PENDING" },
+            "task_5": { "description": "实现升级失败回滚", "status": "PENDING" }
+          }
         },
         "job_5": {
-          "status": "COMPLETED",
-          "loop_count": 1,
+          "status": "PENDING",
+          "loop_count": 0,
           "retry_count": 0,
-          "tasks_total": 6,
-          "tasks_completed": 7,
+          "tasks_total": 5,
+          "tasks_completed": 0,
           "debug_logs": [],
           "tasks": {
-            "task_1": {
-              "description": "实现 `install_uninstall()`: 执行卸载",
-              "status": "COMPLETED",
-              "completed_at": "2026-02-22T16:30:00Z"
-            },
-            "task_2": {
-              "description": "实现 `install_remove_files()`: 删除安装文件",
-              "status": "COMPLETED",
-              "completed_at": "2026-02-22T16:30:00Z"
-            },
-            "task_3": {
-              "description": "实现 `install_remove_symlink()`: 删除符号链接",
-              "status": "COMPLETED",
-              "completed_at": "2026-02-22T16:30:00Z"
-            },
-            "task_4": {
-              "description": "实现 `--purge` 模式，删除配置和数据",
-              "status": "COMPLETED",
-              "completed_at": "2026-02-22T16:30:00Z"
-            },
-            "task_5": {
-              "description": "实现卸载确认提示",
-              "status": "COMPLETED",
-              "completed_at": "2026-02-22T16:30:00Z"
-            },
-            "task_6": {
-              "description": "实现卸载后的清理检查",
-              "status": "COMPLETED",
-              "completed_at": "2026-02-22T16:30:00Z"
-            }
-          },
-          "started_at": "2026-02-22T15:53:19Z",
-          "completed_at": "2026-02-22T15:57:00Z"
+            "task_1": { "description": "实现 bootstrap_cmd_uninstall() 卸载命令", "status": "PENDING" },
+            "task_2": { "description": "实现卸载预览和确认提示", "status": "PENDING" },
+            "task_3": { "description": "实现标准卸载（保留配置）", "status": "PENDING" },
+            "task_4": { "description": "实现 --purge 彻底卸载（删除配置）", "status": "PENDING" },
+            "task_5": { "description": "实现卸载前备份（误操作恢复）", "status": "PENDING" }
+          }
         },
         "job_6": {
-          "status": "COMPLETED",
-          "loop_count": 1,
+          "status": "PENDING",
+          "loop_count": 0,
           "retry_count": 0,
-          "tasks_total": 7,
-          "tasks_completed": 8,
+          "tasks_total": 4,
+          "tasks_completed": 0,
           "debug_logs": [],
           "tasks": {
-            "task_1": {
-              "description": "实现 `install_get_version()`: 获取当前安装版本",
-              "status": "COMPLETED",
-              "completed_at": "2026-02-23T00:00:00Z"
-            },
-            "task_2": {
-              "description": "实现 `install_get_full_version()`: 获取详细版本信息",
-              "status": "COMPLETED",
-              "completed_at": "2026-02-23T00:00:00Z"
-            },
-            "task_3": {
-              "description": "实现 `install_check_update()`: 检查是否有新版本",
-              "status": "COMPLETED",
-              "completed_at": "2026-02-23T00:00:00Z"
-            },
-            "task_4": {
-              "description": "集成到 `morty version` 命令",
-              "status": "COMPLETED",
-              "completed_at": "2026-02-23T00:00:00Z"
-            },
-            "task_5": {
-              "description": "集成到 `morty upgrade --check` 命令",
-              "status": "COMPLETED",
-              "completed_at": "2026-02-23T00:00:00Z"
-            },
-            "task_6": {
-              "description": "添加版本兼容性检查",
-              "status": "COMPLETED",
-              "completed_at": "2026-02-23T00:00:00Z"
-            },
-            "task_7": {
-              "description": "添加隔离环境健康检查",
-              "status": "COMPLETED",
-              "completed_at": "2026-02-23T00:00:00Z"
-            }
-          },
-          "started_at": "2026-02-22T15:57:01Z",
-          "completed_at": "2026-02-22T16:05:43Z"
+            "task_1": { "description": "支持管道执行（curl | bash）", "status": "PENDING" },
+            "task_2": { "description": "测试一键安装命令", "status": "PENDING" },
+            "task_3": { "description": "编写 INSTALL.md 安装指南", "status": "PENDING" },
+            "task_4": { "description": "在 README.md 中添加安装说明", "status": "PENDING" }
+          }
         }
       }
     }
@@ -1093,7 +902,7 @@
     "running_modules": 2,
     "pending_modules": 2,
     "blocked_modules": 0,
-    "total_jobs": 32,
+    "total_jobs": 31,
     "completed_jobs": 23,
     "running_jobs": 1,
     "failed_jobs": 0,
