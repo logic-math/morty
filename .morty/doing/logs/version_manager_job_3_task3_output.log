@@ -1,0 +1,14 @@
+Task completed successfully. Here's the summary:
+
+<!-- RALPH_STATUS -->
+{
+  "module": "version_manager",
+  "job": "job_3",
+  "status": "COMPLETED",
+  "tasks_completed": 5,
+  "tasks_total": 5,
+  "loop_count": 2,
+  "debug_issues": 0,
+  "summary": "All 5 tasks for version_manager job_3 completed: version_reset_to_commit(), version_show_loop_history(n), version_get_loop_by_number(n), automatic backup branch creation, and .morty/logs/ directory protection. All functions verified in lib/version_manager.sh (lines 731-1032). Git commit ac5fb2b created."
+}
+<!-- END_RALPH_STATUS -->
