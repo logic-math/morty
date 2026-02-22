@@ -10,7 +10,7 @@
   },
   "session": {
     "start_time": "2026-02-21T16:13:36Z",
-    "last_update": "2026-02-22T12:10:00Z",
+    "last_update": "2026-02-21T20:20:12Z",
     "total_loops": 32
   },
   "modules": {
@@ -767,10 +767,10 @@
           "loop_count": 2,
           "retry_count": 0,
           "tasks_total": 5,
-          "tasks_completed": 5,
+          "tasks_completed": 6,
           "debug_logs": [],
           "started_at": "2026-02-21T20:13:15Z",
-          "completed_at": "2026-02-22T12:10:00Z",
+          "completed_at": "2026-02-21T20:20:12Z",
           "tasks": {
             "task_1": {
               "description": "实现 `version_reset_to_commit()`",
@@ -800,19 +800,232 @@
           }
         }
       }
+    },
+    "install": {
+      "status": "pending",
+      "jobs": {
+        "job_1": {
+          "status": "PENDING",
+          "loop_count": 0,
+          "retry_count": 0,
+          "tasks_total": 6,
+          "tasks_completed": 0,
+          "debug_logs": [],
+          "tasks": {
+            "task_1": {
+              "description": "创建 `lib/install.sh` 模块",
+              "status": "PENDING"
+            },
+            "task_2": {
+              "description": "实现 `install_check_deps()`: 检查所有必需依赖",
+              "status": "PENDING"
+            },
+            "task_3": {
+              "description": "实现 `install_check_bash_version()`: 验证 Bash >= 4.0",
+              "status": "PENDING"
+            },
+            "task_4": {
+              "description": "实现 `install_check_git_version()`: 验证 Git >= 2.0",
+              "status": "PENDING"
+            },
+            "task_5": {
+              "description": "实现 `install_check_ai_cli()`: 检查 Claude Code CLI",
+              "status": "PENDING"
+            },
+            "task_6": {
+              "description": "实现友好的缺失依赖提示和安装指导",
+              "status": "PENDING"
+            }
+          }
+        },
+        "job_2": {
+          "status": "PENDING",
+          "loop_count": 0,
+          "retry_count": 0,
+          "tasks_total": 6,
+          "tasks_completed": 0,
+          "debug_logs": [],
+          "tasks": {
+            "task_1": {
+              "description": "实现 `install_get_default_prefix()`: 获取默认安装路径",
+              "status": "PENDING"
+            },
+            "task_2": {
+              "description": "实现 `install_validate_prefix()`: 验证安装路径有效",
+              "status": "PENDING"
+            },
+            "task_3": {
+              "description": "实现 `install_check_existing()`: 检查现有安装",
+              "status": "PENDING"
+            },
+            "task_4": {
+              "description": "实现 `install_ensure_dirs()`: 创建必要的目录结构",
+              "status": "PENDING"
+            },
+            "task_5": {
+              "description": "实现 PATH 检查，提示用户添加 PATH",
+              "status": "PENDING"
+            },
+            "task_6": {
+              "description": "处理已存在安装时的冲突（备份、覆盖、取消）",
+              "status": "PENDING"
+            }
+          }
+        },
+        "job_3": {
+          "status": "PENDING",
+          "loop_count": 0,
+          "retry_count": 0,
+          "tasks_total": 6,
+          "tasks_completed": 0,
+          "debug_logs": [],
+          "tasks": {
+            "task_1": {
+              "description": "实现 `install_copy_files()`: 复制所有必要文件到目标路径",
+              "status": "PENDING"
+            },
+            "task_2": {
+              "description": "实现 `install_create_symlink()`: 创建命令符号链接",
+              "status": "PENDING"
+            },
+            "task_3": {
+              "description": "实现 `install_set_permissions()`: 设置文件权限",
+              "status": "PENDING"
+            },
+            "task_4": {
+              "description": "实现 `install_write_version()`: 写入版本文件",
+              "status": "PENDING"
+            },
+            "task_5": {
+              "description": "实现 `install_init_config()`: 初始化默认配置",
+              "status": "PENDING"
+            },
+            "task_6": {
+              "description": "更新 install.sh 调用 install 模块",
+              "status": "PENDING"
+            }
+          }
+        },
+        "job_4": {
+          "status": "PENDING",
+          "loop_count": 0,
+          "retry_count": 0,
+          "tasks_total": 6,
+          "tasks_completed": 0,
+          "debug_logs": [],
+          "tasks": {
+            "task_1": {
+              "description": "实现 `install_backup_config()`: 备份现有配置",
+              "status": "PENDING"
+            },
+            "task_2": {
+              "description": "实现 `install_restore_config()`: 恢复用户配置",
+              "status": "PENDING"
+            },
+            "task_3": {
+              "description": "实现 `install_migrate_config()`: 配置版本迁移",
+              "status": "PENDING"
+            },
+            "task_4": {
+              "description": "实现 `install_check_update()`: 检查远程更新",
+              "status": "PENDING"
+            },
+            "task_5": {
+              "description": "实现 `install_get_latest_version()`: 获取最新版本",
+              "status": "PENDING"
+            },
+            "task_6": {
+              "description": "实现 `install_compare_versions()`: 版本号比较",
+              "status": "PENDING"
+            }
+          }
+        },
+        "job_5": {
+          "status": "PENDING",
+          "loop_count": 0,
+          "retry_count": 0,
+          "tasks_total": 6,
+          "tasks_completed": 0,
+          "debug_logs": [],
+          "tasks": {
+            "task_1": {
+              "description": "实现 `install_uninstall()`: 执行卸载",
+              "status": "PENDING"
+            },
+            "task_2": {
+              "description": "实现 `install_remove_files()`: 删除安装文件",
+              "status": "PENDING"
+            },
+            "task_3": {
+              "description": "实现 `install_remove_symlink()`: 删除符号链接",
+              "status": "PENDING"
+            },
+            "task_4": {
+              "description": "实现 `--purge` 模式，删除配置和数据",
+              "status": "PENDING"
+            },
+            "task_5": {
+              "description": "实现卸载确认提示",
+              "status": "PENDING"
+            },
+            "task_6": {
+              "description": "实现卸载后的清理检查",
+              "status": "PENDING"
+            }
+          }
+        },
+        "job_6": {
+          "status": "PENDING",
+          "loop_count": 0,
+          "retry_count": 0,
+          "tasks_total": 7,
+          "tasks_completed": 0,
+          "debug_logs": [],
+          "tasks": {
+            "task_1": {
+              "description": "实现 `install_get_version()`: 获取当前安装版本",
+              "status": "PENDING"
+            },
+            "task_2": {
+              "description": "实现 `install_get_full_version()`: 获取详细版本信息",
+              "status": "PENDING"
+            },
+            "task_3": {
+              "description": "实现 `install_check_update()`: 检查是否有新版本",
+              "status": "PENDING"
+            },
+            "task_4": {
+              "description": "集成到 `morty version` 命令",
+              "status": "PENDING"
+            },
+            "task_5": {
+              "description": "集成到 `morty upgrade --check` 命令",
+              "status": "PENDING"
+            },
+            "task_6": {
+              "description": "添加版本兼容性检查",
+              "status": "PENDING"
+            },
+            "task_7": {
+              "description": "添加隔离环境健康检查",
+              "status": "PENDING"
+            }
+          }
+        }
+      }
     }
   },
   "summary": {
-    "total_modules": 7,
-    "completed_modules": 0,
-    "running_modules": 1,
-    "pending_modules": 6,
+    "total_modules": 8,
+    "completed_modules": 4,
+    "running_modules": 2,
+    "pending_modules": 2,
     "blocked_modules": 0,
-    "total_jobs": 24,
-    "completed_jobs": 1,
-    "running_jobs": 0,
+    "total_jobs": 31,
+    "completed_jobs": 23,
+    "running_jobs": 1,
     "failed_jobs": 0,
     "blocked_jobs": 0,
-    "progress_percentage": 5
+    "progress_percentage": 74
   }
 }
