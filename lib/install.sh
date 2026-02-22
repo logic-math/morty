@@ -1107,12 +1107,88 @@ install_write_version() {
 # ============================================
 
 # Initialize default configuration
-# Usage: install_init_config()
+# Usage: install_init_config() [prefix]
 # Returns: 0 on success, 1 on failure
 install_init_config() {
-    # This is a stub for now, configuration will be implemented in Job 4/5
-    # For now, we just return success
-    log_debug "Configuration initialization stub called"
+    local prefix="${1:-$INSTALL_DEFAULT_PREFIX}"
+    prefix="${prefix/#\~/$HOME}"
+
+    log_info "Initializing configuration..."
+
+    # Create .morty work directory (for runtime state)
+    local morty_dir="$prefix/.morty"
+    if [[ ! -d "$morty_dir" ]]; then
+        mkdir -p "$morty_dir" || {
+            log_error "Failed to create .morty directory"
+            return 1
+        }
+        log_debug "Created .morty directory: $morty_dir"
+    fi
+
+    # Create subdirectories
+    local subdirs=("logs" "plan" "research" "doing")
+    for subdir in "${subdirs[@]}"; do
+        local full_path="$morty_dir/$subdir"
+        if [[ ! -d "$full_path" ]]; then
+            mkdir -p "$full_path" || {
+                log_error "Failed to create directory: $full_path"
+                return 1
+            }
+            log_debug "Created directory: $full_path"
+        fi
+    done
+
+    # Initialize status.json if it doesn't exist
+    local status_file="$morty_dir/status.json"
+    if [[ ! -f "$status_file" ]]; then
+        local timestamp
+        timestamp=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
+        cat > "$status_file" <<EOF
+{
+  "version": "2.0",
+  "state": "initialized",
+  "current": {
+    "module": null,
+    "job": null,
+    "status": null
+  },
+  "session": {
+    "start_time": "$timestamp",
+    "last_update": "$timestamp",
+    "total_loops": 0
+  },
+  "modules": {},
+  "summary": {
+    "total_modules": 0,
+    "completed_modules": 0,
+    "running_modules": 0,
+    "pending_modules": 0,
+    "blocked_modules": 0,
+    "total_jobs": 0,
+    "completed_jobs": 0,
+    "running_jobs": 0,
+    "failed_jobs": 0,
+    "blocked_jobs": 0,
+    "progress_percentage": 0
+  }
+}
+EOF
+        if [[ $? -ne 0 ]]; then
+            log_error "Failed to create status.json"
+            return 1
+        fi
+        log_debug "Created status.json"
+    fi
+
+    # Create empty log file
+    local log_file="$morty_dir/logs/morty.log"
+    if [[ ! -f "$log_file" ]]; then
+        touch "$log_file" || {
+            log_warn "Failed to create morty.log"
+        }
+    fi
+
+    log_debug "Configuration initialized successfully"
     return 0
 }
 
@@ -1236,6 +1312,14 @@ install_do_install() {
     fi
 
     log_success "Version file written"
+
+    # Initialize configuration
+    if ! install_init_config "$prefix"; then
+        log_error "Failed to initialize configuration"
+        return 1
+    fi
+
+    log_success "Configuration initialized"
 
     # Print PATH instructions
     install_print_path_instructions "$bin_dir"

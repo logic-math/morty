@@ -1,0 +1,16 @@
+Task 1 completed. Here's the status:
+
+<!-- RALPH_STATUS -->
+```json
+{
+  "module": "install",
+  "job": "job_2",
+  "status": "RUNNING",
+  "tasks_completed": 1,
+  "tasks_total": 6,
+  "loop_count": 1,
+  "debug_issues": 0,
+  "summary": "Task 1 completed: install_get_default_prefix() already implemented and verified. Returns $HOME/.morty as default prefix."
+}
+```
+<!-- END_RALPH_STATUS -->
