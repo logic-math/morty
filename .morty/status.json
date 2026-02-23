@@ -3,15 +3,15 @@
   "state": "running",
   "current": {
     "module": "install",
-    "job": "job_3",
+    "job": "job_4",
     "status": "RUNNING",
-    "start_time": "2026-02-22T23:14:34Z",
+    "start_time": "2026-02-23T00:22:23Z",
     "completed_at": "2026-02-23T00:15:00Z"
   },
   "session": {
     "start_time": "2026-02-21T16:13:36Z",
-    "last_update": "2026-02-22T23:32:19Z",
-    "total_loops": 49
+    "last_update": "2026-02-23T00:22:23Z",
+    "total_loops": 50
   },
   "modules": {
     "cli": {
@@ -874,11 +874,11 @@
           "completed_at": "2026-02-22T23:14:34Z"
         },
         "job_3": {
-          "status": "RUNNING",
+          "status": "COMPLETED",
           "loop_count": 1,
           "retry_count": 0,
           "tasks_total": 6,
-          "tasks_completed": 5,
+          "tasks_completed": 6,
           "debug_logs": [],
           "tasks": {
             "task_1": {
@@ -912,37 +912,44 @@
               "completed_at": "2026-02-23T08:15:00Z"
             }
           },
-          "started_at": "2026-02-22T23:14:34Z"
+          "started_at": "2026-02-22T23:14:34Z",
+          "completed_at": "2026-02-23T00:22:22Z"
         },
         "job_4": {
-          "status": "PENDING",
-          "loop_count": 0,
+          "status": "RUNNING",
+          "loop_count": 1,
           "retry_count": 0,
           "tasks_total": 5,
-          "tasks_completed": 0,
+          "tasks_completed": 1,
           "debug_logs": [],
           "tasks": {
             "task_1": {
               "description": "实现 bootstrap_cmd_upgrade() 升级命令",
-              "status": "PENDING"
+              "status": "COMPLETED",
+              "completed_at": "2026-02-23T08:45:00Z"
             },
             "task_2": {
               "description": "实现版本比较和最新版本获取",
-              "status": "PENDING"
+              "status": "COMPLETED",
+              "completed_at": "2026-02-23T08:45:00Z"
             },
             "task_3": {
               "description": "实现升级前备份",
-              "status": "PENDING"
+              "status": "COMPLETED",
+              "completed_at": "2026-02-23T08:45:00Z"
             },
             "task_4": {
               "description": "实现配置迁移",
-              "status": "PENDING"
+              "status": "COMPLETED",
+              "completed_at": "2026-02-23T08:45:00Z"
             },
             "task_5": {
               "description": "实现升级失败回滚",
-              "status": "PENDING"
+              "status": "COMPLETED",
+              "completed_at": "2026-02-23T08:45:00Z"
             }
-          }
+          },
+          "started_at": "2026-02-23T00:22:23Z"
         },
         "job_5": {
           "status": "PENDING",

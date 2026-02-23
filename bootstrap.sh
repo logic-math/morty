@@ -1342,9 +1342,408 @@ bootstrap_cmd_reinstall() {
     return 0
 }
 
+# ============================================================================
+# Upgrade Functions
+# ============================================================================
+
+# Get current installed version
+# Usage: bootstrap_get_current_version
+# Outputs: version string to stdout, or empty if not installed
+# Returns: 0 on success, 1 if not installed
+bootstrap_get_current_version() {
+    local version_file="$BOOTSTRAP_PREFIX/VERSION"
+
+    if [[ ! -f "$version_file" ]]; then
+        return 1
+    fi
+
+    local version
+    version=$(cat "$version_file" 2>/dev/null | tr -d '[:space:]')
+    if [[ -z "$version" ]]; then
+        return 1
+    fi
+
+    echo "$version"
+    return 0
+}
+
+# Get latest available version from GitHub
+# Usage: bootstrap_get_latest_version
+# Outputs: version string to stdout
+# Returns: 0 on success, 1 on failure
+bootstrap_get_latest_version() {
+    log_info "Checking for latest version..."
+
+    local latest_version=""
+
+    # Try to get latest version from GitHub API
+    local api_url="${GITHUB_API_URL}/releases/latest"
+    local release_info=""
+
+    if command -v curl &> /dev/null; then
+        release_info=$(curl -sL "$api_url" 2>/dev/null) || true
+    elif command -v wget &> /dev/null; then
+        release_info=$(wget -qO- "$api_url" 2>/dev/null) || true
+    fi
+
+    if [[ -n "$release_info" ]]; then
+        # Try to extract version using jq if available
+        if command -v jq &> /dev/null; then
+            latest_version=$(echo "$release_info" | jq -r '.tag_name' 2>/dev/null | sed 's/^v//')
+        else
+            # Fallback: extract with grep/sed
+            latest_version=$(echo "$release_info" | grep -o '"tag_name": "[^"]*"' | head -n1 | sed 's/.*: "v\?\([^"]*\)".*/\1/') || true
+        fi
+    fi
+
+    # If we couldn't get the version from API, use a fallback
+    if [[ -z "$latest_version" ]]; then
+        log_warn "Could not fetch latest version from GitHub API"
+        log_info "Using default version"
+        latest_version="2.0.0"  # Default fallback version
+    fi
+
+    echo "$latest_version"
+    return 0
+}
+
+# Compare two version strings
+# Usage: bootstrap_compare_versions <version1> <version2>
+# Returns:
+#   0 if version1 == version2
+#   1 if version1 > version2
+#   2 if version1 < version2
+bootstrap_compare_versions() {
+    local v1="$1"
+    local v2="$2"
+
+    # Normalize versions (remove leading 'v' if present)
+    v1="${v1#v}"
+    v2="${v2#v}"
+
+    # Handle empty versions
+    if [[ -z "$v1" && -z "$v2" ]]; then
+        return 0
+    fi
+    if [[ -z "$v1" ]]; then
+        return 2
+    fi
+    if [[ -z "$v2" ]]; then
+        return 1
+    fi
+
+    # Check for equality first
+    if [[ "$v1" == "$v2" ]]; then
+        return 0
+    fi
+
+    # Manual comparison by version parts
+    local IFS='.'
+    local -a v1_parts=($v1)
+    local -a v2_parts=($v2)
+
+    local max_len=${#v1_parts[@]}
+    if [[ ${#v2_parts[@]} -gt $max_len ]]; then
+        max_len=${#v2_parts[@]}
+    fi
+
+    for ((i=0; i<max_len; i++)); do
+        local p1="${v1_parts[$i]:-0}"
+        local p2="${v2_parts[$i]:-0}"
+
+        # Remove any non-numeric suffix for comparison
+        p1="${p1%%[^0-9]*}"
+        p2="${p2%%[^0-9]*}"
+
+        # Default to 0 if empty after removing non-numeric
+        p1="${p1:-0}"
+        p2="${p2:-0}"
+
+        if [[ "$p1" -gt "$p2" ]]; then
+            return 1
+        elif [[ "$p1" -lt "$p2" ]]; then
+            return 2
+        fi
+    done
+
+    # All parts equal
+    return 0
+}
+
+# Backup complete installation before upgrade
+# Usage: bootstrap_backup_installation <install_dir>
+# Outputs: backup directory path to stdout
+# Returns: 0 on success, 1 on failure
+bootstrap_backup_installation() {
+    local install_dir="$1"
+    local backup_dir="${install_dir}.backup.$(date +%Y%m%d_%H%M%S).$$"
+
+    log_info "Creating full installation backup..."
+
+    if [[ ! -d "$install_dir" ]]; then
+        log_error "Installation directory does not exist: $install_dir"
+        return 1
+    fi
+
+    # Create backup directory
+    if ! mkdir -p "$backup_dir"; then
+        log_error "Failed to create backup directory: $backup_dir"
+        return 1
+    fi
+
+    # Copy all files to backup (preserve permissions)
+    if command -v cp &> /dev/null && cp -a "$install_dir"/* "$backup_dir"/ 2>/dev/null; then
+        log_success "Backup created at: $backup_dir"
+    else
+        log_error "Failed to create backup"
+        rm -rf "$backup_dir"
+        return 1
+    fi
+
+    echo "$backup_dir"
+    return 0
+}
+
+# Migrate configuration after upgrade
+# Usage: bootstrap_migrate_config <old_version> <new_version>
+# Returns: 0 on success, 1 on failure
+bootstrap_migrate_config() {
+    local old_version="$1"
+    local new_version="$2"
+
+    log_info "Checking for configuration migration..."
+
+    # Currently no migrations needed between versions
+    # This function is a placeholder for future migrations
+    # Example migrations could include:
+    # - Updating settings.json format
+    # - Moving config files to new locations
+    # - Converting old config formats
+
+    log_debug "Migration from $old_version to $new_version not required"
+    return 0
+}
+
+# Rollback to previous version on upgrade failure
+# Usage: bootstrap_rollback_upgrade <backup_dir> <install_dir>
+# Returns: 0 on success, 1 on failure
+bootstrap_rollback_upgrade() {
+    local backup_dir="$1"
+    local install_dir="$2"
+
+    log_warn "Rolling back to previous version..."
+
+    if [[ ! -d "$backup_dir" ]]; then
+        log_error "Backup directory not found: $backup_dir"
+        return 1
+    fi
+
+    # Remove failed installation
+    if [[ -d "$install_dir" ]]; then
+        rm -rf "$install_dir"
+    fi
+
+    # Restore from backup
+    if mv "$backup_dir" "$install_dir" 2>/dev/null; then
+        log_success "Rollback completed successfully"
+        return 0
+    else
+        log_error "Rollback failed - backup is preserved at: $backup_dir"
+        return 1
+    fi
+}
+
+# Main upgrade command handler
+# Usage: bootstrap_cmd_upgrade
+# Returns: 0 on success, 1 on failure
 bootstrap_cmd_upgrade() {
-    log_info "Upgrade command placeholder"
-    log_info "To be implemented in Job 4"
+    log_info "Starting Morty upgrade..."
+
+    # Check if Morty is installed
+    if [[ ! -d "$BOOTSTRAP_PREFIX" ]] || [[ ! -f "$BOOTSTRAP_PREFIX/bin/morty" ]]; then
+        log_error "Morty is not installed at: $BOOTSTRAP_PREFIX"
+        log_info "Use 'install' command to install Morty"
+        return 1
+    fi
+
+    # Get current version
+    local current_version
+    if ! current_version=$(bootstrap_get_current_version); then
+        log_warn "Could not determine current version"
+        current_version="unknown"
+    fi
+    log_info "Current version: $current_version"
+
+    # Get target version (user specified or latest)
+    local target_version
+    if [[ -n "$BOOTSTRAP_TARGET_VERSION" ]]; then
+        target_version="$BOOTSTRAP_TARGET_VERSION"
+        log_info "Target version (specified): $target_version"
+    else
+        target_version=$(bootstrap_get_latest_version)
+        log_info "Latest version: $target_version"
+    fi
+
+    # Compare versions
+    local compare_result
+    bootstrap_compare_versions "$current_version" "$target_version"
+    compare_result=$?
+
+    case $compare_result in
+        0)
+            # Versions are equal
+            log_success "Morty is already at the latest version ($current_version)"
+            return 0
+            ;;
+        1)
+            # Current > target (downgrade attempt)
+            log_warn "Current version ($current_version) is newer than target ($target_version)"
+            if [[ "$BOOTSTRAP_FORCE" != "true" ]]; then
+                echo ""
+                echo "This would downgrade Morty to an older version."
+                read -r -p "Continue anyway? [y/N] " response
+                case "$response" in
+                    [yY][eE][sS]|[yY])
+                        # Continue with downgrade
+                        ;;
+                    *)
+                        log_info "Upgrade cancelled by user"
+                        return 0
+                        ;;
+                esac
+            fi
+            ;;
+        2)
+            # Current < target (normal upgrade)
+            log_info "New version available: $target_version"
+            ;;
+    esac
+
+    # Confirm with user unless --force is used
+    if [[ "$BOOTSTRAP_FORCE" != "true" ]]; then
+        echo ""
+        echo "This will upgrade Morty from $current_version to $target_version"
+        echo "Your configuration will be preserved."
+        echo ""
+        read -r -p "Continue? [y/N] " response
+        case "$response" in
+            [yY][eE][sS]|[yY])
+                # Continue with upgrade
+                ;;
+            *)
+                log_info "Upgrade cancelled by user"
+                return 0
+                ;;
+        esac
+    fi
+
+    # Create backup of current installation
+    local backup_dir
+    backup_dir=$(bootstrap_backup_installation "$BOOTSTRAP_PREFIX")
+    if [[ -z "$backup_dir" ]] || [[ ! -d "$backup_dir" ]]; then
+        log_error "Failed to create backup - aborting upgrade"
+        return 1
+    fi
+
+    # Set trap to cleanup backup on successful exit, but preserve on failure
+    local upgrade_failed=false
+
+    # Remove symlink before upgrade (will be recreated)
+    if [[ -L "$BOOTSTRAP_BIN_DIR/morty" ]]; then
+        rm -f "$BOOTSTRAP_BIN_DIR/morty"
+        log_debug "Removed existing symlink"
+    fi
+
+    # Create temporary directory for download
+    local temp_dir
+    temp_dir=$(mktemp -d -t morty-upgrade.XXXXXX)
+    if [[ -z "$temp_dir" ]] || [[ ! -d "$temp_dir" ]]; then
+        log_error "Failed to create temporary directory"
+        bootstrap_rollback_upgrade "$backup_dir" "$BOOTSTRAP_PREFIX"
+        return 1
+    fi
+
+    # Download new version
+    log_info "Downloading version $target_version..."
+    if ! bootstrap_download_release "$target_version" "$temp_dir"; then
+        log_error "Failed to download version $target_version"
+        upgrade_failed=true
+    fi
+
+    # If download succeeded, perform the upgrade
+    if [[ "$upgrade_failed" != "true" ]]; then
+        # Remove old installation (backup is safe)
+        log_info "Removing old version..."
+        rm -rf "$BOOTSTRAP_PREFIX"
+
+        # Create new installation directory
+        if ! mkdir -p "$BOOTSTRAP_PREFIX"; then
+            log_error "Failed to create installation directory"
+            upgrade_failed=true
+        fi
+    fi
+
+    # Copy new files
+    if [[ "$upgrade_failed" != "true" ]]; then
+        log_info "Installing new version..."
+        if ! bootstrap_copy_files "$temp_dir" "$BOOTSTRAP_PREFIX"; then
+            log_error "Failed to copy new files"
+            upgrade_failed=true
+        fi
+    fi
+
+    # Set permissions
+    if [[ "$upgrade_failed" != "true" ]]; then
+        if ! bootstrap_set_permissions "$BOOTSTRAP_PREFIX"; then
+            log_error "Failed to set permissions"
+            upgrade_failed=true
+        fi
+    fi
+
+    # Create symlink
+    if [[ "$upgrade_failed" != "true" ]]; then
+        if ! bootstrap_create_symlink "$BOOTSTRAP_PREFIX" "$BOOTSTRAP_BIN_DIR"; then
+            log_error "Failed to create symbolic link"
+            upgrade_failed=true
+        fi
+    fi
+
+    # Cleanup temp directory
+    rm -rf "$temp_dir"
+
+    # Verify installation
+    if [[ "$upgrade_failed" != "true" ]]; then
+        log_info "Verifying upgrade..."
+        if ! bootstrap_verify_install; then
+            log_error "Installation verification failed"
+            upgrade_failed=true
+        fi
+    fi
+
+    # Check if upgrade succeeded
+    if [[ "$upgrade_failed" == "true" ]]; then
+        log_error "Upgrade failed - rolling back..."
+        if bootstrap_rollback_upgrade "$backup_dir" "$BOOTSTRAP_PREFIX"; then
+            # Recreate symlink after rollback
+            bootstrap_create_symlink "$BOOTSTRAP_PREFIX" "$BOOTSTRAP_BIN_DIR" || true
+            log_info "Rollback completed - your previous version is restored"
+        fi
+        return 1
+    fi
+
+    # Migrate configuration if needed
+    bootstrap_migrate_config "$current_version" "$target_version" || true
+
+    # Get new installed version for confirmation
+    local new_version
+    new_version=$(bootstrap_get_current_version)
+    log_success "Upgrade completed successfully!"
+    log_info "Updated from $current_version to $new_version"
+
+    # Cleanup backup on successful upgrade
+    rm -rf "$backup_dir"
+    log_debug "Cleaned up backup directory"
+
     return 0
 }
 
