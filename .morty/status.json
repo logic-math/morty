@@ -3,15 +3,15 @@
   "state": "running",
   "current": {
     "module": "install",
-    "job": "job_4",
+    "job": "job_6",
     "status": "RUNNING",
-    "start_time": "2026-02-23T00:22:23Z",
-    "completed_at": "2026-02-23T00:15:00Z"
+    "start_time": "2026-02-23T01:11:26Z",
+    "completed_at": ""
   },
   "session": {
     "start_time": "2026-02-21T16:13:36Z",
-    "last_update": "2026-02-23T00:22:23Z",
-    "total_loops": 50
+    "last_update": "2026-02-23T01:11:26Z",
+    "total_loops": 52
   },
   "modules": {
     "cli": {
@@ -916,11 +916,11 @@
           "completed_at": "2026-02-23T00:22:22Z"
         },
         "job_4": {
-          "status": "RUNNING",
+          "status": "COMPLETED",
           "loop_count": 1,
           "retry_count": 0,
           "tasks_total": 5,
-          "tasks_completed": 1,
+          "tasks_completed": 6,
           "debug_logs": [],
           "tasks": {
             "task_1": {
@@ -934,64 +934,73 @@
               "completed_at": "2026-02-23T08:45:00Z"
             },
             "task_3": {
-              "description": "实现升级前备份",
+              "description": "实现 `bootstrap_get_latest_version()`",
               "status": "COMPLETED",
-              "completed_at": "2026-02-23T08:45:00Z"
+              "completed_at": "2026-02-23T09:00:00Z"
             },
             "task_4": {
-              "description": "实现配置迁移",
+              "description": "实现 `bootstrap_compare_versions()`",
               "status": "COMPLETED",
-              "completed_at": "2026-02-23T08:45:00Z"
+              "completed_at": "2026-02-23T09:00:00Z"
             },
             "task_5": {
-              "description": "实现升级失败回滚",
+              "description": "测试和验证升级功能",
               "status": "COMPLETED",
-              "completed_at": "2026-02-23T08:45:00Z"
+              "completed_at": "2026-02-23T08:56:00Z"
             }
           },
-          "started_at": "2026-02-23T00:22:23Z"
+          "started_at": "2026-02-23T00:22:23Z",
+          "completed_at": "2026-02-23T00:57:51Z"
         },
         "job_5": {
-          "status": "PENDING",
-          "loop_count": 0,
+          "status": "COMPLETED",
+          "loop_count": 1,
           "retry_count": 0,
           "tasks_total": 5,
-          "tasks_completed": 0,
+          "tasks_completed": 6,
           "debug_logs": [],
           "tasks": {
             "task_1": {
               "description": "实现 bootstrap_cmd_uninstall() 卸载命令",
-              "status": "PENDING"
+              "status": "COMPLETED",
+              "completed_at": "2026-02-23T09:10:00Z"
             },
             "task_2": {
               "description": "实现卸载预览和确认提示",
-              "status": "PENDING"
+              "status": "COMPLETED",
+              "completed_at": "2026-02-23T09:10:00Z"
             },
             "task_3": {
               "description": "实现标准卸载（保留配置）",
-              "status": "PENDING"
+              "status": "COMPLETED",
+              "completed_at": "2026-02-23T09:10:00Z"
             },
             "task_4": {
               "description": "实现 --purge 彻底卸载（删除配置）",
-              "status": "PENDING"
+              "status": "COMPLETED",
+              "completed_at": "2026-02-23T09:10:00Z"
             },
             "task_5": {
               "description": "实现卸载前备份（误操作恢复）",
-              "status": "PENDING"
+              "status": "COMPLETED",
+              "completed_at": "2026-02-23T09:10:00Z"
             }
-          }
+          },
+          "started_at": "2026-02-23T00:57:52Z",
+          "completed_at": "2026-02-23T01:11:25Z"
         },
         "job_6": {
-          "status": "PENDING",
-          "loop_count": 0,
+          "status": "RUNNING",
+          "loop_count": 1,
           "retry_count": 0,
           "tasks_total": 4,
-          "tasks_completed": 0,
+          "tasks_completed": 1,
           "debug_logs": [],
           "tasks": {
             "task_1": {
               "description": "支持管道执行（curl | bash）",
-              "status": "PENDING"
+              "status": "COMPLETED",
+              "completed_at": "2026-02-23T09:20:00Z"
             },
             "task_2": {
               "description": "测试一键安装命令",
@@ -1005,7 +1014,8 @@
               "description": "在 README.md 中添加安装说明",
               "status": "PENDING"
             }
-          }
+          },
+          "started_at": "2026-02-23T01:11:26Z"
         },
         "job_7": {
           "status": "PENDING",

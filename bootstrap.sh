@@ -59,6 +59,99 @@ BOOTSTRAP_SOURCE=""
 BOOTSTRAP_DEBUG=false
 
 # ============================================================================
+# Pipe Detection and Terminal Handling
+# ============================================================================
+
+# Detect if script is being run via pipe (curl | bash)
+# Returns: 0 if running via pipe, 1 otherwise
+bootstrap_is_pipe_mode() {
+    # Check if stdin is a tty
+    # In pipe mode, stdin is NOT a tty (it's the curl output)
+    [[ ! -t 0 ]]
+}
+
+# Check if we can use terminal for interactive prompts
+# Returns: 0 if terminal is available, 1 otherwise
+bootstrap_has_terminal() {
+    # Check if /dev/tty is readable and writable
+    [[ -r /dev/tty && -w /dev/tty ]]
+}
+
+# Read user input in both interactive and pipe modes
+# Usage: bootstrap_read_input <prompt> [default_value]
+# Outputs: user input to stdout
+bootstrap_read_input() {
+    local prompt="$1"
+    local default_value="${2:-}"
+    local response
+
+    if bootstrap_is_pipe_mode; then
+        # In pipe mode, try to use /dev/tty for user input
+        if bootstrap_has_terminal; then
+            echo -n "$prompt" > /dev/tty
+            read -r response < /dev/tty
+        else
+            # No terminal available, return default value
+            response="$default_value"
+        fi
+    else
+        # Normal interactive mode
+        echo -n "$prompt"
+        read -r response
+    fi
+
+    echo "$response"
+}
+
+# Confirm action with user, considering pipe mode
+# Usage: bootstrap_confirm <message> [default_yes/no]
+# Returns: 0 if confirmed, 1 otherwise
+bootstrap_confirm() {
+    local message="$1"
+    local default="${2:-no}"
+    local prompt
+    local response
+
+    # In pipe mode without terminal, auto-confirm based on --force flag
+    if bootstrap_is_pipe_mode && ! bootstrap_has_terminal; then
+        # If --force is set, proceed; otherwise fail safe
+        if [[ "$BOOTSTRAP_FORCE" == "true" ]]; then
+            return 0
+        else
+            log_warn "Running in pipe mode without --force flag"
+            log_warn "Use 'curl ... | bash -s -- --force' to auto-confirm"
+            return 1
+        fi
+    fi
+
+    if [[ "$default" == "yes" ]]; then
+        prompt="$message [Y/n] "
+    else
+        prompt="$message [y/N] "
+    fi
+
+    response=$(bootstrap_read_input "$prompt")
+
+    # Handle empty response (user just pressed Enter)
+    if [[ -z "$response" ]]; then
+        if [[ "$default" == "yes" ]]; then
+            return 0
+        else
+            return 1
+        fi
+    fi
+
+    case "$response" in
+        [yY][eE][sS]|[yY])
+            return 0
+            ;;
+        *)
+            return 1
+            ;;
+    esac
+}
+
+# ============================================================================
 # Output Functions
 # ============================================================================
 
@@ -136,6 +229,11 @@ Examples:
   ./bootstrap.sh upgrade --version 2.1.0
   ./bootstrap.sh uninstall --purge
   ./bootstrap.sh --help
+
+Pipe Installation (One-liner):
+  curl -sSL https://get.morty.dev | bash
+  curl -sSL https://get.morty.dev | bash -s -- --force
+  curl -sSL https://get.morty.dev | bash -s -- install --prefix /opt/morty
 
 HELP
 }
@@ -1282,16 +1380,10 @@ bootstrap_cmd_reinstall() {
         echo "This will reinstall Morty at: $BOOTSTRAP_PREFIX"
         echo "Your configuration will be preserved."
         echo ""
-        read -r -p "Continue? [y/N] " response
-        case "$response" in
-            [yY][eE][sS]|[yY])
-                # Continue with reinstall
-                ;;
-            *)
-                log_info "Reinstall cancelled by user"
-                return 0
-                ;;
-        esac
+        if ! bootstrap_confirm "Continue?" "no"; then
+            log_info "Reinstall cancelled by user"
+            return 0
+        fi
     fi
 
     # Backup configuration
@@ -1601,16 +1693,10 @@ bootstrap_cmd_upgrade() {
             if [[ "$BOOTSTRAP_FORCE" != "true" ]]; then
                 echo ""
                 echo "This would downgrade Morty to an older version."
-                read -r -p "Continue anyway? [y/N] " response
-                case "$response" in
-                    [yY][eE][sS]|[yY])
-                        # Continue with downgrade
-                        ;;
-                    *)
-                        log_info "Upgrade cancelled by user"
-                        return 0
-                        ;;
-                esac
+                if ! bootstrap_confirm "Continue anyway?" "no"; then
+                    log_info "Upgrade cancelled by user"
+                    return 0
+                fi
             fi
             ;;
         2)
@@ -1625,16 +1711,10 @@ bootstrap_cmd_upgrade() {
         echo "This will upgrade Morty from $current_version to $target_version"
         echo "Your configuration will be preserved."
         echo ""
-        read -r -p "Continue? [y/N] " response
-        case "$response" in
-            [yY][eE][sS]|[yY])
-                # Continue with upgrade
-                ;;
-            *)
-                log_info "Upgrade cancelled by user"
-                return 0
-                ;;
-        esac
+        if ! bootstrap_confirm "Continue?" "no"; then
+            log_info "Upgrade cancelled by user"
+            return 0
+        fi
     fi
 
     # Create backup of current installation
@@ -1747,9 +1827,333 @@ bootstrap_cmd_upgrade() {
     return 0
 }
 
+# ============================================================================
+# Uninstall Functions
+# ============================================================================
+
+# Create backup before uninstall (for accidental recovery)
+# Usage: bootstrap_backup_before_uninstall <install_dir>
+# Outputs: backup directory path to stdout
+# Returns: 0 on success, 1 on failure
+bootstrap_backup_before_uninstall() {
+    local install_dir="$1"
+    local timestamp
+    timestamp=$(date +%Y%m%d_%H%M%S)
+    local backup_dir="${install_dir}.backup.uninstall.${timestamp}"
+
+    log_info "Creating backup before uninstall..."
+
+    if [[ ! -d "$install_dir" ]]; then
+        log_warn "Installation directory does not exist: $install_dir"
+        return 1
+    fi
+
+    # Create backup directory
+    if ! mkdir -p "$backup_dir"; then
+        log_error "Failed to create backup directory: $backup_dir"
+        return 1
+    fi
+
+    # Copy all files to backup (preserve permissions)
+    if cp -a "$install_dir"/* "$backup_dir"/ 2>/dev/null; then
+        log_success "Backup created at: $backup_dir"
+        echo "$backup_dir"
+        return 0
+    else
+        log_warn "Failed to create full backup"
+        rm -rf "$backup_dir"
+        return 1
+    fi
+}
+
+# Remove symbolic link
+# Usage: bootstrap_remove_symlink <link_path>
+# Returns: 0 on success, 1 on failure
+bootstrap_remove_symlink() {
+    local link_path="$1"
+
+    if [[ -L "$link_path" ]]; then
+        if rm -f "$link_path"; then
+            log_debug "Removed symlink: $link_path"
+            return 0
+        else
+            log_warn "Failed to remove symlink: $link_path"
+            return 1
+        fi
+    elif [[ -e "$link_path" ]]; then
+        # It's a regular file, not a symlink
+        log_warn "Expected symlink but found regular file: $link_path"
+        if [[ "$BOOTSTRAP_FORCE" == "true" ]]; then
+            rm -f "$link_path"
+            return 0
+        else
+            return 1
+        fi
+    else
+        # Link doesn't exist
+        log_debug "Symlink already removed: $link_path"
+        return 0
+    fi
+}
+
+# Remove files and directories
+# Usage: bootstrap_remove_files <dir> [purge_configs]
+# Returns: 0 on success, 1 on failure
+bootstrap_remove_files() {
+    local dir="$1"
+    local purge_configs="${2:-false}"
+
+    if [[ ! -d "$dir" ]]; then
+        log_debug "Directory already removed: $dir"
+        return 0
+    fi
+
+    if [[ "$purge_configs" == "true" ]]; then
+        # Remove entire directory including configs
+        log_info "Removing installation directory (including configs)..."
+        if rm -rf "$dir"; then
+            log_success "Removed: $dir"
+            return 0
+        else
+            log_error "Failed to remove directory: $dir"
+            return 1
+        fi
+    else
+        # Standard uninstall: preserve settings.json and prompts
+        log_info "Removing installation files (preserving configs)..."
+
+        # Remove bin directory
+        if [[ -d "$dir/bin" ]]; then
+            rm -rf "$dir/bin"
+            log_debug "Removed: $dir/bin"
+        fi
+
+        # Remove lib directory
+        if [[ -d "$dir/lib" ]]; then
+            rm -rf "$dir/lib"
+            log_debug "Removed: $dir/lib"
+        fi
+
+        # Remove VERSION file
+        if [[ -f "$dir/VERSION" ]]; then
+            rm -f "$dir/VERSION"
+            log_debug "Removed: $dir/VERSION"
+        fi
+
+        # Remove empty directory if no user files left
+        if [[ -d "$dir" ]]; then
+            # Check if directory is now empty (or only has config files)
+            local remaining_files
+            remaining_files=$(find "$dir" -type f 2>/dev/null | wc -l)
+            if [[ "$remaining_files" -eq 0 ]]; then
+                rmdir "$dir" 2>/dev/null || true
+                log_debug "Removed empty directory: $dir"
+            else
+                log_info "Preserved user configurations in: $dir"
+            fi
+        fi
+
+        return 0
+    fi
+}
+
+# Cleanup empty parent directories
+# Usage: bootstrap_cleanup_empty_dirs <bin_dir>
+bootstrap_cleanup_empty_dirs() {
+    local bin_dir="$1"
+
+    # Try to remove empty bin directory if it's the default ~/.local/bin
+    if [[ "$bin_dir" == "$DEFAULT_BIN_DIR" ]] && [[ -d "$bin_dir" ]]; then
+        # Check if directory is empty
+        if [[ -z "$(ls -A "$bin_dir" 2>/dev/null)" ]]; then
+            rmdir "$bin_dir" 2>/dev/null || true
+            log_debug "Removed empty directory: $bin_dir"
+        fi
+    fi
+}
+
+# Show uninstall preview
+# Usage: bootstrap_show_uninstall_preview <install_dir> <purge>
+bootstrap_show_uninstall_preview() {
+    local install_dir="$1"
+    local purge="$2"
+
+    echo ""
+    echo "============================================"
+    echo "  Uninstall Preview"
+    echo "============================================"
+    echo ""
+    echo "The following will be removed:"
+    echo ""
+
+    # Installation directory
+    echo "  Installation directory:"
+    echo "    $install_dir"
+
+    # Symlink
+    echo ""
+    echo "  Symbolic link:"
+    echo "    $BOOTSTRAP_BIN_DIR/morty -> $install_dir/bin/morty"
+
+    # Files to be removed
+    echo ""
+    echo "  Files to be removed:"
+    if [[ -d "$install_dir/bin" ]]; then
+        find "$install_dir/bin" -type f 2>/dev/null | head -10 | while read -r f; do
+            echo "    - ${f#$install_dir/}"
+        done
+    fi
+    if [[ -d "$install_dir/lib" ]]; then
+        echo "    - lib/"
+    fi
+    if [[ -f "$install_dir/VERSION" ]]; then
+        echo "    - VERSION"
+    fi
+
+    # Config preservation
+    echo ""
+    if [[ "$purge" == "true" ]]; then
+        echo "  Configuration files: WILL BE REMOVED (--purge mode)"
+        if [[ -d "$install_dir/prompts" ]]; then
+            echo "    - prompts/"
+        fi
+        if [[ -f "$install_dir/settings.json" ]]; then
+            echo "    - settings.json"
+        fi
+    else
+        echo "  Configuration files: PRESERVED"
+        if [[ -d "$install_dir/prompts" ]]; then
+            echo "    - prompts/ (preserved)"
+        fi
+        if [[ -f "$install_dir/settings.json" ]]; then
+            echo "    - settings.json (preserved)"
+        fi
+    fi
+
+    echo ""
+    echo "============================================"
+    echo ""
+}
+
+# Show uninstall completion message
+# Usage: bootstrap_show_uninstall_complete <install_dir> <purge> [backup_dir]
+bootstrap_show_uninstall_complete() {
+    local install_dir="$1"
+    local purge="$2"
+    local backup_dir="${3:-}"
+
+    echo ""
+    echo "============================================"
+    echo "  Uninstall Complete!"
+    echo "============================================"
+    echo ""
+
+    if [[ "$purge" == "true" ]]; then
+        echo "Morty has been completely removed from your system."
+        echo "All configuration files have been deleted."
+    else
+        echo "Morty has been uninstalled."
+        echo ""
+        echo "The following have been preserved:"
+        if [[ -f "$install_dir/settings.json" ]]; then
+            echo "  - settings.json"
+        fi
+        if [[ -d "$install_dir/prompts" ]]; then
+            echo "  - Custom prompts in prompts/"
+        fi
+        echo ""
+        echo "To remove these as well, run:"
+        echo "  ./bootstrap.sh uninstall --purge"
+    fi
+
+    if [[ -n "$backup_dir" ]] && [[ -d "$backup_dir" ]]; then
+        echo ""
+        echo "A backup was created at:"
+        echo "  $backup_dir"
+        echo ""
+        echo "To restore if needed:"
+        echo "  mv '$backup_dir' '$install_dir'"
+    fi
+
+    echo ""
+    echo "Thank you for using Morty!"
+    echo ""
+}
+
+# Main uninstall command handler
+# Usage: bootstrap_cmd_uninstall
+# Returns: 0 on success, 1 on failure
 bootstrap_cmd_uninstall() {
-    log_info "Uninstall command placeholder"
-    log_info "To be implemented in Job 5"
+    log_info "Starting Morty uninstall..."
+
+    # Check if Morty is installed
+    if [[ ! -d "$BOOTSTRAP_PREFIX" ]] || [[ ! -f "$BOOTSTRAP_PREFIX/bin/morty" ]]; then
+        log_warn "No Morty installation found at: $BOOTSTRAP_PREFIX"
+        echo ""
+        echo "Morty does not appear to be installed."
+        echo "If you installed it to a different location, specify with --prefix:"
+        echo "  ./bootstrap.sh uninstall --prefix <path>"
+        return 1
+    fi
+
+    # Show uninstall preview
+    bootstrap_show_uninstall_preview "$BOOTSTRAP_PREFIX" "$BOOTSTRAP_PURGE"
+
+    # Confirm with user unless --force is used
+    if [[ "$BOOTSTRAP_FORCE" != "true" ]]; then
+        local confirm_msg
+        if [[ "$BOOTSTRAP_PURGE" == "true" ]]; then
+            confirm_msg="WARNING: This will DELETE ALL Morty data including configurations. Are you sure?"
+        else
+            confirm_msg="Are you sure you want to uninstall Morty?"
+        fi
+        if ! bootstrap_confirm "$confirm_msg" "no"; then
+            log_info "Uninstall cancelled by user"
+            return 0
+        fi
+    fi
+
+    # Create backup before uninstall (unless --force is used and not purge)
+    local backup_dir=""
+    if [[ "$BOOTSTRAP_FORCE" != "true" ]] || [[ "$BOOTSTRAP_PURGE" != "true" ]]; then
+        backup_dir=$(bootstrap_backup_before_uninstall "$BOOTSTRAP_PREFIX" 2>/dev/null) || true
+    fi
+
+    # Remove symbolic link first
+    log_info "Removing symbolic link..."
+    if ! bootstrap_remove_symlink "$BOOTSTRAP_BIN_DIR/morty"; then
+        log_warn "Failed to remove symbolic link"
+    fi
+
+    # Remove files
+    log_info "Removing installation files..."
+    if ! bootstrap_remove_files "$BOOTSTRAP_PREFIX" "$BOOTSTRAP_PURGE"; then
+        log_error "Failed to remove installation files"
+        return 1
+    fi
+
+    # Cleanup empty directories
+    bootstrap_cleanup_empty_dirs "$BOOTSTRAP_BIN_DIR"
+
+    # Verify uninstall (check if morty command is still available)
+    log_info "Verifying uninstall..."
+    if command -v morty &> /dev/null; then
+        # Check if it's our morty or something else
+        local morty_path
+        morty_path=$(command -v morty)
+        if [[ "$morty_path" == "$BOOTSTRAP_BIN_DIR/morty" ]] || \
+           [[ "$morty_path" == "$BOOTSTRAP_PREFIX/bin/morty" ]]; then
+            log_warn "Morty command is still available at: $morty_path"
+        else
+            log_info "Note: Another 'morty' command exists at: $morty_path"
+        fi
+    else
+        log_success "Morty command has been removed from PATH"
+    fi
+
+    # Show completion message
+    bootstrap_show_uninstall_complete "$BOOTSTRAP_PREFIX" "$BOOTSTRAP_PURGE" "$backup_dir"
+
     return 0
 }
 
