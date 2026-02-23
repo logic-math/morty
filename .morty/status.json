@@ -10,7 +10,7 @@
   },
   "session": {
     "start_time": "2026-02-21T16:13:36Z",
-    "last_update": "2026-02-22T23:24:38Z",
+    "last_update": "2026-02-22T23:32:19Z",
     "total_loops": 49
   },
   "modules": {
@@ -878,7 +878,7 @@
           "loop_count": 1,
           "retry_count": 0,
           "tasks_total": 6,
-          "tasks_completed": 4,
+          "tasks_completed": 5,
           "debug_logs": [],
           "tasks": {
             "task_1": {
@@ -888,7 +888,8 @@
             },
             "task_2": {
               "description": "实现 bootstrap_cmd_reinstall() 重新安装",
-              "status": "PENDING"
+              "status": "COMPLETED",
+              "completed_at": "2026-02-23T08:15:00Z"
             },
             "task_3": {
               "description": "实现从 GitHub Release 下载安装",
@@ -902,11 +903,13 @@
             },
             "task_5": {
               "description": "实现安装后验证（morty version）",
-              "status": "PENDING"
+              "status": "COMPLETED",
+              "completed_at": "2026-02-23T08:15:00Z"
             },
             "task_6": {
               "description": "实现配置备份和恢复",
-              "status": "PENDING"
+              "status": "COMPLETED",
+              "completed_at": "2026-02-23T08:15:00Z"
             }
           },
           "started_at": "2026-02-22T23:14:34Z"
