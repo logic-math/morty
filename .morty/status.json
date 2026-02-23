@@ -2,97 +2,65 @@
   "version": "2.0",
   "state": "running",
   "current": {
-    "module": "research",
+    "module": "cli",
     "job": "job_1",
-    "status": "COMPLETED",
-    "start_time": "2026-02-23T11:02:21Z",
-    "completed_at": "2026-02-23T19:15:00Z"
+    "status": "RUNNING",
+    "start_time": "2026-02-23T13:54:46Z"
   },
   "session": {
-    "start_time": "2026-02-21T16:13:36Z",
-    "last_update": "2026-02-23T11:17:38Z",
-    "total_loops": 54
+    "start_time": "2026-02-23T13:54:41Z",
+    "last_update": "2026-02-23T13:54:46Z",
+    "total_loops": 1
   },
   "modules": {
     "cli": {
-      "status": "completed",
+      "status": "pending",
       "jobs": {
         "job_1": {
-          "status": "COMPLETED",
-          "loop_count": 3,
+          "status": "RUNNING",
+          "loop_count": 1,
           "retry_count": 0,
           "tasks_total": 5,
-          "tasks_completed": 5,
+          "tasks_completed": 0,
           "debug_logs": [],
-          "started_at": "2026-02-21T16:13:39Z",
-          "completed_at": "2026-02-22T01:05:00Z",
-          "tasks": {
-            "task_1": {
-              "description": "创建 `morty` 主命令脚本",
-              "status": "COMPLETED",
-              "completed_at": "2026-02-22T00:28:00Z"
-            },
-            "task_2": {
-              "description": "实现 `cli_register_command()`",
-              "status": "COMPLETED",
-              "completed_at": "2026-02-22T00:45:00Z"
-            },
-            "task_3": {
-              "description": "实现 `cli_parse_args()`",
-              "status": "COMPLETED",
-              "completed_at": "2026-02-22T00:48:00Z"
-            },
-            "task_4": {
-              "description": "实现 `cli_route()`",
-              "status": "COMPLETED",
-              "completed_at": "2026-02-22T01:00:00Z"
-            },
-            "task_5": {
-              "description": "实现 `cli_execute()`",
-              "status": "COMPLETED",
-              "completed_at": "2026-02-22T01:05:00Z"
-            }
-          }
+          "started_at": "2026-02-23T13:54:46Z",
+          "completed_at": "",
+          "error_count": 0,
+          "interrupted": false,
+          "interrupted_at": "",
+          "last_summary": ""
         },
         "job_2": {
-          "status": "COMPLETED",
-          "loop_count": 1,
+          "status": "PENDING",
+          "loop_count": 0,
           "retry_count": 0,
           "tasks_total": 10,
-          "tasks_completed": 10,
-          "debug_logs": [],
-          "started_at": "2026-02-21T16:41:06Z",
-          "completed_at": "2026-02-21T16:41:51Z"
+          "tasks_completed": 0,
+          "debug_logs": []
         },
         "job_3": {
-          "status": "COMPLETED",
-          "loop_count": 1,
+          "status": "PENDING",
+          "loop_count": 0,
           "retry_count": 0,
           "tasks_total": 7,
-          "tasks_completed": 7,
-          "debug_logs": [],
-          "started_at": "2026-02-21T16:41:52Z",
-          "completed_at": "2026-02-21T16:42:21Z"
+          "tasks_completed": 0,
+          "debug_logs": []
         },
         "job_4": {
-          "status": "COMPLETED",
-          "loop_count": 1,
+          "status": "PENDING",
+          "loop_count": 0,
           "retry_count": 0,
           "tasks_total": 3,
-          "tasks_completed": 3,
-          "debug_logs": [],
-          "started_at": "2026-02-21T16:42:22Z",
-          "completed_at": "2026-02-21T16:42:33Z"
+          "tasks_completed": 0,
+          "debug_logs": []
         },
         "job_5": {
-          "status": "COMPLETED",
-          "loop_count": 1,
+          "status": "PENDING",
+          "loop_count": 0,
           "retry_count": 0,
           "tasks_total": 3,
-          "tasks_completed": 3,
-          "debug_logs": [],
-          "started_at": "2026-02-21T16:42:34Z",
-          "completed_at": "2026-02-21T16:42:44Z"
+          "tasks_completed": 0,
+          "debug_logs": []
         }
       }
     },
@@ -100,992 +68,261 @@
       "status": "pending",
       "jobs": {
         "job_1": {
-          "status": "RUNNING",
-          "loop_count": 1,
+          "status": "PENDING",
+          "loop_count": 0,
           "retry_count": 0,
           "tasks_total": 6,
-          "tasks_completed": 2,
-          "debug_logs": [],
-          "started_at": "2026-02-21T16:42:45Z"
+          "tasks_completed": 0,
+          "debug_logs": []
         },
         "job_2": {
-          "status": "COMPLETED",
-          "loop_count": 1,
+          "status": "PENDING",
+          "loop_count": 0,
           "retry_count": 0,
           "tasks_total": 4,
-          "tasks_completed": 5,
-          "debug_logs": [],
-          "started_at": "2026-02-21T18:06:30Z",
-          "completed_at": "2026-02-21T18:12:36Z",
-          "tasks": {
-            "task_1": {
-              "description": "实现 `config_check_work_dir()`",
-              "status": "COMPLETED",
-              "completed_at": "2026-02-22T01:10:00Z"
-            },
-            "task_2": {
-              "description": "实现 `config_init_work_dir()`",
-              "status": "COMPLETED",
-              "completed_at": "2026-02-22T01:10:01Z"
-            },
-            "task_3": {
-              "description": "实现 `config_ensure_work_dir()`",
-              "status": "COMPLETED",
-              "completed_at": "2026-02-22T02:11:00Z"
-            },
-            "task_4": {
-              "description": "实现子目录自动创建（logs, research, plan）",
-              "status": "COMPLETED",
-              "completed_at": "2026-02-22T02:11:00Z"
-            }
-          }
+          "tasks_completed": 0,
+          "debug_logs": []
         },
         "job_3": {
-          "status": "COMPLETED",
-          "loop_count": 1,
+          "status": "PENDING",
+          "loop_count": 0,
           "retry_count": 0,
           "tasks_total": 5,
-          "tasks_completed": 6,
-          "debug_logs": [],
-          "started_at": "2026-02-21T18:12:37Z",
-          "completed_at": "2026-02-21T18:14:51Z",
-          "tasks": {
-            "task_1": {
-              "description": "实现 `config_check_research_exists()`",
-              "status": "COMPLETED",
-              "completed_at": "2026-02-22T02:13:00Z"
-            },
-            "task_2": {
-              "description": "实现 `config_check_plan_done()`",
-              "status": "COMPLETED",
-              "completed_at": "2026-02-22T02:13:00Z"
-            },
-            "task_3": {
-              "description": "实现 `config_require_plan()`",
-              "status": "COMPLETED",
-              "completed_at": "2026-02-22T02:13:00Z"
-            },
-            "task_4": {
-              "description": "实现 `config_load_research_facts()`",
-              "status": "COMPLETED",
-              "completed_at": "2026-02-22T02:13:00Z"
-            },
-            "task_5": {
-              "description": "定义前置条件检查的错误提示信息",
-              "status": "COMPLETED",
-              "completed_at": "2026-02-22T02:13:00Z"
-            }
-          }
+          "tasks_completed": 0,
+          "debug_logs": []
         }
       }
     },
     "doing": {
-      "status": "completed",
+      "status": "pending",
       "jobs": {
         "job_1": {
-          "status": "COMPLETED",
-          "loop_count": 1,
+          "status": "PENDING",
+          "loop_count": 0,
           "retry_count": 0,
           "tasks_total": 5,
-          "tasks_completed": 6,
-          "debug_logs": [],
-          "started_at": "2026-02-21T18:14:52Z",
-          "completed_at": "2026-02-21T18:25:02Z",
-          "tasks": {
-            "task_1": {
-              "description": "创建 `morty_doing.sh` 脚本",
-              "status": "COMPLETED",
-              "completed_at": "2026-02-22T02:20:00Z"
-            },
-            "task_2": {
-              "description": "实现 `doing_parse_args()`",
-              "status": "COMPLETED",
-              "completed_at": "2026-02-22T02:21:00Z"
-            },
-            "task_3": {
-              "description": "实现 `doing_load_status()`",
-              "status": "COMPLETED",
-              "completed_at": "2026-02-22T02:22:00Z"
-            },
-            "task_4": {
-              "description": "实现 `doing_select_job()`",
-              "status": "COMPLETED",
-              "completed_at": "2026-02-22T02:30:00Z"
-            },
-            "task_5": {
-              "description": "实现 `doing_reset_status()`",
-              "status": "COMPLETED",
-              "completed_at": "2026-02-22T02:35:00Z"
-            }
-          }
+          "tasks_completed": 0,
+          "debug_logs": []
         },
         "job_2": {
-          "status": "COMPLETED",
-          "loop_count": 1,
+          "status": "PENDING",
+          "loop_count": 0,
           "retry_count": 0,
           "tasks_total": 5,
-          "tasks_completed": 6,
-          "debug_logs": [],
-          "started_at": "2026-02-21T18:25:03Z",
-          "tasks": {
-            "task_1": {
-              "description": "实现 `doing_execute_job()`",
-              "status": "COMPLETED",
-              "completed_at": "2026-02-22T10:30:00Z"
-            },
-            "task_2": {
-              "description": "构建执行提示词",
-              "status": "COMPLETED",
-              "completed_at": "2026-02-22T10:31:00Z"
-            },
-            "task_3": {
-              "description": "调用 ai_cli 后台执行",
-              "status": "COMPLETED",
-              "completed_at": "2026-02-22T10:32:00Z"
-            },
-            "task_4": {
-              "description": "捕获执行结果（通过日志或输出文件）",
-              "status": "COMPLETED",
-              "completed_at": "2026-02-22T10:33:00Z"
-            },
-            "task_5": {
-              "description": "解析执行结果，更新状态",
-              "status": "COMPLETED",
-              "completed_at": "2026-02-22T10:34:00Z"
-            }
-          },
-          "completed_at": "2026-02-21T18:36:02Z"
+          "tasks_completed": 0,
+          "debug_logs": []
         },
         "job_3": {
-          "status": "COMPLETED",
-          "loop_count": 1,
+          "status": "PENDING",
+          "loop_count": 0,
           "retry_count": 0,
           "tasks_total": 4,
-          "tasks_completed": 5,
-          "debug_logs": [],
-          "started_at": "2026-02-21T18:36:03Z",
-          "completed_at": "2026-02-21T18:41:14Z",
-          "tasks": {
-            "task_1": {
-              "description": "创建 `prompts/doing.md` 系统提示词",
-              "status": "COMPLETED",
-              "completed_at": "2026-02-22T10:40:00Z"
-            },
-            "task_2": {
-              "description": "实现 `doing_build_prompt()`",
-              "status": "COMPLETED",
-              "completed_at": "2026-02-22T10:42:00Z"
-            },
-            "task_3": {
-              "description": "实现 `doing_load_plan_context()`",
-              "status": "COMPLETED",
-              "completed_at": "2026-02-22T10:43:00Z"
-            },
-            "task_4": {
-              "description": "实现 `doing_save_prompt_to_file()`",
-              "status": "COMPLETED",
-              "completed_at": "2026-02-22T10:45:00Z"
-            }
-          }
+          "tasks_completed": 0,
+          "debug_logs": []
         },
         "job_4": {
-          "status": "COMPLETED",
-          "loop_count": 1,
+          "status": "PENDING",
+          "loop_count": 0,
           "retry_count": 0,
           "tasks_total": 5,
-          "tasks_completed": 6,
-          "debug_logs": [],
-          "started_at": "2026-02-21T18:41:15Z",
-          "completed_at": "2026-02-21T18:49:58Z",
-          "tasks": {
-            "task_1": {
-              "description": "实现状态转换逻辑",
-              "status": "COMPLETED",
-              "completed_at": "2026-02-22T02:49:00Z"
-            },
-            "task_2": {
-              "description": "实现失败重试机制（最多 3 次）",
-              "status": "COMPLETED",
-              "completed_at": "2026-02-22T02:49:00Z"
-            },
-            "task_3": {
-              "description": "实现 `doing_mark_completed()`",
-              "status": "COMPLETED",
-              "completed_at": "2026-02-22T02:49:00Z"
-            },
-            "task_4": {
-              "description": "实现 `doing_mark_failed()`",
-              "status": "COMPLETED",
-              "completed_at": "2026-02-22T02:49:00Z"
-            },
-            "task_5": {
-              "description": "实现中断恢复逻辑",
-              "status": "COMPLETED",
-              "completed_at": "2026-02-22T02:49:00Z"
-            }
-          }
+          "tasks_completed": 0,
+          "debug_logs": []
         },
         "job_5": {
-          "status": "COMPLETED",
-          "loop_count": 1,
+          "status": "PENDING",
+          "loop_count": 0,
           "retry_count": 0,
           "tasks_total": 4,
-          "tasks_completed": 5,
-          "debug_logs": [],
-          "started_at": "2026-02-21T18:49:59Z",
-          "completed_at": "2026-02-21T18:55:51Z",
-          "tasks": {
-            "task_1": {
-              "description": "集成 `version_create_loop_commit()`",
-              "status": "COMPLETED",
-              "completed_at": "2026-02-22T00:00:00Z"
-            },
-            "task_2": {
-              "description": "生成提交信息（包含 Job 名称、状态、变更摘要）",
-              "status": "COMPLETED",
-              "completed_at": "2026-02-22T00:00:00Z"
-            },
-            "task_3": {
-              "description": "实现提交前的变更检测",
-              "status": "COMPLETED",
-              "completed_at": "2026-02-22T00:00:00Z"
-            },
-            "task_4": {
-              "description": "处理提交失败情况",
-              "status": "COMPLETED",
-              "completed_at": "2026-02-22T00:00:00Z"
-            }
-          }
+          "tasks_completed": 0,
+          "debug_logs": []
         },
         "job_6": {
-          "status": "COMPLETED",
-          "loop_count": 1,
+          "status": "PENDING",
+          "loop_count": 0,
           "retry_count": 0,
           "tasks_total": 5,
-          "tasks_completed": 6,
-          "debug_logs": [],
-          "started_at": "2026-02-21T18:55:52Z",
-          "completed_at": "2026-02-21T19:07:31Z",
-          "tasks": {
-            "task_1": {
-              "description": "修改 ai_cli 调用添加 --output-format json 参数",
-              "status": "COMPLETED",
-              "completed_at": "2026-02-22T11:30:00Z"
-            },
-            "task_2": {
-              "description": "修改 RALPH_STATUS 解析使用 jq 解析 JSON",
-              "status": "COMPLETED",
-              "completed_at": "2026-02-22T11:45:00Z"
-            },
-            "task_3": {
-              "description": "添加 JSON 解析失败回退到文本解析的逻辑",
-              "status": "COMPLETED",
-              "completed_at": "2026-02-22T11:50:00Z"
-            },
-            "task_4": {
-              "description": "更新 prompts/doing.md 中的 RALPH_STATUS 格式",
-              "status": "COMPLETED",
-              "completed_at": "2026-02-22T11:55:00Z"
-            },
-            "task_5": {
-              "description": "验证所有更改并创建测试",
-              "status": "COMPLETED",
-              "completed_at": "2026-02-22T12:00:00Z"
-            }
-          }
+          "tasks_completed": 0,
+          "debug_logs": []
         },
         "job_7": {
-          "status": "COMPLETED",
-          "loop_count": 1,
+          "status": "PENDING",
+          "loop_count": 0,
           "retry_count": 0,
           "tasks_total": 4,
-          "tasks_completed": 5,
-          "debug_logs": [],
-          "started_at": "2026-02-21T19:07:32Z",
-          "completed_at": "2026-02-21T19:12:18Z",
-          "tasks": {
-            "task_1": {
-              "description": "实现 doing_build_compact_context() 函数",
-              "status": "COMPLETED",
-              "completed_at": "2026-02-22T12:15:00Z"
-            },
-            "task_2": {
-              "description": "更新 doing_build_prompt() 使用精简上下文",
-              "status": "COMPLETED",
-              "completed_at": "2026-02-22T12:20:00Z"
-            },
-            "task_3": {
-              "description": "更新 prompts/doing.md 中的示例",
-              "status": "COMPLETED",
-              "completed_at": "2026-02-22T12:25:00Z"
-            },
-            "task_4": {
-              "description": "验证精简上下文生成和解析",
-              "status": "COMPLETED",
-              "completed_at": "2026-02-22T12:30:00Z"
-            }
-          }
-        }
-      }
-    },
-    "logging": {
-      "status": "running",
-      "jobs": {
-        "job_1": {
-          "status": "COMPLETED",
-          "loop_count": 1,
-          "retry_count": 0,
-          "tasks_total": 5,
-          "tasks_completed": 6,
-          "debug_logs": [],
-          "started_at": "2026-02-21T19:12:19Z",
-          "completed_at": "2026-02-21T19:28:42Z",
-          "tasks": {
-            "task_1": {
-              "description": "创建 `lib/logging.sh` 日志管理模块",
-              "status": "COMPLETED",
-              "completed_at": "2026-02-22T03:10:00Z"
-            },
-            "task_2": {
-              "description": "实现 `log()` 核心函数，支持级别过滤",
-              "status": "COMPLETED",
-              "completed_at": "2026-02-22T03:10:00Z"
-            },
-            "task_3": {
-              "description": "实现日志文件写入和自动创建目录",
-              "status": "COMPLETED",
-              "completed_at": "2026-02-22T03:10:00Z"
-            },
-            "task_4": {
-              "description": "实现日志级别快捷方法（log_info, log_warn 等）",
-              "status": "COMPLETED",
-              "completed_at": "2026-02-22T03:10:00Z"
-            },
-            "task_5": {
-              "description": "实现日志格式化和时间戳",
-              "status": "COMPLETED",
-              "completed_at": "2026-02-22T03:10:00Z"
-            }
-          }
-        },
-        "job_2": {
-          "status": "COMPLETED",
-          "loop_count": 1,
-          "retry_count": 0,
-          "tasks_total": 5,
-          "tasks_completed": 6,
-          "debug_logs": [],
-          "started_at": "2026-02-21T19:28:43Z",
-          "completed_at": "2026-02-21T19:36:35Z",
-          "tasks": {
-            "task_1": {
-              "description": "实现日志文件大小检查",
-              "status": "COMPLETED",
-              "completed_at": "2026-02-22T03:30:00Z"
-            },
-            "task_2": {
-              "description": "实现日志轮转（当前日志 -> morty.log.1 -> morty.log.2）",
-              "status": "COMPLETED",
-              "completed_at": "2026-02-22T03:30:00Z"
-            },
-            "task_3": {
-              "description": "实现最大保留文件数限制",
-              "status": "COMPLETED",
-              "completed_at": "2026-02-22T03:30:00Z"
-            },
-            "task_4": {
-              "description": "支持按日期归档（可选）",
-              "status": "COMPLETED",
-              "completed_at": "2026-02-22T03:35:00Z"
-            },
-            "task_5": {
-              "description": "实现日志压缩（对旧日志）",
-              "status": "COMPLETED",
-              "completed_at": "2026-02-22T03:30:00Z"
-            }
-          }
-        },
-        "job_3": {
-          "status": "COMPLETED",
-          "loop_count": 1,
-          "retry_count": 0,
-          "tasks_total": 5,
-          "tasks_completed": 6,
-          "debug_logs": [],
-          "started_at": "2026-02-21T19:36:36Z",
-          "completed_at": "2026-02-21T19:40:27Z",
-          "tasks": {
-            "task_1": {
-              "description": "实现 `log_job_start(module, job)` 创建 Job 日志上下文",
-              "status": "COMPLETED",
-              "completed_at": "2026-02-22T03:38:00Z"
-            },
-            "task_2": {
-              "description": "实现 `log_job_end()` 关闭 Job 日志上下文",
-              "status": "COMPLETED",
-              "completed_at": "2026-02-22T03:38:00Z"
-            },
-            "task_3": {
-              "description": "实现 `log_job(message)` 写入 Job 独立日志",
-              "status": "COMPLETED",
-              "completed_at": "2026-02-22T03:38:00Z"
-            },
-            "task_4": {
-              "description": "在 Job 日志中自动记录开始时间、结束时间、执行时长",
-              "status": "COMPLETED",
-              "completed_at": "2026-02-22T03:38:00Z"
-            },
-            "task_5": {
-              "description": "支持 Job 日志与主日志同时写入",
-              "status": "COMPLETED",
-              "completed_at": "2026-02-22T03:38:00Z"
-            }
-          }
-        },
-        "job_4": {
-          "status": "COMPLETED",
-          "loop_count": 1,
-          "retry_count": 0,
-          "tasks_total": 5,
-          "tasks_completed": 6,
-          "debug_logs": [],
-          "started_at": "2026-02-21T19:40:27Z",
-          "completed_at": "2026-02-21T19:46:55Z",
-          "tasks": {
-            "task_1": {
-              "description": "实现 JSON 格式日志输出",
-              "status": "COMPLETED",
-              "completed_at": "2026-02-22T03:43:00Z"
-            },
-            "task_2": {
-              "description": "支持上下文数据自动序列化为 JSON 字段",
-              "status": "COMPLETED",
-              "completed_at": "2026-02-22T03:43:00Z"
-            },
-            "task_3": {
-              "description": "添加 `log_structured()` 函数用于机器可读日志",
-              "status": "COMPLETED",
-              "completed_at": "2026-02-22T03:43:00Z"
-            },
-            "task_4": {
-              "description": "实现日志格式切换（文本/JSON）",
-              "status": "COMPLETED",
-              "completed_at": "2026-02-22T03:43:00Z"
-            },
-            "task_5": {
-              "description": "确保特殊字符正确转义",
-              "status": "COMPLETED",
-              "completed_at": "2026-02-22T03:43:00Z"
-            }
-          }
-        }
-      }
-    },
-    "plan": {
-      "status": "completed",
-      "jobs": {
-        "job_1": {
-          "status": "COMPLETED",
-          "loop_count": 1,
-          "retry_count": 0,
-          "tasks_total": 7,
-          "tasks_completed": 8,
-          "debug_logs": [],
-          "started_at": "2026-02-21T19:46:56Z",
-          "completed_at": "2026-02-21T19:50:57Z",
-          "tasks": {
-            "task_1": {
-              "description": "创建 `morty_plan.sh` 脚本",
-              "status": "COMPLETED",
-              "completed_at": "2026-02-22T03:48:00Z"
-            },
-            "task_2": {
-              "description": "读取 `prompts/plan.md` 作为系统提示词",
-              "status": "COMPLETED",
-              "completed_at": "2026-02-22T03:48:00Z"
-            },
-            "task_3": {
-              "description": "从 config 获取 ai_cli 命令",
-              "status": "COMPLETED",
-              "completed_at": "2026-02-22T03:48:00Z"
-            },
-            "task_4": {
-              "description": "构建 Claude 命令参数",
-              "status": "COMPLETED",
-              "completed_at": "2026-02-22T03:48:00Z"
-            },
-            "task_5": {
-              "description": "以 Plan 模式调用 ai_cli",
-              "status": "COMPLETED",
-              "completed_at": "2026-02-22T03:48:00Z"
-            },
-            "task_6": {
-              "description": "创建 `.morty/plan/` 目录",
-              "status": "COMPLETED",
-              "completed_at": "2026-02-22T03:48:00Z"
-            },
-            "task_7": {
-              "description": "验证输出目录是否生成内容",
-              "status": "COMPLETED",
-              "completed_at": "2026-02-22T03:48:00Z"
-            }
-          }
-        }
-      }
-    },
-    "research": {
-      "status": "completed",
-      "jobs": {
-        "job_1": {
-          "status": "COMPLETED",
-          "loop_count": 1,
-          "retry_count": 0,
-          "tasks_total": 7,
-          "tasks_completed": 8,
-          "debug_logs": [
-            {
-              "id": 1771845457.894692,
-              "timestamp": "2026-02-23T11:17:37Z",
-              "phenomenon": "[{type:system,subtype:init,cwd:/opt/meituan/dolphinfs_sunquan20/ai_coding/Coding/morty,session_id:73cf1d92-bab6-45d1-97e6-0cd5f5f2c1e9,tools:[Task,TaskOutput,Bash,Glob,Grep,ExitPlanMode,Read,Edit,Writ",
-              "reproduction": "查看日志文件: .morty/doing/logs/research_job_1_task5_output.log",
-              "hypotheses": [
-                "执行过程中出现错误，可能原因: 1)代码问题 2)环境配置 3)依赖缺失"
-              ],
-              "fix": "需覲�人工检查日志并修复问题",
-              "resolved": false
-            }
-          ],
-          "started_at": "2026-02-23T11:02:21Z",
-          "completed_at": "2026-02-23T19:15:00Z",
-          "tasks": {
-            "task_1": {
-              "description": "创建 `morty_research.sh` 脚本",
-              "status": "COMPLETED",
-              "completed_at": "2026-02-22T03:51:00Z"
-            },
-            "task_2": {
-              "description": "读取 `prompts/research.md` 作为系统提示词",
-              "status": "COMPLETED",
-              "completed_at": "2026-02-22T03:51:00Z"
-            },
-            "task_3": {
-              "description": "从 config 获取 ai_cli 命令：AI_CLI=$(config_get \"cli.command\" \"claude\")",
-              "status": "COMPLETED",
-              "completed_at": "2026-02-22T11:50:00Z"
-            },
-            "task_4": {
-              "description": "构建 Claude 命令参数",
-              "status": "COMPLETED",
-              "completed_at": "2026-02-22T11:55:00Z"
-            },
-            "task_5": {
-              "description": "以 Plan 模式调用：$AI_CLI --permission-mode plan -p \"$PROMPT\"",
-              "status": "COMPLETED",
-              "completed_at": "2026-02-23T19:15:00Z"
-            },
-            "task_6": {
-              "description": "创建 `.morty/research/` 目录",
-              "status": "COMPLETED",
-              "completed_at": "2026-02-22T11:55:00Z"
-            },
-            "task_7": {
-              "description": "验证输出目录是否生成内容",
-              "status": "COMPLETED",
-              "completed_at": "2026-02-22T11:55:00Z"
-            },
-            "5": {
-              "index": 5,
-              "status": "UNKNOWN",
-              "description": "以 Plan 模式调用：`$AI_CLI --permission-mode plan -p \"$PROMPT\"`",
-              "updated_at": "2026-02-23T11:17:37Z"
-            }
-          },
-          "error_count": 0,
-          "interrupted": false,
-          "interrupted_at": "",
-          "last_summary": "Task 5 完成：调整脚本使用 -p 参数方式调用 Claude Code"
-        }
-      }
-    },
-    "version_manager": {
-      "status": "completed",
-      "jobs": {
-        "job_1": {
-          "status": "COMPLETED",
-          "loop_count": 1,
-          "retry_count": 0,
-          "tasks_total": 5,
-          "tasks_completed": 6,
-          "debug_logs": [],
-          "started_at": "2026-02-21T19:58:59Z",
-          "completed_at": "2026-02-21T20:04:56Z",
-          "tasks": {
-            "task_1": {
-              "description": "创建 `lib/version_manager.sh` 模块",
-              "status": "COMPLETED",
-              "completed_at": "2026-02-22T04:02:00Z"
-            },
-            "task_2": {
-              "description": "实现 `version_init_if_needed()`",
-              "status": "COMPLETED",
-              "completed_at": "2026-02-22T04:02:00Z"
-            },
-            "task_3": {
-              "description": "实现 `version_has_uncommitted_changes()`",
-              "status": "COMPLETED",
-              "completed_at": "2026-02-22T04:02:00Z"
-            },
-            "task_4": {
-              "description": "实现 `version_get_repo_root()`",
-              "status": "COMPLETED",
-              "completed_at": "2026-02-22T04:02:00Z"
-            },
-            "task_5": {
-              "description": "实现 `version_is_ignored(path)`",
-              "status": "COMPLETED",
-              "completed_at": "2026-02-22T04:02:00Z"
-            }
-          }
-        },
-        "job_2": {
-          "status": "COMPLETED",
-          "loop_count": 1,
-          "retry_count": 0,
-          "tasks_total": 5,
-          "tasks_completed": 6,
-          "debug_logs": [],
-          "started_at": "2026-02-21T20:04:56Z",
-          "completed_at": "2026-02-21T20:13:15Z",
-          "tasks": {
-            "task_1": {
-              "description": "实现 `version_create_loop_commit()`",
-              "status": "COMPLETED",
-              "completed_at": "2026-02-22T04:05:00Z"
-            },
-            "task_2": {
-              "description": "实现提交信息生成器（包含循环编号、状态、变更统计）",
-              "status": "COMPLETED",
-              "completed_at": "2026-02-22T04:06:00Z"
-            },
-            "task_3": {
-              "description": "实现自动暂存变更（受 gitignore 限制）",
-              "status": "COMPLETED",
-              "completed_at": "2026-02-22T04:07:00Z"
-            },
-            "task_4": {
-              "description": "实现提交前的变更检查（无变更则不提交）",
-              "status": "COMPLETED",
-              "completed_at": "2026-02-22T04:08:00Z"
-            },
-            "task_5": {
-              "description": "实现 `version_get_current_loop_number()`",
-              "status": "COMPLETED",
-              "completed_at": "2026-02-22T04:09:00Z"
-            }
-          }
-        },
-        "job_3": {
-          "status": "COMPLETED",
-          "loop_count": 2,
-          "retry_count": 0,
-          "tasks_total": 5,
-          "tasks_completed": 6,
-          "debug_logs": [],
-          "started_at": "2026-02-21T20:13:15Z",
-          "completed_at": "2026-02-21T20:20:12Z",
-          "tasks": {
-            "task_1": {
-              "description": "实现 `version_reset_to_commit()`",
-              "status": "COMPLETED",
-              "completed_at": "2026-02-22T12:00:00Z"
-            },
-            "task_2": {
-              "description": "实现 `version_show_loop_history(n)`",
-              "status": "COMPLETED",
-              "completed_at": "2026-02-22T12:05:00Z"
-            },
-            "task_3": {
-              "description": "实现 `version_get_loop_by_number(n)`",
-              "status": "COMPLETED",
-              "completed_at": "2026-02-22T12:10:00Z"
-            },
-            "task_4": {
-              "description": "实现回滚前自动创建备份分支",
-              "status": "COMPLETED",
-              "completed_at": "2026-02-22T12:02:00Z"
-            },
-            "task_5": {
-              "description": "实现 `.morty/logs/` 目录保护（回滚时不删除）",
-              "status": "COMPLETED",
-              "completed_at": "2026-02-22T12:04:00Z"
-            }
-          }
+          "tasks_completed": 0,
+          "debug_logs": []
         }
       }
     },
     "install": {
-      "status": "running",
+      "status": "pending",
       "jobs": {
         "job_1": {
-          "status": "COMPLETED",
-          "loop_count": 1,
+          "status": "PENDING",
+          "loop_count": 0,
           "retry_count": 0,
           "tasks_total": 5,
-          "tasks_completed": 6,
-          "debug_logs": [],
-          "tasks": {
-            "task_1": {
-              "description": "创建 bootstrap.sh 脚本，添加 shebang 和基础配置",
-              "status": "COMPLETED",
-              "completed_at": "2026-02-23T00:05:00Z"
-            },
-            "task_2": {
-              "description": "实现 `bootstrap_parse_args()` 参数解析",
-              "status": "COMPLETED",
-              "completed_at": "2026-02-23T00:10:00Z"
-            },
-            "task_3": {
-              "description": "实现 `bootstrap_show_help()` 帮助信息",
-              "status": "COMPLETED",
-              "completed_at": "2026-02-23T00:10:00Z"
-            },
-            "task_4": {
-              "description": "实现 `bootstrap_validate_args()` 参数验证",
-              "status": "COMPLETED",
-              "completed_at": "2026-02-23T00:15:00Z"
-            },
-            "task_5": {
-              "description": "实现 `bootstrap_main()` 主入口函数",
-              "status": "COMPLETED",
-              "completed_at": "2026-02-23T00:15:00Z"
-            }
-          },
-          "started_at": "2026-02-22T22:54:06Z",
-          "completed_at": "2026-02-22T23:05:02Z"
+          "tasks_completed": 0,
+          "debug_logs": []
         },
         "job_2": {
-          "status": "COMPLETED",
-          "loop_count": 1,
+          "status": "PENDING",
+          "loop_count": 0,
           "retry_count": 0,
-          "tasks_total": 4,
-          "tasks_completed": 5,
-          "debug_logs": [],
-          "tasks": {
-            "task_1": {
-              "description": "实现系统依赖检查: Bash >= 4.0, Git >= 2.0",
-              "status": "COMPLETED",
-              "completed_at": "2026-02-23T00:20:00Z"
-            },
-            "task_2": {
-              "description": "实现 curl/wget 下载工具检查",
-              "status": "COMPLETED",
-              "completed_at": "2026-02-23T00:25:00Z"
-            },
-            "task_3": {
-              "description": "实现安装环境检查: 目录可写、磁盘空间",
-              "status": "COMPLETED",
-              "completed_at": "2026-02-23T00:25:00Z"
-            },
-            "task_4": {
-              "description": "实现友好的错误提示和修复建议",
-              "status": "COMPLETED",
-              "completed_at": "2026-02-23T00:30:00Z"
-            }
-          },
-          "started_at": "2026-02-22T23:05:03Z",
-          "completed_at": "2026-02-22T23:14:34Z"
+          "tasks_total": 3,
+          "tasks_completed": 0,
+          "debug_logs": []
         },
         "job_3": {
-          "status": "COMPLETED",
-          "loop_count": 1,
+          "status": "PENDING",
+          "loop_count": 0,
           "retry_count": 0,
-          "tasks_total": 6,
-          "tasks_completed": 6,
-          "debug_logs": [],
-          "tasks": {
-            "task_1": {
-              "description": "实现 bootstrap_cmd_install() 首次安装",
-              "status": "COMPLETED",
-              "completed_at": "2026-02-23T07:22:00Z"
-            },
-            "task_2": {
-              "description": "实现 bootstrap_cmd_reinstall() 重新安装",
-              "status": "COMPLETED",
-              "completed_at": "2026-02-23T08:15:00Z"
-            },
-            "task_3": {
-              "description": "实现从 GitHub Release 下载安装",
-              "status": "COMPLETED",
-              "completed_at": "2026-02-23T07:30:00Z"
-            },
-            "task_4": {
-              "description": "实现从本地源码安装（开发模式）",
-              "status": "COMPLETED",
-              "completed_at": "2026-02-23T07:30:00Z"
-            },
-            "task_5": {
-              "description": "实现安装后验证（morty version）",
-              "status": "COMPLETED",
-              "completed_at": "2026-02-23T08:15:00Z"
-            },
-            "task_6": {
-              "description": "实现配置备份和恢复",
-              "status": "COMPLETED",
-              "completed_at": "2026-02-23T08:15:00Z"
-            }
-          },
-          "started_at": "2026-02-22T23:14:34Z",
-          "completed_at": "2026-02-23T00:22:22Z"
+          "tasks_total": 4,
+          "tasks_completed": 0,
+          "debug_logs": []
         },
         "job_4": {
-          "status": "COMPLETED",
-          "loop_count": 1,
+          "status": "PENDING",
+          "loop_count": 0,
           "retry_count": 0,
-          "tasks_total": 5,
-          "tasks_completed": 6,
-          "debug_logs": [],
-          "tasks": {
-            "task_1": {
-              "description": "实现 bootstrap_cmd_upgrade() 升级命令",
-              "status": "COMPLETED",
-              "completed_at": "2026-02-23T08:45:00Z"
-            },
-            "task_2": {
-              "description": "实现版本比较和最新版本获取",
-              "status": "COMPLETED",
-              "completed_at": "2026-02-23T08:45:00Z"
-            },
-            "task_3": {
-              "description": "实现 `bootstrap_get_latest_version()`",
-              "status": "COMPLETED",
-              "completed_at": "2026-02-23T09:00:00Z"
-            },
-            "task_4": {
-              "description": "实现 `bootstrap_compare_versions()`",
-              "status": "COMPLETED",
-              "completed_at": "2026-02-23T09:00:00Z"
-            },
-            "task_5": {
-              "description": "测试和验证升级功能",
-              "status": "COMPLETED",
-              "completed_at": "2026-02-23T08:56:00Z"
-            }
-          },
-          "started_at": "2026-02-23T00:22:23Z",
-          "completed_at": "2026-02-23T00:57:51Z"
+          "tasks_total": 4,
+          "tasks_completed": 0,
+          "debug_logs": []
         },
         "job_5": {
-          "status": "COMPLETED",
-          "loop_count": 1,
+          "status": "PENDING",
+          "loop_count": 0,
           "retry_count": 0,
-          "tasks_total": 5,
-          "tasks_completed": 6,
-          "debug_logs": [],
-          "tasks": {
-            "task_1": {
-              "description": "实现 bootstrap_cmd_uninstall() 卸载命令",
-              "status": "COMPLETED",
-              "completed_at": "2026-02-23T09:10:00Z"
-            },
-            "task_2": {
-              "description": "实现卸载预览和确认提示",
-              "status": "COMPLETED",
-              "completed_at": "2026-02-23T09:10:00Z"
-            },
-            "task_3": {
-              "description": "实现标准卸载（保留配置）",
-              "status": "COMPLETED",
-              "completed_at": "2026-02-23T09:10:00Z"
-            },
-            "task_4": {
-              "description": "实现 --purge 彻底卸载（删除配置）",
-              "status": "COMPLETED",
-              "completed_at": "2026-02-23T09:10:00Z"
-            },
-            "task_5": {
-              "description": "实现卸载前备份（误操作恢复）",
-              "status": "COMPLETED",
-              "completed_at": "2026-02-23T09:10:00Z"
-            }
-          },
-          "started_at": "2026-02-23T00:57:52Z",
-          "completed_at": "2026-02-23T01:11:25Z"
+          "tasks_total": 3,
+          "tasks_completed": 0,
+          "debug_logs": []
         },
         "job_6": {
-          "status": "COMPLETED",
-          "loop_count": 1,
+          "status": "PENDING",
+          "loop_count": 0,
           "retry_count": 0,
           "tasks_total": 4,
-          "tasks_completed": 4,
-          "debug_logs": [],
-          "tasks": {
-            "task_1": {
-              "description": "支持管道执行（curl | bash）",
-              "status": "COMPLETED",
-              "completed_at": "2026-02-23T09:20:00Z"
-            },
-            "task_2": {
-              "description": "测试一键安装命令",
-              "status": "PENDING"
-            },
-            "task_3": {
-              "description": "编写 INSTALL.md 安装指南",
-              "status": "COMPLETED",
-              "completed_at": "2026-02-23T09:25:00Z"
-            },
-            "task_4": {
-              "description": "在 README.md 中添加安装说明",
-              "status": "PENDING"
-            }
-          },
-          "started_at": "2026-02-23T01:11:26Z",
-          "completed_at": "2026-02-23T01:24:06Z"
+          "tasks_completed": 0,
+          "debug_logs": []
         },
         "job_7": {
-          "status": "COMPLETED",
-          "loop_count": 1,
+          "status": "PENDING",
+          "loop_count": 0,
           "retry_count": 0,
-          "tasks_total": 4,
-          "tasks_completed": 4,
-          "debug_logs": [],
-          "tasks": {
-            "task_1": {
-              "description": "识别并列出所有过时代码文件",
-              "status": "COMPLETED",
-              "completed_at": "2026-02-23T01:30:00Z"
-            },
-            "task_2": {
-              "description": "删除 morty_fix.sh, morty_loop.sh, lib/loop_monitor.sh, install.sh",
-              "status": "COMPLETED",
-              "completed_at": "2026-02-23T01:31:00Z"
-            },
-            "task_3": {
-              "description": "验证清理后核心功能正常",
-              "status": "COMPLETED",
-              "completed_at": "2026-02-23T01:35:00Z"
-            },
-            "task_4": {
-              "description": "更新文档移除过时命令引用",
-              "status": "COMPLETED",
-              "completed_at": "2026-02-23T01:45:00Z"
-            }
-          },
-          "completed_at": "2026-02-23T01:45:00Z"
+          "tasks_total": 5,
+          "tasks_completed": 0,
+          "debug_logs": []
+        }
+      }
+    },
+    "logging": {
+      "status": "pending",
+      "jobs": {
+        "job_1": {
+          "status": "PENDING",
+          "loop_count": 0,
+          "retry_count": 0,
+          "tasks_total": 5,
+          "tasks_completed": 0,
+          "debug_logs": []
+        },
+        "job_2": {
+          "status": "PENDING",
+          "loop_count": 0,
+          "retry_count": 0,
+          "tasks_total": 5,
+          "tasks_completed": 0,
+          "debug_logs": []
+        },
+        "job_3": {
+          "status": "PENDING",
+          "loop_count": 0,
+          "retry_count": 0,
+          "tasks_total": 5,
+          "tasks_completed": 0,
+          "debug_logs": []
+        },
+        "job_4": {
+          "status": "PENDING",
+          "loop_count": 0,
+          "retry_count": 0,
+          "tasks_total": 5,
+          "tasks_completed": 0,
+          "debug_logs": []
+        }
+      }
+    },
+    "plan": {
+      "status": "pending",
+      "jobs": {
+        "job_1": {
+          "status": "PENDING",
+          "loop_count": 0,
+          "retry_count": 0,
+          "tasks_total": 7,
+          "tasks_completed": 0,
+          "debug_logs": []
+        }
+      }
+    },
+    "research": {
+      "status": "pending",
+      "jobs": {
+        "job_1": {
+          "status": "PENDING",
+          "loop_count": 0,
+          "retry_count": 0,
+          "tasks_total": 7,
+          "tasks_completed": 0,
+          "debug_logs": []
+        }
+      }
+    },
+    "test": {
+      "status": "pending",
+      "jobs": {}
+    },
+    "version_manager": {
+      "status": "pending",
+      "jobs": {
+        "job_1": {
+          "status": "PENDING",
+          "loop_count": 0,
+          "retry_count": 0,
+          "tasks_total": 5,
+          "tasks_completed": 0,
+          "debug_logs": []
+        },
+        "job_2": {
+          "status": "PENDING",
+          "loop_count": 0,
+          "retry_count": 0,
+          "tasks_total": 5,
+          "tasks_completed": 0,
+          "debug_logs": []
+        },
+        "job_3": {
+          "status": "PENDING",
+          "loop_count": 0,
+          "retry_count": 0,
+          "tasks_total": 5,
+          "tasks_completed": 0,
+          "debug_logs": []
         }
       }
     }
   },
   "summary": {
-    "total_modules": 8,
-    "completed_modules": 5,
-    "running_modules": 1,
-    "pending_modules": 2,
+    "total_modules": 9,
+    "completed_modules": 0,
+    "running_modules": 0,
+    "pending_modules": 9,
     "blocked_modules": 0,
-    "total_jobs": 32,
-    "completed_jobs": 24,
+    "total_jobs": 31,
+    "completed_jobs": 0,
     "running_jobs": 0,
     "failed_jobs": 0,
     "blocked_jobs": 0,
-    "progress_percentage": 78
+    "progress_percentage": 0
   }
 }

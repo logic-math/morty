@@ -131,11 +131,11 @@ mort 2.0.0
 **前置条件**: config, logging 模块核心功能完成
 
 **Tasks (Todo 列表)**:
-- [ ] 创建 `morty` 主命令脚本
-- [ ] 实现 `cli_register_command()`: 命令注册
-- [ ] 实现 `cli_parse_args()`: 参数解析
-- [ ] 实现 `cli_route()`: 命令路由
-- [ ] 实现 `cli_execute()`: 命令执行
+- [x] 创建 `morty` 主命令脚本
+- [x] 实现 `cli_register_command()`: 命令注册
+- [x] 实现 `cli_parse_args()`: 参数解析
+- [x] 实现 `cli_route()`: 命令路由
+- [x] 实现 `cli_execute()`: 命令执行
 
 **验证器**:
 - 输入 `morty doing` 应调用 `morty_doing.sh`
@@ -147,7 +147,7 @@ mort 2.0.0
 - 参数解析应正确处理选项和位置参数
 
 **调试日志**:
-- 无
+- verify1: 所有验证器测试通过, 运行15项验证测试, 猜想: 实现符合规范, 验证: 测试脚本验证所有功能, 修复: 无需修复, 已修复
 
 ---
 

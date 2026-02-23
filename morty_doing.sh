@@ -760,6 +760,11 @@ doing_mark_task_complete() {
         return 1
     fi
 
+    # 检查 Task 是否已经被标记完成，避免重复计数
+    if doing_is_task_completed "$module" "$job" "$task_index"; then
+        return 0
+    fi
+
     local temp_file=$(mktemp)
     local timestamp=$(get_iso_timestamp)
 
@@ -818,6 +823,13 @@ doing_mark_completed() {
 
     # 检查当前状态是否允许转换到 COMPLETED
     local current_status=$(doing_get_job_status "$module" "$job")
+
+    # 如果已经是 COMPLETED，跳过状态更新和 Git 提交（避免重复）
+    if [[ "$current_status" == "COMPLETED" ]]; then
+        log INFO "Job 已经是 COMPLETED 状态，跳过完成标记"
+        return 0
+    fi
+
     if [[ "$current_status" != "RUNNING" ]]; then
         log WARN "Job 当前状态不是 RUNNING ($current_status)，但仍标记为 COMPLETED"
     fi
@@ -1484,9 +1496,8 @@ doing_execute_job() {
         return 130
     fi
 
-    # 所有 Task 完成，标记 Job 为 COMPLETED
-    doing_update_job_status "$module" "$job" "COMPLETED"
-    log SUCCESS "Job $module/$job 完成"
+    # 所有 Task 完成，返回成功（状态更新由调用者 doing_mark_completed 处理）
+    log SUCCESS "Job $module/$job 所有 Task 执行完成"
 
     # 重置全局变量
     CURRENT_MODULE=""

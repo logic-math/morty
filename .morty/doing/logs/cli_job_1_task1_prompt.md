@@ -397,11 +397,11 @@ Task工具参数:
 
 ## 任务列表
 
-- [ ] 创建 `morty` 主命令脚本\n- [ ] 实现 `cli_register_command()`\n- [ ] 实现 `cli_parse_args()`\n- [ ] 实现 `cli_route()`\n- [ ] 实现 `cli_execute()`\n
+- [x] 创建 `morty` 主命令脚本\n- [ ] 实现 `cli_register_command()`\n- [ ] 实现 `cli_parse_args()`\n- [ ] 实现 `cli_route()`\n- [ ] 实现 `cli_execute()`\n
 
 ## 验证器
 
-- 输入 `morty doing` 应调用 `morty_doing.sh`\n- 输入 `morty doing --restart --module config` 应传递所有参数\n- 输入 `morty stat` 应调用 `morty_stat.sh`\n- 输入 `morty stat -w` 应进入监控模式\n- 输入 `morty reset` 应调用 `morty_reset.sh`\n- 输入未知命令时应显示错误和帮助信息\n- 参数解析应正确处理选项和位置参数\n- 无\n
+- 输入 `morty doing` 应调用 `morty_doing.sh`\n- 输入 `morty doing --restart --module config` 应传递所有参数\n- 输入 `morty stat` 应调用 `morty_stat.sh`\n- 输入 `morty stat -w` 应进入监控模式\n- 输入 `morty reset` 应调用 `morty_reset.sh`\n- 输入未知命令时应显示错误和帮助信息\n- 参数解析应正确处理选项和位置参数\n- verify1\n
 
 ## 执行指令
 
