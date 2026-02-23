@@ -12,7 +12,7 @@ config_load
 
 # 从配置获取 AI CLI 命令
 AI_CLI=$(config_get "cli.command" "claude")
-RESEARCH_PROMPT="$SCRIPT_DIR/prompts/research.md"
+RESEARCH_PROMPT="$SCRIPT_DIR/../prompts/research.md"
 
 show_help() {
     cat << 'EOF'
@@ -80,15 +80,16 @@ INTERACTIVE_PROMPT="$SYSTEM_PROMPT
 log INFO "启动 Claude Code 交互式会话..."
 log INFO ""
 
-# 构建 Claude 命令
-CLAUDE_ARGS=(
-    "$AI_CLI"
-    "--dangerously-skip-permissions"
-    "--allowedTools" "Read" "Write" "Glob" "Grep" "WebSearch" "WebFetch" "Edit" "Task"
-)
+# 确保 .morty/research/ 目录存在
+config_ensure_work_dir || {
+    log ERROR "Failed to initialize work directory"
+    exit 1
+}
 
-# 将提示词通过管道传递给 Claude Code
-echo "$INTERACTIVE_PROMPT" | "${CLAUDE_ARGS[@]}"
+# 构建 Claude 命令 (使用 Plan 模式)
+CLAUDE_CMD="$AI_CLI --permission-mode plan"
+
+echo "$INTERACTIVE_PROMPT" | $CLAUDE_CMD
 
 log INFO ""
 log SUCCESS "Research 模式会话结束"

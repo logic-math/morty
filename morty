@@ -13,6 +13,7 @@ set -o pipefail
 
 VERSION="2.0.0"
 MORTY_HOME="${MORTY_HOME:-$HOME/.morty}"
+export MORTY_HOME
 MORTY_PROJECT_ROOT="${MORTY_PROJECT_ROOT:-}"
 
 # 颜色定义
@@ -28,8 +29,8 @@ NC='\033[0m'
 # 加载库文件
 # ============================================================================
 
-# 确定脚本所在目录
-MORTY_SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# 确定脚本所在目录（使用 readlink -f 解析符号链接）
+MORTY_SCRIPT_DIR="$(cd "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")" && pwd)"
 
 # 加载库文件
 source "${MORTY_SCRIPT_DIR}/lib/cli_parse_args.sh"
@@ -365,6 +366,226 @@ handler_version() {
     cli_show_version
 }
 
+# plan 命令处理
+handler_plan() {
+    # 加载依赖库
+    source "$MORTY_SCRIPT_DIR/lib/common.sh"
+    source "$MORTY_SCRIPT_DIR/lib/config.sh"
+
+    # 加载配置
+    config_load 2>/dev/null || true
+
+    # 从配置获取 AI CLI 命令，默认为 claude
+    local AI_CLI
+    AI_CLI=$(config_get "cli.command" "claude")
+
+    # 配置
+    local PLAN_PROMPT="$MORTY_SCRIPT_DIR/../prompts/plan.md"
+    local MORTY_DIR=".morty"
+    local PLAN_DIR="$MORTY_DIR/plan"
+    local RESEARCH_DIR="$MORTY_DIR/research"
+
+    # 解析参数
+    while [[ $# -gt 0 ]]; do
+        case $1 in
+            -h|--help)
+                cat << 'EOF'
+Morty Plan 模式 - 基于研究结果创建 TDD 开发计划
+
+用法: morty plan [选项]
+
+选项:
+    -h, --help          显示帮助信息
+
+描述:
+    Plan 模式基于 research 模式的研究结果，创建分层的 TDD 开发计划。
+
+    工作流程:
+    1. 检查 .morty/research/ 目录下的研究结果
+    2. 启动交互式 Claude Code 会话
+    3. 根据需要读取相关 research 文件作为事实性信息
+    4. 设计系统架构，划分功能模块
+    5. 为每个模块创建 [模块名].md 文件（含 Jobs + 验证器）
+    6. 创建 [生产测试].md 端到端测试计划
+    7. 生成 plan/README.md 索引文件
+
+    输出结构:
+    .morty/plan/
+    ├── README.md           # Plan 索引
+    ├── [模块A].md          # 功能模块 A 计划（含 Jobs + 验证器）
+    ├── [模块B].md          # 功能模块 B 计划
+    └── [生产测试].md       # 端到端测试计划
+
+示例:
+    morty plan              # 启动 Plan 模式
+
+前置条件:
+    - 必须先运行 morty research 生成研究结果
+    - .morty/research/ 目录必须存在且非空
+
+EOF
+                return 0
+                ;;
+            *)
+                echo -e "${RED}错误: 未知参数: $1${NC}" >&2
+                return 1
+                ;;
+        esac
+    done
+
+    # 检查提示词文件
+    if [[ ! -f "$PLAN_PROMPT" ]]; then
+        echo -e "${RED}错误: Plan 模式提示词未找到: $PLAN_PROMPT${NC}" >&2
+        return 1
+    fi
+
+    # 检查前置条件：.morty 目录存在
+    if [[ ! -d "$MORTY_DIR" ]]; then
+        echo -e "${RED}错误: .morty/ 目录不存在${NC}" >&2
+        echo "请先运行 morty research 进行项目研究" >&2
+        return 1
+    fi
+
+    # 检查前置条件：research 目录存在且有内容
+    if [[ ! -d "$RESEARCH_DIR" ]]; then
+        echo -e "${RED}错误: .morty/research/ 目录不存在${NC}" >&2
+        echo "请先运行 morty research 生成研究结果" >&2
+        return 1
+    fi
+
+    # 检查 research 目录是否有 .md 文件
+    local RESEARCH_FILES
+    RESEARCH_FILES=$(find "$RESEARCH_DIR" -name "*.md" -type f 2>/dev/null || true)
+    if [[ -z "$RESEARCH_FILES" ]]; then
+        echo -e "${RED}错误: .morty/research/ 目录中没有 .md 文件${NC}" >&2
+        echo "请先运行 morty research 生成研究结果" >&2
+        return 1
+    fi
+
+    # 创建 plan 目录
+    mkdir -p "$PLAN_DIR"
+
+    log INFO "╔════════════════════════════════════════════════════════════╗"
+    log INFO "║              MORTY PLAN 模式 - TDD 开发计划                ║"
+    log INFO "╚════════════════════════════════════════════════════════════╝"
+    log INFO ""
+
+    # 统计 research 文件
+    local RESEARCH_COUNT
+    RESEARCH_COUNT=$(echo "$RESEARCH_FILES" | wc -l)
+    log INFO "发现 $RESEARCH_COUNT 个研究文件:"
+    while IFS= read -r file; do
+        log INFO "  - $(basename "$file")"
+    done <<< "$RESEARCH_FILES"
+    log INFO ""
+
+    # 构建可用研究文件列表（仅文件名，不加载内容）
+    local RESEARCH_FILE_LIST=""
+    while IFS= read -r file; do
+        if [[ -f "$file" ]]; then
+            RESEARCH_FILE_LIST="${RESEARCH_FILE_LIST}- \`$file\`\n"
+        fi
+    done <<< "$RESEARCH_FILES"
+
+    # 创建临时提示词文件（直接写入，避免 shell 解析）
+    local PROMPT_FILE
+    PROMPT_FILE=$(mktemp -t morty-plan-prompt.XXXXXX)
+
+    # 写入提示词头部（从文件读取）
+    cat "$PLAN_PROMPT" >> "$PROMPT_FILE"
+
+    # 写入动态部分
+    cat >> "$PROMPT_FILE" << EOF
+
+---
+
+# 当前运行状态
+
+**工作目录**: $(pwd)
+**Plan 目录**: $PLAN_DIR/
+**Research 目录**: $RESEARCH_DIR/
+**研究文件数量**: $RESEARCH_COUNT
+
+---
+
+# 可用研究文件
+
+以下研究文件包含事实性信息，请根据需要使用 Read 工具读取：
+
+$RESEARCH_FILE_LIST
+
+**说明**:
+- 以上文件是 Research 模式生成的研究结果
+- 请根据架构设计需要，选择性读取相关文件
+- 这些文件包含目录结构、核心功能、处理流程等事实性信息
+
+---
+
+# Plan 目录结构
+
+Plan 模式将在 $PLAN_DIR/ 目录下创建以下文件：
+- README.md - Plan 索引
+- [模块名].md - 各功能模块计划
+- [生产测试].md - 端到端测试计划
+
+---
+
+开始对话！请基于 Research 文件中的事实性信息进行架构设计，划分功能模块，创建 Plan 文件。
+EOF
+
+    log INFO "启动 Claude Code 交互式会话..."
+    log INFO ""
+    log INFO "Plan 模式将："
+    log INFO "  1. 根据需要读取 research 文件获取事实性信息"
+    log INFO "  2. 设计系统架构，划分功能模块"
+    log INFO "  3. 为每个模块创建 [模块名].md 文件"
+    log INFO "  4. 创建 [生产测试].md 端到端测试计划"
+    log INFO "  5. 生成 README.md 索引"
+    log INFO ""
+
+    log INFO "提示词已写入临时文件: $PROMPT_FILE"
+    log INFO ""
+
+    # 以 Plan 模式调用 ai_cli（交互式）
+    # 使用 stdin 重定向传递提示词，保持交互式运行
+    "$AI_CLI" --permission-mode plan < "$PROMPT_FILE"
+
+    local CLAUDE_EXIT_CODE=$?
+
+    # 清理临时文件
+    rm -f "$PROMPT_FILE"
+
+    log INFO ""
+    log INFO "Claude Code 退出码: $CLAUDE_EXIT_CODE"
+    log INFO ""
+
+    # 检查 plan 目录是否生成内容
+    if [[ -d "$PLAN_DIR" ]]; then
+        local PLAN_FILES
+        PLAN_FILES=$(find "$PLAN_DIR" -name "*.md" -type f 2>/dev/null || true)
+        if [[ -n "$PLAN_FILES" ]]; then
+            local PLAN_COUNT
+            PLAN_COUNT=$(echo "$PLAN_FILES" | wc -l)
+            log SUCCESS "Plan 文件已生成: $PLAN_COUNT 个"
+            while IFS= read -r file; do
+                log INFO "  - $(basename "$file")"
+            done <<< "$PLAN_FILES"
+            log INFO ""
+            log INFO "下一步:"
+            log INFO "  运行 'morty doing' 开始分层 TDD 开发"
+        else
+            log WARN "Plan 目录为空，可能没有生成文件"
+        fi
+    else
+        log WARN "Plan 目录未创建"
+    fi
+
+    log INFO ""
+    log SUCCESS "Plan 模式会话结束"
+
+    return $CLAUDE_EXIT_CODE
+}
+
 # ============================================================================
 # 系统初始化和命令注册
 # ============================================================================
@@ -373,10 +594,24 @@ handler_version() {
 cli_init_commands() {
     cli_debug "初始化命令注册表..."
 
+    # 注册 research 命令
+    cli_register_command \
+        "research" \
+        "$MORTY_HOME/bin/morty_research.sh" \
+        "启动研究流程" \
+        ""
+
+    # 注册 plan 命令
+    cli_register_command \
+        "plan" \
+        "handler_plan" \
+        "基于研究结果创建 TDD 开发计划" \
+        "-h --help"
+
     # 注册 doing 命令
     cli_register_command \
         "doing" \
-        "$MORTY_HOME/morty_doing.sh" \
+        "$MORTY_HOME/bin/morty_doing.sh" \
         "执行开发计划" \
         "--restart --module --job"
 
@@ -390,7 +625,7 @@ cli_init_commands() {
     # 注册 reset 命令
     cli_register_command \
         "reset" \
-        "$MORTY_HOME/morty_reset.sh" \
+        "$MORTY_HOME/bin/morty_reset.sh" \
         "版本管理和回滚" \
         "-l -c"
 
@@ -431,8 +666,8 @@ cli_check_dependencies() {
     # 检查必需的脚本
     local required_scripts=("morty_doing.sh" "morty_reset.sh")
     for script in "${required_scripts[@]}"; do
-        if [[ ! -f "$MORTY_HOME/$script" ]]; then
-            cli_warn "缺少必需脚本: $MORTY_HOME/$script"
+        if [[ ! -f "$MORTY_HOME/bin/$script" ]]; then
+            cli_warn "缺少必需脚本: $MORTY_HOME/bin/$script"
         fi
     done
 }
@@ -444,10 +679,10 @@ handler_stat() {
     # 检查 -w 监控模式
     if cli_has_option "-w"; then
         cli_verbose "进入监控模式"
-        exec "$MORTY_HOME/morty_stat.sh" -w
+        exec "$MORTY_HOME/bin/morty_stat.sh" -w
     else
         # 默认表格输出
-        exec "$MORTY_HOME/morty_stat.sh" -t
+        exec "$MORTY_HOME/bin/morty_stat.sh" -t
     fi
 }
 

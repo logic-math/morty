@@ -368,19 +368,19 @@ Task工具参数:
 ```json
 {
   "current": {
-    "module": "cli",
+    "module": "research",
     "job": "job_1",
     "status": "RUNNING",
     "loop_count": 1
   },
   "context": {
-    "completed_jobs_summary": [],
+    "completed_jobs_summary": ["cli/job_1: 完成 (5 tasks)","cli/job_2: 完成 (10 tasks)","cli/job_3: 完成 (7 tasks)","cli/job_4: 完成 (3 tasks)","cli/job_5: 完成 (3 tasks)","config/job_2: 完成 (4 tasks)","config/job_3: 完成 (5 tasks)","doing/job_1: 完成 (5 tasks)","doing/job_2: 完成 (5 tasks)","doing/job_3: 完成 (4 tasks)","doing/job_4: 完成 (5 tasks)","doing/job_5: 完成 (4 tasks)","doing/job_6: 完成 (5 tasks)","doing/job_7: 完成 (4 tasks)","install/job_1: 完成 (5 tasks)","install/job_2: 完成 (4 tasks)","install/job_3: 完成 (6 tasks)","install/job_4: 完成 (5 tasks)","install/job_5: 完成 (5 tasks)","install/job_6: 完成 (4 tasks)","install/job_7: 完成 (4 tasks)","logging/job_1: 完成 (5 tasks)","logging/job_2: 完成 (5 tasks)","logging/job_3: 完成 (5 tasks)","logging/job_4: 完成 (5 tasks)","plan/job_1: 完成 (7 tasks)","version_manager/job_1: 完成 (5 tasks)","version_manager/job_2: 完成 (5 tasks)","version_manager/job_3: 完成 (5 tasks)"],
     "current_job": {
       "name": "job_1",
       "description": "Job execution",
-      "tasks": ["创建 `morty` 主命令脚本","实现 `cli_register_command()`","实现 `cli_parse_args()`","实现 `cli_route()`","实现 `cli_execute()`"],
+      "tasks": ["创建 `morty_research.sh` 脚本","读取 `prompts/research.md` 作为系统提示词","从 config 获取 ai_cli 命令：`AI_CLI=$(config_get "cli.command" "claude")`","构建 Claude 命令参数：","以 Plan 模式调用：`$AI_CLI --permission-mode plan -p "$PROMPT"`","创建 `.morty/research/` 目录","验证输出目录是否生成内容："],
       "dependencies": [],
-      "validator": "输入 `morty doing` 应调用 `morty_doing.sh`"
+      "validator": "`morty research` 能够启动研究流程"
     }
   }
 }
@@ -390,24 +390,24 @@ Task工具参数:
 
 # 当前 Job 上下文
 
-**模块**: cli
+**模块**: research
 **Job**: job_1
-**当前 Task**: #1
-**Task 描述**: 创建 `morty` 主命令脚本
+**当前 Task**: #4
+**Task 描述**: 构建 Claude 命令参数：
 
 ## 任务列表
 
-- [ ] 创建 `morty` 主命令脚本\n- [ ] 实现 `cli_register_command()`\n- [ ] 实现 `cli_parse_args()`\n- [ ] 实现 `cli_route()`\n- [ ] 实现 `cli_execute()`\n
+- [ ] 创建 `morty_research.sh` 脚本\n- [ ] 读取 `prompts/research.md` 作为系统提示词\n- [ ] 从 config 获取 ai_cli 命令：`AI_CLI=$(config_get "cli.command" "claude")`\n- [ ] 构建 Claude 命令参数：\n- [ ] 以 Plan 模式调用：`$AI_CLI --permission-mode plan -p "$PROMPT"`\n- [ ] 创建 `.morty/research/` 目录\n- [ ] 验证输出目录是否生成内容：\n
 
 ## 验证器
 
-- 输入 `morty doing` 应调用 `morty_doing.sh`\n- 输入 `morty doing --restart --module config` 应传递所有参数\n- 输入 `morty stat` 应调用 `morty_stat.sh`\n- 输入 `morty stat -w` 应进入监控模式\n- 输入 `morty reset` 应调用 `morty_reset.sh`\n- 输入未知命令时应显示错误和帮助信息\n- 参数解析应正确处理选项和位置参数\n- 无\n
+- `morty research` 能够启动研究流程\n- 脚本从 config 读取 `cli.command` 作为 ai_cli 命令\n- 以 Plan 模式调用 ai_cli，传递系统提示词\n- 研究报告生成到 `.morty/research/[主题].md`\n- 无\n
 
 ## 执行指令
 
 请按照 Doing 模式的循环步骤执行：
 1. 读取精简上下文了解当前状态
-2. 执行当前 Task: 创建 `morty` 主命令脚本
+2. 执行当前 Task: 构建 Claude 命令参数：
 3. 如有问题，记录 debug_log
 4. 更新状态文件
 5. 输出 RALPH_STATUS

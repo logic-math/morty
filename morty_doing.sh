@@ -14,7 +14,7 @@ DOING_DIR="$MORTY_DIR/doing"
 DOING_LOGS="$DOING_DIR/logs"
 DOING_TESTS="$DOING_DIR/tests"
 CLAUDE_CMD="${CLAUDE_CODE_CLI:-ai_cli}"
-DOING_PROMPT="$SCRIPT_DIR/prompts/doing.md"
+DOING_PROMPT="$SCRIPT_DIR/../prompts/doing.md"
 
 # ============================================
 # 帮助和入口函数
@@ -713,6 +713,43 @@ doing_update_job_status() {
     log INFO "状态更新: $module/$job $current_status → $new_status"
 }
 
+# 重置 Job 状态（用于 --restart 选项）
+doing_reset_job_status() {
+    local module="$1"
+    local job="$2"
+
+    if ! command -v jq &> /dev/null; then
+        log WARN "jq 未安装，无法重置状态"
+        return 1
+    fi
+
+    if [[ ! -f "$STATUS_FILE" ]]; then
+        return 0
+    fi
+
+    local temp_file=$(mktemp)
+    local timestamp=$(get_iso_timestamp)
+
+    # 重置指定 job 的所有状态字段为初始值
+    jq --arg mod "$module" \
+       --arg job "$job" \
+       --arg ts "$timestamp" \
+       '.modules[$mod].jobs[$job].status = "PENDING" |
+        .modules[$mod].jobs[$job].started_at = "" |
+        .modules[$mod].jobs[$job].completed_at = "" |
+        .modules[$mod].jobs[$job].loop_count = 0 |
+        .modules[$mod].jobs[$job].retry_count = 0 |
+        .modules[$mod].jobs[$job].tasks_completed = 0 |
+        .modules[$mod].jobs[$job].error_count = 0 |
+        .modules[$mod].jobs[$job].interrupted = false |
+        .modules[$mod].jobs[$job].interrupted_at = "" |
+        .modules[$mod].jobs[$job].last_summary = "" |
+        .session.last_update = $ts' \
+       "$STATUS_FILE" > "$temp_file" && mv "$temp_file" "$STATUS_FILE"
+
+    log INFO "Job 状态已重置: $module/$job"
+}
+
 # 标记 Task 完成
 doing_mark_task_complete() {
     local module="$1"
@@ -1035,6 +1072,23 @@ doing_get_tasks_total() {
         "$STATUS_FILE" 2>/dev/null || echo "0"
 }
 
+# 获取 Job 的 tasks_completed
+# shellcheck disable=SC2317
+# Note: This function is used dynamically in doing_show_job_report and doing_generate_html_report
+doing_get_tasks_completed() {
+    local module="$1"
+    local job="$2"
+
+    if ! command -v jq &> /dev/null; then
+        echo "0"
+        return
+    fi
+
+    jq -r --arg mod "$module" --arg job "$job" \
+        '.modules[$mod].jobs[$job].tasks_completed // 0' \
+        "$STATUS_FILE" 2>/dev/null || echo "0"
+}
+
 # 获取当前 loop_count
 doing_get_loop_count() {
     local module="$1"
@@ -1307,6 +1361,12 @@ doing_resume_job() {
     local job="$2"
 
     log INFO "恢复 Job: $module/$job"
+
+    # 处理 --restart 选项：重置指定 job 的状态
+    if [[ "$OPTION_RESTART" == true ]]; then
+        log WARN "  --restart 选项已指定，重置 Job 状态: $module/$job"
+        doing_reset_job_status "$module" "$job"
+    fi
 
     local status=$(doing_get_job_status "$module" "$job")
 
@@ -1897,6 +1957,13 @@ doing_main() {
     # 解析命令行参数
     doing_parse_args "$@"
 
+    # 验证参数：--job 必须和 --module 一起使用
+    if [[ -n "$OPTION_JOB" && -z "$OPTION_MODULE" ]]; then
+        log ERROR "--job 选项必须与 --module 选项一起使用"
+        log ERROR "示例: morty doing --module research --job data-analysis"
+        exit 1
+    fi
+
     # 显示欢迎信息
     log INFO "╔════════════════════════════════════════════════════════════╗"
     log INFO "║              MORTY DOING 模式 - 分层 TDD 开发              ║"
@@ -1912,7 +1979,8 @@ doing_main() {
     doing_load_plan
 
     # 处理 --restart 选项
-    if [[ "$OPTION_RESTART" == true ]]; then
+    # 注意：如果同时指定了 --module 或 --job，则在 doing_resume_job 中单独重置指定 job 的状态
+    if [[ "$OPTION_RESTART" == true && -z "$OPTION_MODULE" && -z "$OPTION_JOB" ]]; then
         log WARN "--restart 选项已指定，重置所有状态"
         rm -f "$STATUS_FILE"
     fi

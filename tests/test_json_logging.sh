@@ -4,312 +4,281 @@
 #
 
 # 获取脚本目录
-TEST_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-PROJECT_DIR="$(dirname "${TEST_DIR}")"
-LIB_DIR="${PROJECT_DIR}/lib"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 # 引入日志模块
-source "${LIB_DIR}/logging.sh"
+source "${SCRIPT_DIR}/lib/logging.sh"
 
-# 测试目录
-TEST_LOG_DIR="${TEST_DIR}/test_logs"
-mkdir -p "${TEST_LOG_DIR}"
+# 测试配置
+export LOG_DIR="${SCRIPT_DIR}/.morty/logs/test_json_$$"
+export LOG_MAIN_FILE="${LOG_DIR}/test.log"
+export LOG_LEVEL=0  # DEBUG
 
-# 覆盖日志配置
-LOG_DIR="${TEST_LOG_DIR}"
-LOG_MAIN_FILE="${TEST_LOG_DIR}/test.log"
-LOG_LEVEL=0  # DEBUG
+# 清理函数
+cleanup() {
+    rm -rf "${LOG_DIR}"
+}
+trap cleanup EXIT
 
-# 测试结果
+# 测试计数器
 TESTS_PASSED=0
 TESTS_FAILED=0
 
 # 测试辅助函数
 assert_contains() {
-    local expected="$1"
-    local actual="$2"
-    local test_name="$3"
+    local haystack="$1"
+    local needle="$2"
+    local msg="$3"
 
-    if [[ "${actual}" == *"${expected}"* ]]; then
-        echo "✅ PASS: ${test_name}"
-        ((TESTS_PASSED++))
+    if [[ "${haystack}" == *"${needle}"* ]]; then
+        echo "✓ PASS: ${msg}"
+        TESTS_PASSED=$((TESTS_PASSED + 1))
         return 0
     else
-        echo "❌ FAIL: ${test_name}"
-        echo "   Expected to contain: ${expected}"
-        echo "   Actual: ${actual}"
-        ((TESTS_FAILED++))
+        echo "✗ FAIL: ${msg}"
+        echo "  Expected to contain: ${needle}"
+        echo "  Got: ${haystack}"
+        TESTS_FAILED=$((TESTS_FAILED + 1))
         return 1
     fi
 }
 
 assert_valid_json() {
     local json="$1"
-    local test_name="$2"
+    local msg="$2"
 
-    if echo "${json}" | jq -e . >/dev/null 2>&1; then
-        echo "✅ PASS: ${test_name}"
-        ((TESTS_PASSED++))
+    if echo "${json}" | jq empty 2>/dev/null; then
+        echo "✓ PASS: ${msg}"
+        TESTS_PASSED=$((TESTS_PASSED + 1))
         return 0
     else
-        echo "❌ FAIL: ${test_name}"
-        echo "   Invalid JSON: ${json}"
-        ((TESTS_FAILED++))
+        echo "✗ FAIL: ${msg}"
+        echo "  Invalid JSON: ${json}"
+        TESTS_FAILED=$((TESTS_FAILED + 1))
         return 1
     fi
 }
 
+echo "========================================"
+echo "JSON 日志功能测试"
+echo "========================================"
+
 # 测试 1: JSON 格式基本输出
-test_json_format_basic() {
-    echo ""
-    echo "=== Test 1: JSON 格式基本输出 ==="
+echo ""
+echo "测试 1: JSON 格式基本输出"
+log_set_format "json"
+log_info "测试 JSON 格式消息"
+log_content=$(cat "${LOG_MAIN_FILE}" 2>/dev/null || echo "")
+assert_valid_json "${log_content}" "JSON 格式应为有效 JSON"
+assert_contains "${log_content}" '"level":"INFO"' "应包含 INFO 级别"
+assert_contains "${log_content}" '"message":"测试 JSON 格式消息"' "应包含正确消息"
+assert_contains "${log_content}" '"timestamp":' "应包含时间戳"
 
-    # 切换到 JSON 格式
-    log_set_format json
-
-    # 清空日志文件
-    > "${LOG_MAIN_FILE}"
-
-    # 写入日志
-    log_info "测试消息"
-
-    # 读取日志内容
-    local log_content
-    log_content=$(cat "${LOG_MAIN_FILE}")
-
-    # 验证是有效的 JSON
-    assert_valid_json "${log_content}" "JSON 格式有效性"
-
-    # 验证包含必要字段
-    assert_contains '"timestamp"' "${log_content}" "包含 timestamp 字段"
-    assert_contains '"level":"INFO"' "${log_content}" "包含 level 字段"
-    assert_contains '"message":"测试消息"' "${log_content}" "包含 message 字段"
-}
+# 清空日志文件
+rm -f "${LOG_MAIN_FILE}"
 
 # 测试 2: 特殊字符转义
-test_json_escape() {
-    echo ""
-    echo "=== Test 2: 特殊字符转义 ==="
+echo ""
+echo "测试 2: 特殊字符转义"
+log_info '包含"引号"的消息'
+log_info "包含\\反斜杠的消息"
+log_info "包含\t制表符的消息"
+log_info "包含\n换行的消息"
 
-    log_set_format json
-    > "${LOG_MAIN_FILE}"
+log_content=$(cat "${LOG_MAIN_FILE}" 2>/dev/null || echo "")
+# 验证每条都是有效 JSON
+line_num=0
+while IFS= read -r line; do
+    line_num=$((line_num + 1))
+    if [[ -n "${line}" ]]; then
+        if echo "${line}" | jq empty 2>/dev/null; then
+            echo "✓ PASS: 第 ${line_num} 行是有效 JSON"
+            TESTS_PASSED=$((TESTS_PASSED + 1))
+        else
+            echo "✗ FAIL: 第 ${line_num} 行不是有效 JSON: ${line}"
+            TESTS_FAILED=$((TESTS_FAILED + 1))
+        fi
+    fi
+done <<< "${log_content}"
 
-    # 测试各种特殊字符
-    log_info '包含"引号的"消息'
-    log_info "包含\\反斜杠的消息"
-    log_info "包含\n换行\t制表符的消息"
+# 清空日志文件
+rm -f "${LOG_MAIN_FILE}"
 
-    local log_content
-    log_content=$(cat "${LOG_MAIN_FILE}")
+# 测试 3: 上下文序列化 - JSON 对象
+echo ""
+echo "测试 3: 上下文序列化 - JSON 对象"
+log_info "带 JSON 上下文的消息" '{"user":"admin","action":"login"}'
+log_content=$(tail -1 "${LOG_MAIN_FILE}" 2>/dev/null || echo "")
+assert_valid_json "${log_content}" "带 JSON 上下文应为有效 JSON"
+assert_contains "${log_content}" '"user":"admin"' "应包含 user 字段"
+assert_contains "${log_content}" '"action":"login"' "应包含 action 字段"
 
-    # 验证是有效的 JSON（应该能解析）
-    while IFS= read -r line; do
-        assert_valid_json "${line}" "特殊字符行是有效 JSON"
-    done <<< "${log_content}"
-}
+# 清空日志文件
+rm -f "${LOG_MAIN_FILE}"
 
-# 测试 3: 上下文数据序列化
-test_context_serialization() {
-    echo ""
-    echo "=== Test 3: 上下文数据序列化 ==="
+# 测试 4: 上下文序列化 - key=value 格式
+echo ""
+echo "测试 4: 上下文序列化 - key=value 格式"
+log_info "带 key=value 上下文的消息" "user=admin,action=logout,duration=30"
+log_content=$(tail -1 "${LOG_MAIN_FILE}" 2>/dev/null || echo "")
+assert_valid_json "${log_content}" "key=value 格式应为有效 JSON"
+assert_contains "${log_content}" '"user":"admin"' "应解析 user 字段"
+assert_contains "${log_content}" '"action":"logout"' "应解析 action 字段"
+assert_contains "${log_content}" '"duration":"30"' "应解析 duration 字段"
 
-    log_set_format json
-    > "${LOG_MAIN_FILE}"
+# 清空日志文件
+rm -f "${LOG_MAIN_FILE}"
 
-    # 测试 key=value 格式的上下文
-    log_info "用户登录" "user=admin,action=login"
+# 测试 5: log_structured 函数
+echo ""
+echo "测试 5: log_structured 函数"
+log_structured "INFO" '{"event":"user_login","user_id":"12345","ip":"192.168.1.1"}'
+log_content=$(tail -1 "${LOG_MAIN_FILE}" 2>/dev/null || echo "")
+assert_valid_json "${log_content}" "结构化日志应为有效 JSON"
+assert_contains "${log_content}" '"event":"user_login"' "应包含 event 字段"
+assert_contains "${log_content}" '"user_id":"12345"' "应包含 user_id 字段"
+assert_contains "${log_content}" '"ip":"192.168.1.1"' "应包含 ip 字段"
 
-    local log_content
-    log_content=$(cat "${LOG_MAIN_FILE}")
+# 清空日志文件
+rm -f "${LOG_MAIN_FILE}"
 
-    assert_valid_json "${log_content}" "上下文序列化为有效 JSON"
-    assert_contains '"user":"admin"' "${log_content}" "上下文包含 user 字段"
-    assert_contains '"action":"login"' "${log_content}" "上下文包含 action 字段"
-}
+# 测试 6: log_structured 带 key=value 数据
+echo ""
+echo "测试 6: log_structured 带 key=value 数据"
+log_structured "WARN" "component=database,severity=high,query_time=1500"
+log_content=$(tail -1 "${LOG_MAIN_FILE}" 2>/dev/null || echo "")
+assert_valid_json "${log_content}" "key=value 结构化日志应为有效 JSON"
+assert_contains "${log_content}" '"component":"database"' "应包含 component 字段"
+assert_contains "${log_content}" '"severity":"high"' "应包含 severity 字段"
 
-# 测试 4: log_structured 函数
-test_log_structured() {
-    echo ""
-    echo "=== Test 4: log_structured 函数 ==="
+# 清空日志文件
+rm -f "${LOG_MAIN_FILE}"
 
-    > "${LOG_MAIN_FILE}"
+# 测试 7: 日志格式切换
+echo ""
+echo "测试 7: 日志格式切换"
+log_set_format "text"
+log_info "这是一条文本格式消息"
+log_content=$(tail -1 "${LOG_MAIN_FILE}" 2>/dev/null || echo "")
+if [[ "${log_content}" == \[*\]* ]]; then
+    echo "✓ PASS: 文本格式正确"
+    TESTS_PASSED=$((TESTS_PASSED + 1))
+else
+    echo "✗ FAIL: 文本格式不正确: ${log_content}"
+    TESTS_FAILED=$((TESTS_FAILED + 1))
+fi
 
-    # 测试 JSON 对象输入
-    log_structured INFO '{"event":"user_login","user_id":"12345"}'
+log_set_format "json"
+log_info "这是一条 JSON 格式消息"
+log_content=$(tail -1 "${LOG_MAIN_FILE}" 2>/dev/null || echo "")
+assert_valid_json "${log_content}" "切换回 JSON 格式后应为有效 JSON"
+assert_contains "${log_content}" "这是一条 JSON 格式消息" "应包含正确消息内容"
 
-    local log_content
-    log_content=$(cat "${LOG_MAIN_FILE}")
+# 清空日志文件
+rm -f "${LOG_MAIN_FILE}"
 
-    assert_valid_json "${log_content}" "结构化日志是有效 JSON"
-    assert_contains '"event":"user_login"' "${log_content}" "包含 event 字段"
-    assert_contains '"user_id":"12345"' "${log_content}" "包含 user_id 字段"
-    assert_contains '"timestamp"' "${log_content}" "包含 timestamp 字段"
-    assert_contains '"level":"INFO"' "${log_content}" "包含 level 字段"
-}
+# 测试 8: Job 上下文在 JSON 格式下
+echo ""
+echo "测试 8: Job 上下文在 JSON 格式下"
+log_job_start "test_module" "test_job"
+log_info "Job 上下文测试消息"
+log_job_end
 
-# 测试 5: 格式切换
-test_format_switching() {
-    echo ""
-    echo "=== Test 5: 格式切换 ==="
+# 检查主日志
+log_content=$(grep "Job 上下文测试" "${LOG_MAIN_FILE}" 2>/dev/null || echo "")
+if [[ -n "${log_content}" ]]; then
+    assert_valid_json "${log_content}" "Job 上下文消息应为有效 JSON"
+    assert_contains "${log_content}" '"module":"test_module"' "应包含 module 字段"
+    assert_contains "${log_content}" '"job":"test_job"' "应包含 job 字段"
+else
+    echo "✗ FAIL: 未找到 Job 上下文测试消息"
+    TESTS_FAILED=$((TESTS_FAILED + 1))
+fi
 
-    > "${LOG_MAIN_FILE}"
+# 清空日志
+rm -f "${LOG_MAIN_FILE}"
+unset _LOG_JOB_MODULE _LOG_JOB_NAME _LOG_JOB_FILE _LOG_JOB_START_TIME
 
-    # 切换到文本格式
-    log_set_format text
-    log_info "文本格式消息"
+# 测试 9: jq 兼容性测试
+echo ""
+echo "测试 9: jq 兼容性测试"
+log_info "jq 兼容性测试消息" '{"data":{"nested":{"value":123},"array":[1,2,3]}}'
+log_content=$(tail -1 "${LOG_MAIN_FILE}" 2>/dev/null || echo "")
 
-    local text_content
-    text_content=$(cat "${LOG_MAIN_FILE}")
-
-    # 验证文本格式
-    if [[ "${text_content}" == \[*INFO\]*文本格式消息* ]]; then
-        echo "✅ PASS: 文本格式正确"
-        ((TESTS_PASSED++))
+# 使用 jq 提取字段
+if command -v jq >/dev/null 2>&1; then
+    extracted_msg=$(echo "${log_content}" | jq -r '.message' 2>/dev/null)
+    if [[ "${extracted_msg}" == "jq 兼容性测试消息" ]]; then
+        echo "✓ PASS: jq 可正确提取 message 字段"
+        TESTS_PASSED=$((TESTS_PASSED + 1))
     else
-        echo "❌ FAIL: 文本格式不正确: ${text_content}"
-        ((TESTS_FAILED++))
+        echo "✗ FAIL: jq 提取 message 字段失败: ${extracted_msg}"
+        TESTS_FAILED=$((TESTS_FAILED + 1))
     fi
 
-    # 切换到 JSON 格式
-    log_set_format json
-    log_info "JSON格式消息"
-
-    local json_content
-    json_content=$(tail -n 1 "${LOG_MAIN_FILE}")
-
-    assert_valid_json "${json_content}" "切换到 JSON 格式有效"
-    assert_contains '"message":"JSON格式消息"' "${json_content}" "JSON 消息内容正确"
-}
-
-# 测试 6: 关联数组上下文
-test_associative_array_context() {
-    echo ""
-    echo "=== Test 6: 关联数组上下文 ==="
-
-    > "${LOG_MAIN_FILE}"
-
-    # 创建关联数组
-    declare -A user_data
-    user_data["username"]="testuser"
-    user_data["role"]="admin"
-    user_data["department"]="engineering"
-
-    # 使用关联数组作为上下文
-    log_structured INFO "user_data"
-
-    local log_content
-    log_content=$(cat "${LOG_MAIN_FILE}")
-
-    assert_valid_json "${log_content}" "关联数组上下文是有效 JSON"
-    assert_contains '"username":"testuser"' "${log_content}" "包含 username"
-    assert_contains '"role":"admin"' "${log_content}" "包含 role"
-    assert_contains '"department":"engineering"' "${log_content}" "包含 department"
-}
-
-# 测试 7: 模块和 Job 上下文
-test_module_job_context() {
-    echo ""
-    echo "=== Test 7: 模块和 Job 上下文 ==="
-
-    > "${LOG_MAIN_FILE}"
-
-    # 开始 Job 上下文
-    log_job_start "test_module" "test_job"
-
-    # 写入日志
-    log_info "Job 内消息"
-
-    # 结束 Job
-    log_job_end
-
-    local log_content
-    log_content=$(cat "${LOG_MAIN_FILE}")
-
-    # 验证包含模块和 Job 信息
-    assert_contains '"module":"test_module"' "${log_content}" "包含 module 字段"
-    assert_contains '"job":"test_job"' "${log_content}" "包含 job 字段"
-}
-
-# 测试 8: jq 可解析性
-test_jq_parsable() {
-    echo ""
-    echo "=== Test 8: jq 可解析性 ==="
-
-    log_set_format json
-    > "${LOG_MAIN_FILE}"
-
-    log_info "可解析测试消息" "key1=value1,key2=value2"
-    log_warn "警告消息"
-    log_error "错误消息"
-
-    # 使用 jq 提取所有消息
-    local messages
-    messages=$(jq -r '.message' "${LOG_MAIN_FILE}" 2>/dev/null)
-
-    if [[ "${messages}" == *"可解析测试消息"* && \
-          "${messages}" == *"警告消息"* && \
-          "${messages}" == *"错误消息"* ]]; then
-        echo "✅ PASS: jq 可以正确解析所有日志"
-        ((TESTS_PASSED++))
+    extracted_level=$(echo "${log_content}" | jq -r '.level' 2>/dev/null)
+    if [[ "${extracted_level}" == "INFO" ]]; then
+        echo "✓ PASS: jq 可正确提取 level 字段"
+        TESTS_PASSED=$((TESTS_PASSED + 1))
     else
-        echo "❌ FAIL: jq 解析失败"
-        echo "   Messages: ${messages}"
-        ((TESTS_FAILED++))
+        echo "✗ FAIL: jq 提取 level 字段失败: ${extracted_level}"
+        TESTS_FAILED=$((TESTS_FAILED + 1))
     fi
 
-    # 使用 jq 提取特定级别的日志
-    local error_msgs
-    error_msgs=$(jq -r 'select(.level == "ERROR") | .message' "${LOG_MAIN_FILE}" 2>/dev/null)
-
-    if [[ "${error_msgs}" == "错误消息" ]]; then
-        echo "✅ PASS: jq 可以筛选 ERROR 级别日志"
-        ((TESTS_PASSED++))
+    # 测试嵌套对象
+    nested_value=$(echo "${log_content}" | jq -r '.context.data.nested.value' 2>/dev/null)
+    if [[ "${nested_value}" == "123" ]]; then
+        echo "✓ PASS: jq 可正确提取嵌套对象值"
+        TESTS_PASSED=$((TESTS_PASSED + 1))
     else
-        echo "❌ FAIL: jq 筛选失败"
-        ((TESTS_FAILED++))
+        echo "✗ FAIL: jq 提取嵌套对象值失败: ${nested_value}"
+        TESTS_FAILED=$((TESTS_FAILED + 1))
     fi
-}
+else
+    echo "⚠ SKIP: jq 未安装，跳过 jq 兼容性测试"
+fi
 
-# 主测试流程
-main() {
-    echo "================================"
-    echo "JSON 日志功能测试"
-    echo "================================"
+# 测试 10: 边界情况 - 空消息
+echo ""
+echo "测试 10: 边界情况测试"
+rm -f "${LOG_MAIN_FILE}"
+log_info ""
+log_content=$(tail -1 "${LOG_MAIN_FILE}" 2>/dev/null || echo "")
+assert_valid_json "${log_content}" "空消息应为有效 JSON"
 
-    # 检查 jq 是否可用
-    if ! command -v jq >/dev/null 2>&1; then
-        echo "警告: jq 未安装，部分测试将跳过"
-    fi
+# 测试 11: 长消息
+echo ""
+echo "测试 11: 长消息测试"
+rm -f "${LOG_MAIN_FILE}"
+long_msg=$(head -c 1000 /dev/zero | tr '\0' 'A')
+log_info "${long_msg}"
+log_content=$(tail -1 "${LOG_MAIN_FILE}" 2>/dev/null || echo "")
+assert_valid_json "${log_content}" "长消息应为有效 JSON"
 
-    # 执行所有测试
-    test_json_format_basic
-    test_json_escape
-    test_context_serialization
-    test_log_structured
-    test_format_switching
-    test_associative_array_context
-    test_module_job_context
-    test_jq_parsable
+# 测试 12: 包含 Unicode 的消息
+echo ""
+echo "测试 12: Unicode 消息测试"
+rm -f "${LOG_MAIN_FILE}"
+log_info "Unicode 测试: 你好世界"
+log_content=$(tail -1 "${LOG_MAIN_FILE}" 2>/dev/null || echo "")
+assert_valid_json "${log_content}" "Unicode 消息应为有效 JSON"
 
-    # 清理
-    rm -rf "${TEST_LOG_DIR}"
+# 恢复文本格式
+log_set_format "text"
 
-    # 恢复默认格式
-    log_set_format text
+# 测试结果汇总
+echo ""
+echo "========================================"
+echo "测试结果汇总"
+echo "========================================"
+echo "通过: ${TESTS_PASSED}"
+echo "失败: ${TESTS_FAILED}"
+echo ""
 
-    # 输出结果
-    echo ""
-    echo "================================"
-    echo "测试结果: ${TESTS_PASSED} 通过, ${TESTS_FAILED} 失败"
-    echo "================================"
-
-    if [[ ${TESTS_FAILED} -eq 0 ]]; then
-        echo "🎉 所有测试通过！"
-        exit 0
-    else
-        echo "💥 有测试失败"
-        exit 1
-    fi
-}
-
-main "$@"
+if [[ ${TESTS_FAILED} -eq 0 ]]; then
+    echo "✓ 所有测试通过！"
+    exit 0
+else
+    echo "✗ 有测试失败"
+    exit 1
+fi

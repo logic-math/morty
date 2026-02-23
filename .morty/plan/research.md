@@ -38,20 +38,16 @@
 **前置条件**: cli, config 模块完成
 
 **Tasks (Todo 列表)**:
-- [ ] 创建 `morty_research.sh` 脚本
-- [ ] 读取 `prompts/research.md` 作为系统提示词
-- [ ] 从 config 获取 ai_cli 命令：`AI_CLI=$(config_get "cli.command" "claude")`
-- [ ] 构建 Claude 命令参数：
+- [x] 创建 `morty_research.sh` 脚本
+- [x] 读取 `prompts/research.md` 作为系统提示词
+- [x] 从 config 获取 ai_cli 命令：`AI_CLI=$(config_get "cli.command" "claude")`
+- [x] 构建 Claude 命令参数：
   ```bash
-  CLAUDE_ARGS=(
-      "$AI_CLI"
-      "--dangerously-skip-permissions"
-      "--allowedTools" "Read" "Write" "Glob" "Grep" "WebSearch" "WebFetch" "Edit" "Task"
-  )
+  CLAUDE_CMD="$AI_CLI --permission-mode plan"
   ```
-- [ ] 以 Plan 模式调用：`$AI_CLI --permission-mode plan -p "$PROMPT"`
-- [ ] 创建 `.morty/research/` 目录
-- [ ] 验证输出目录是否生成内容：
+- [x] 以 Plan 模式调用：`$AI_CLI --permission-mode plan -p "$PROMPT"`
+- [x] 创建 `.morty/research/` 目录
+- [x] 验证输出目录是否生成内容：
   ```bash
   if [[ -d "$RESEARCH_DIR" ]]; then
       RESEARCH_FILES=$(find "$RESEARCH_DIR" -name "*.md" -type f 2>/dev/null || true)
@@ -70,7 +66,7 @@
 - 研究报告生成到 `.morty/research/[主题].md`
 
 **调试日志**:
-- 无
+- explore1: [探索发现] morty_research.sh 已存在于根目录和 bin/ 目录, prompts/research.md 已存在, config_get 定义在 lib/config.sh, research 命令未在主 morty 脚本中注册, 已记录
 
 ---
 

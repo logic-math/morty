@@ -14,7 +14,7 @@ config_load 2>/dev/null || true
 AI_CLI=$(config_get "cli.command" "claude")
 
 # 配置
-PLAN_PROMPT="$SCRIPT_DIR/prompts/plan.md"
+PLAN_PROMPT="$SCRIPT_DIR/../prompts/plan.md"
 MORTY_DIR=".morty"
 PLAN_DIR="$MORTY_DIR/plan"
 RESEARCH_DIR="$MORTY_DIR/research"
