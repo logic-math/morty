@@ -415,6 +415,7 @@ _git_clean_untracked_files() {
     fi
 
     return 0
+}
 
 # 回滚到指定循环
 # Args:

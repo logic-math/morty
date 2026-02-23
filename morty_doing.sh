@@ -3,7 +3,8 @@
 # 取代原有的 Loop 模式，支持 Job 级执行和断点恢复
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-source "$SCRIPT_DIR/lib/common.sh"
+MORTY_HOME="$(dirname "$SCRIPT_DIR")"
+source "$MORTY_HOME/lib/common.sh"
 
 # 版本和配置
 VERSION="2.0"

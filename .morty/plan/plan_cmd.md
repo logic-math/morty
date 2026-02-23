@@ -1,0 +1,300 @@
+# Plan: Plan Command
+
+## 模块概述
+
+**模块职责**: 实现 `morty plan` 命令，启动交互式规划模式，基于研究结果生成分层 TDD 开发计划
+
+**对应 Research**:
+- `plan-mode-design.md` - Plan 模式详细设计
+- `morty-project-research.md` 第 11 节 重构设计：新架构 research → plan → doing
+
+**依赖模块**: Config, Logging, Parser, Call CLI
+
+**被依赖模块**: 无（顶层交互命令）
+
+---
+
+## 命令行接口
+
+### 用法
+
+```bash
+# 启动规划模式
+morty plan
+
+# 强制重新生成（覆盖已有 Plan）
+morty plan --force
+```
+
+### 工作流程
+
+```
+1. 检查 .morty/plan/ 目录
+   └─ 已存在且非空时提示是否覆盖（除非 --force）
+
+2. 检查 .morty/research/ 目录
+   └─ 存在 → 加载所有研究文件作为事实输入
+   └─ 不存在 → 提示 "将通过对话理解需求"
+
+3. 加载 prompts/plan.md 作为系统提示词
+
+4. 调用 Claude Code Plan 模式
+   └─ claude --permission-mode plan -p "$(cat prompts/plan.md)"
+
+5. 用户与 Claude 交互完成架构设计
+
+6. 确认后生成 .morty/plan/ 文件
+   ├─ README.md - Plan 索引
+   ├─ [模块A].md - 模块 A 计划
+   ├─ [模块B].md - 模块 B 计划
+   └─ [生产测试].md - 端到端测试计划
+```
+
+---
+
+## 数据模型
+
+```go
+// PlanHandler plan 命令处理器
+type PlanHandler struct {
+    config        config.Manager
+    logger        logging.Logger
+    parserFactory parser.Factory
+    cliCaller     callcli.AICliCaller
+}
+
+// PlanOptions plan 命令选项
+type PlanOptions struct {
+    Force bool
+}
+
+// PlanResult 规划结果
+type PlanResult struct {
+    Modules      []string
+    TotalJobs    int
+    OutputDir    string
+    Timestamp    time.Time
+}
+```
+
+---
+
+## 接口定义
+
+### 输入接口
+- 命令行参数: `morty plan [--force]`
+- 输入文件: `.morty/research/*.md`（可选）
+- 环境变量: `CLAUDE_CODE_CLI`
+
+### 输出接口
+- 返回码: 0=成功, 1=失败
+- 输出目录: `.morty/plan/`
+
+---
+
+## Jobs (Loop 块列表)
+
+---
+
+### Job 1: plan 命令框架
+
+**目标**: 实现 plan 命令的基础框架
+
+**前置条件**:
+- Config 模块完成
+- Logging 模块完成
+- Plan Parser 模块完成
+
+**Tasks (Todo 列表)**:
+- [ ] Task 1: 创建 `internal/cmd/plan.go` 文件
+- [ ] Task 2: 实现 `PlanHandler` 结构体
+- [ ] Task 3: 实现 `NewPlanHandler(cfg, logger, parser)` 构造函数
+- [ ] Task 4: 实现 `Execute(ctx, args) error` 方法
+- [ ] Task 5: 解析 `--force` 选项
+- [ ] Task 6: 检查并创建 `.morty/plan/` 目录
+- [ ] Task 7: 检查已有 Plan 文件是否存在
+- [ ] Task 8: 编写单元测试 `plan_test.go`
+
+**验证器**:
+- [ ] 无 `--force` 时，已有 Plan 文件提示确认
+- [ ] `--force` 时直接覆盖
+- [ ] 自动创建 `.morty/plan/` 目录
+- [ ] 返回正确的 PlanResult
+- [ ] 所有单元测试通过 (覆盖率 >= 80%)
+
+**调试日志**:
+- 待填充
+
+---
+
+### Job 2: 研究文件加载
+
+**目标**: 加载已有研究文件作为事实输入
+
+**前置条件**:
+- Job 1 完成
+
+**Tasks (Todo 列表)**:
+- [ ] Task 1: 实现 `loadResearchFacts() ([]string, error)`
+- [ ] Task 2: 扫描 `.morty/research/` 目录
+- [ ] Task 3: 读取所有 `.md` 文件内容
+- [ ] Task 4: 按文件名排序
+- [ ] Task 5: 无研究文件时给出提示
+- [ ] Task 6: 将研究内容格式化为提示词输入
+- [ ] Task 7: 编写单元测试
+
+**验证器**:
+- [ ] 正确读取所有研究文件
+- [ ] 文件内容按顺序组合
+- [ ] 无研究文件时返回空列表并提示
+- [ ] 损坏文件时返回错误
+- [ ] 所有单元测试通过 (覆盖率 >= 80%)
+
+**调试日志**:
+- 待填充
+
+---
+
+### Job 3: Claude Code 调用实现
+
+**目标**: 实现调用 Claude Code Plan 模式
+
+**前置条件**:
+- Job 2 完成
+
+**Tasks (Todo 列表)**:
+- [ ] Task 1: 实现 `loadPlanPrompt() string` 加载系统提示词
+- [ ] Task 2: 实现 `buildClaudeCommand(prompt, facts) []string`
+- [ ] Task 3: 构建包含研究事实的完整提示词
+- [ ] Task 4: 使用 `os/exec` 执行 Claude Code
+- [ ] Task 5: 以 Plan 模式启动 (`--permission-mode plan`)
+- [ ] Task 6: 处理执行错误和退出码
+- [ ] Task 7: 记录执行日志
+- [ ] Task 8: 编写单元测试
+
+**验证器**:
+- [ ] 正确读取 `prompts/plan.md`
+- [ ] 研究事实正确嵌入提示词
+- [ ] 构建正确的 Claude Code 命令
+- [ ] 以 Plan 模式启动
+- [ ] 执行失败时返回错误
+- [ ] 所有单元测试通过 (覆盖率 >= 80%)
+
+**调试日志**:
+- 待填充
+
+---
+
+### Job 4: Plan 文件验证
+
+**目标**: 验证生成的 Plan 文件
+
+**前置条件**:
+- Job 3 完成
+
+**Tasks (Todo 列表)**:
+- [ ] Task 1: 实现 `validatePlanResult() error`
+- [ ] Task 2: 检查 `README.md` 是否存在
+- [ ] Task 3: 检查至少有一个模块 Plan 文件
+- [ ] Task 4: 使用 Plan Parser 验证文件格式
+- [ ] Task 5: 统计模块数和 Jobs 数
+- [ ] Task 6: 输出 Plan 摘要
+- [ ] Task 7: 提示下一步操作（运行 `morty doing`）
+- [ ] Task 8: 编写单元测试
+
+**验证器**:
+- [ ] README.md 存在且格式正确
+- [ ] 至少有一个 [模块].md 文件
+- [ ] 所有 Plan 文件可被正确解析
+- [ ] 成功时提示用户运行 `morty doing`
+- [ ] 失败时给出友好错误提示
+- [ ] 所有单元测试通过 (覆盖率 >= 80%)
+
+**调试日志**:
+- 待填充
+
+---
+
+## 集成测试
+
+**触发条件**: 模块内所有 Jobs 完成
+
+**验证器**:
+- [ ] 完整的 plan 流程: 检查 → 加载研究 → 规划 → 生成文件
+- [ ] 无研究文件时也能正常工作
+- [ ] `--force` 正确覆盖已有 Plan
+- [ ] 生成的 Plan 文件可被 Plan Parser 正确解析
+- [ ] 集成测试通过 (覆盖率 >= 80%)
+
+**调试日志**:
+- 待填充
+
+---
+
+## 文件清单
+
+- `internal/cmd/plan.go` - plan 命令实现
+- `prompts/plan.md` - plan 模式系统提示词
+- `.morty/plan/README.md` - Plan 索引（生成）
+- `.morty/plan/[模块].md` - 模块计划（生成）
+- `.morty/plan/[生产测试].md` - 端到端测试计划（生成）
+
+---
+
+## 使用示例
+
+```bash
+# 示例 1: 首次规划
+$ morty plan
+检查研究文件...
+找到 2 个研究文件:
+  - morty-architecture.md
+  - morty-cli-design.md
+
+正在启动规划模式...
+提示词: prompts/plan.md
+
+[Claude Code Plan 模式启动，用户交互规划]
+
+规划完成！
+生成 Plan 文件:
+  - .morty/plan/README.md
+  - .morty/plan/cli.md (3 Jobs)
+  - .morty/plan/config.md (3 Jobs)
+  - .morty/plan/logging.md (4 Jobs)
+  - .morty/plan/state.md (3 Jobs)
+  - .morty/plan/git.md (3 Jobs)
+  - .morty/plan/plan_parser.md (2 Jobs)
+  - .morty/plan/executor.md (4 Jobs)
+  - .morty/plan/生产测试.md (2 Jobs)
+
+总计: 8 个模块, 27 个 Jobs
+
+下一步: 运行 `morty doing` 开始执行
+```
+
+```bash
+# 示例 2: 强制重新生成
+$ morty plan
+发现已有 Plan 文件，是否覆盖? [y/N]: n
+取消操作。
+
+$ morty plan --force
+强制重新生成 Plan...
+[Claude Code Plan 模式启动]
+规划完成！
+```
+
+```bash
+# 示例 3: 无研究文件
+$ morty plan
+未找到研究文件，将通过对话理解需求。
+
+正在启动规划模式...
+提示词: prompts/plan.md
+
+[Claude Code Plan 模式启动]
+
+规划完成！
+生成 Plan 文件: ...
+```

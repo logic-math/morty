@@ -4,8 +4,9 @@
 set -e
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-source "$SCRIPT_DIR/lib/common.sh"
-source "$SCRIPT_DIR/lib/git_manager.sh"
+MORTY_HOME="$(dirname "$SCRIPT_DIR")"
+source "$MORTY_HOME/lib/common.sh"
+source "$MORTY_HOME/lib/git_manager.sh"
 
 # 配置
 MORTY_DIR=".morty"
@@ -266,7 +267,7 @@ done
 if [[ "$SHOW_STATUS" == true ]]; then
     show_status
 elif [[ "$SHOW_LIST" == true ]]; then
-    show_loop_history "$LIST_LIMIT"
+    git_show_loop_history "$LIST_LIMIT"
 elif [[ -n "$COMMIT_ID" ]]; then
     reset_to_commit "$COMMIT_ID"
 else

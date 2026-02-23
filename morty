@@ -650,21 +650,23 @@ cli_init_commands() {
 cli_check_dependencies() {
     cli_debug "检查依赖..."
 
-    # 检查 MORTY_HOME
-    if [[ ! -d "$MORTY_HOME" ]]; then
-        # 尝试使用脚本所在目录
-        local script_dir
-        script_dir=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
-        if [[ -f "$script_dir/morty_doing.sh" ]]; then
-            MORTY_HOME="$script_dir"
-            cli_debug "设置 MORTY_HOME=$MORTY_HOME"
-        else
-            cli_warn "MORTY_HOME 目录不存在: $MORTY_HOME"
-        fi
+    # 检测脚本所在目录
+    local script_dir
+    script_dir=$(cd "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")" && pwd)
+
+    # 优先使用脚本所在目录作为 MORTY_HOME（如果包含 bin/ 子目录和必需脚本）
+    if [[ -d "$script_dir/bin" ]] && [[ -f "$script_dir/bin/morty_doing.sh" ]]; then
+        MORTY_HOME="$script_dir"
+        cli_debug "设置 MORTY_HOME=$MORTY_HOME (项目目录)"
+    elif [[ ! -d "$MORTY_HOME" ]]; then
+        # 尝试使用脚本所在目录作为回退
+        MORTY_HOME="$script_dir"
+        cli_debug "设置 MORTY_HOME=$MORTY_HOME (脚本目录)"
+        cli_warn "MORTY_HOME 目录不存在: $MORTY_HOME"
     fi
 
     # 检查必需的脚本
-    local required_scripts=("morty_doing.sh" "morty_reset.sh")
+    local required_scripts=("morty_doing.sh" "morty_reset.sh" "morty_stat.sh")
     for script in "${required_scripts[@]}"; do
         if [[ ! -f "$MORTY_HOME/bin/$script" ]]; then
             cli_warn "缺少必需脚本: $MORTY_HOME/bin/$script"

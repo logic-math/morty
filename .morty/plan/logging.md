@@ -1,164 +1,199 @@
-# Plan: logging
+# Plan: Logging
 
 ## 模块概述
 
-**模块职责**: 提供统一的日志管理系统，支持多级别日志、结构化日志输出和日志轮转，解决原有日志分散在多个文件的问题。
+**模块职责**: 实现结构化日志系统，支持多级别日志、日志轮转和 Job 上下文追踪
 
-**对应 Research**: [重构机会] 日志系统分散，建议统一日志管理
+**对应 Research**:
+- `morty-go-refactor-plan.md` 第 4.3 节 Logging 模块接口定义
+- `morty-project-research.md` 第 3.8 节通用工具分析 (原 logging.sh)
 
-**依赖模块**: config
+**现有实现参考**:
+- 原 Shell 版本: `lib/logging.sh`，支持多级别、JSON/文本格式、日志轮转
 
-**被依赖模块**: git_manager, research, plan, doing, monitor, cli
+**依赖模块**: Config (获取日志路径配置)
+
+**被依赖模块**: Executor, State
+
+---
 
 ## 接口定义
 
 ### 输入接口
-- 配置项: `log_level`, `log_dir`, `log_format`, `log_max_size`, `log_max_files`
-- 日志写入请求: 级别、消息、上下文
+- 日志消息和属性
+- 日志级别设置
+- Job 上下文 (module, job)
 
 ### 输出接口
-- `log(level, message, context)`: 写入日志
-- `log_info()`, `log_warn()`, `log_error()`, `log_success()`, `log_loop()`: 快捷方法
-- `log_debug()`: 调试日志
-- 日志文件: `.morty/logs/morty.log`, `.morty/logs/doing.log` 等
+- `Logger` 接口实现
+- `Rotator` 接口实现
+- 日志文件写入
+
+---
 
 ## 数据模型
 
-### 日志级别
-```
-DEBUG < INFO < WARN < ERROR < SUCCESS < LOOP
-```
+```go
+// Level 日志级别
+type Level int
+const (
+    DEBUG Level = iota
+    INFO
+    WARN
+    ERROR
+    SUCCESS
+    LOOP
+)
 
-### 日志格式
-```
-# 文本格式 (默认)
-[2026-02-20 14:30:00] [INFO] [module:job] 消息内容
+// Logger 日志接口
+type Logger interface {
+    Debug(msg string, attrs ...slog.Attr)
+    Info(msg string, attrs ...slog.Attr)
+    Warn(msg string, attrs ...slog.Attr)
+    Error(msg string, attrs ...slog.Attr)
+    Success(msg string, attrs ...slog.Attr)
+    Loop(msg string, attrs ...slog.Attr)
+    WithContext(ctx context.Context) Logger
+    WithJob(module, job string) Logger
+    WithAttrs(attrs ...slog.Attr) Logger
+    SetLevel(level Level)
+    GetLevel() Level
+}
 
-# JSON 格式 (可选)
-{
-  "timestamp": "2026-02-20T14:30:00Z",
-  "level": "INFO",
-  "module": "doing",
-  "job": "job_1",
-  "message": "任务开始执行",
-  "context": { ... }
+// Rotator 日志轮转接口
+type Rotator interface {
+    Rotate(logFile string) error
+    ShouldRotate(logFile string) bool
+}
+
+// JobLogger Job 上下文日志
+type JobLogger struct {
+    Module string
+    Job    string
+    logger Logger
 }
 ```
 
-### 日志文件结构
-```
-.morty/logs/
-├── morty.log          # 主日志文件
-├── morty.log.1        # 轮转历史
-├── doing.log          # doing 模式专用日志
-├── doing.log.1
-└── jobs/
-    ├── config_job1.log    # 各 Job 独立日志
-    ├── doing_job1.log
-    └── ...
-```
+---
 
 ## Jobs (Loop 块列表)
 
 ---
 
-### Job 1: 日志系统核心框架
+### Job 1: Logger 接口与 slog 适配器实现
 
-**目标**: 建立日志系统的核心框架，支持多级别日志和文件输出
+**目标**: 实现 Logger 接口，基于 slog 标准库
 
-**前置条件**: config 模块 Job 1 完成
+**前置条件**:
+- Config 模块完成 (获取日志配置)
 
 **Tasks (Todo 列表)**:
-- [ ] 创建 `lib/logging.sh` 日志管理模块
-- [ ] 实现 `log()` 核心函数，支持级别过滤
-- [ ] 实现日志文件写入和自动创建目录
-- [ ] 实现日志级别快捷方法（log_info, log_warn 等）
-- [ ] 实现日志格式化和时间戳
+- [ ] Task 1: 创建 `internal/logging/logger.go` 定义 Logger 接口
+- [ ] Task 2: 创建 `internal/logging/slog_adapter.go` 实现 slog 适配器
+- [ ] Task 3: 实现所有日志级别方法 (Debug, Info, Warn, Error, Success, Loop)
+- [ ] Task 4: 支持结构化属性 (attrs)
+- [ ] Task 5: 实现 `WithContext` 添加上下文信息
+- [ ] Task 6: 实现 `WithJob` 添加 Job 上下文
+- [ ] Task 7: 实现 `SetLevel` 和 `GetLevel`
+- [ ] Task 8: 编写单元测试 `slog_adapter_test.go`
 
 **验证器**:
-- 调用 `log_info "测试消息"` 后，日志文件应包含带时间戳的 INFO 级别消息
-- 当日志级别设置为 WARN 时，INFO 级别的消息不应被写入
-- 日志目录不存在时应自动创建
-- 并发写入日志不应导致内容交错或丢失
-- 单条日志写入延迟应小于 10ms
+- [ ] 各日志级别输出正确 (DEBUG, INFO, WARN, ERROR, SUCCESS, LOOP)
+- [ ] 结构化属性正确输出为 JSON
+- [ ] `WithContext` 返回的 Logger 包含上下文信息
+- [ ] `WithJob` 返回的 Logger 包含 Job 信息
+- [ ] 设置日志级别后低于该级别的日志不输出
+- [ ] 所有单元测试通过 (覆盖率 >= 80%)
 
 **调试日志**:
-- 无
+- 待填充
 
 ---
 
-### Job 2: 日志轮转和归档
+### Job 2: 日志轮转器实现
 
-**目标**: 实现日志轮转机制，防止日志文件无限增长
+**目标**: 实现基于文件大小的日志轮转功能
 
-**前置条件**: Job 1 完成
+**前置条件**:
+- Job 1 完成 (Logger 基础)
 
 **Tasks (Todo 列表)**:
-- [x] 实现日志文件大小检查
-- [x] 实现日志轮转（当前日志 -> morty.log.1 -> morty.log.2）
-- [x] 实现最大保留文件数限制
-- [ ] 支持按日期归档（可选）
-- [x] 实现日志压缩（对旧日志）
+- [ ] Task 1: 创建 `internal/logging/rotator.go` 文件结构
+- [ ] Task 2: 实现 `ShouldRotate(logFile string) bool` 检查文件大小
+- [ ] Task 3: 实现 `Rotate(logFile string) error` 执行轮转
+- [ ] Task 4: 实现标准轮转模式 (morty.log → morty.log.1 → ...)
+- [ ] Task 5: 实现旧日志 gzip 压缩 (保留最近 5 个)
+- [ ] Task 6: 实现清理过期日志文件
+- [ ] Task 7: 编写单元测试 `rotator_test.go`
 
 **验证器**:
-- 当日志文件超过配置的大小限制（默认 10MB）时，应自动触发轮转
-- 轮转后新日志应写入新的空文件，旧日志重命名为 .log.1
-- 当历史日志文件数超过限制时，最旧的日志应被删除
-- 轮转过程中不应丢失日志消息
-- 压缩后的日志文件大小应小于原文件的 20%
+- [ ] 小文件 (50 bytes < max 100 bytes) 不触发轮转
+- [ ] 大文件 (101 bytes > max 100 bytes) 触发轮转
+- [ ] 轮转后原文件清空，.1 文件包含原内容
+- [ ] 多次轮转后 .2+ 文件被 gzip 压缩
+- [ ] 超过最大保留数的旧日志被删除
+- [ ] 所有单元测试通过 (覆盖率 >= 80%)
 
 **调试日志**:
-- 无
+- 待填充
 
 ---
 
-### Job 3: Job 级独立日志
+### Job 3: Job 上下文日志实现
 
-**目标**: 支持为每个 Job 创建独立的日志文件，便于调试
+**目标**: 实现支持 Job 上下文的日志记录
 
-**前置条件**: Job 2 完成
+**前置条件**:
+- Job 1 完成 (Logger 基础)
 
 **Tasks (Todo 列表)**:
-- [x] 实现 `log_job_start(module, job)` 创建 Job 日志上下文
-- [ ] 实现 `log_job_end()` 关闭 Job 日志上下文
-- [ ] 实现 `log_job(message)` 写入 Job 独立日志
-- [ ] 在 Job 日志中自动记录开始时间、结束时间、执行时长
-- [ ] 支持 Job 日志与主日志同时写入
+- [ ] Task 1: 创建 `internal/logging/job_logger.go` 文件结构
+- [ ] Task 2: 实现 `JobLogger` 结构体，包含 module 和 job 字段
+- [ ] Task 3: 实现 Job 开始/结束日志自动记录
+- [ ] Task 4: 实现 Task 级别的日志记录
+- [ ] Task 5: 支持从 JobLogger 获取标准 Logger 接口
+- [ ] Task 6: 实现日志文件按 Job 分离 (可选)
+- [ ] Task 7: 编写单元测试 `job_logger_test.go`
 
 **验证器**:
-- 调用 `log_job_start "doing" "job_1"` 后，应创建 `.morty/logs/jobs/doing_job1.log`
-- Job 执行期间的所有日志应同时写入主日志和 Job 独立日志
-- Job 独立日志应包含 Job 开始和结束的时间戳
-- Job 失败时应记录错误详情和堆栈信息（如可用）
-- Job 日志文件大小应可通过配置限制
+- [ ] JobLogger 正确记录 module 和 job 信息
+- [ ] Job 开始日志包含模块名、Job 名、开始时间
+- [ ] Job 结束日志包含执行结果、耗时
+- [ ] Task 日志包含 Task 编号和描述
+- [ ] 所有日志条目包含一致的 Job 上下文
+- [ ] 所有单元测试通过 (覆盖率 >= 80%)
 
 **调试日志**:
-- 无
+- 待填充
 
 ---
 
-### Job 4: 结构化日志支持
+### Job 4: 日志格式与输出配置
 
-**目标**: 支持 JSON 格式的结构化日志，便于日志分析和监控集成
+**目标**: 实现文本和 JSON 两种日志格式，支持控制台和文件输出
 
-**前置条件**: Job 3 完成
+**前置条件**:
+- Job 1, Job 2 完成
 
 **Tasks (Todo 列表)**:
-- [ ] 实现 JSON 格式日志输出
-- [ ] 支持上下文数据自动序列化为 JSON 字段
-- [ ] 添加 `log_structured()` 函数用于机器可读日志
-- [ ] 实现日志格式切换（文本/JSON）
-- [ ] 确保特殊字符正确转义
+- [ ] Task 1: 创建 `internal/logging/format.go` 定义格式相关类型
+- [ ] Task 2: 实现文本格式输出 (人类可读)
+- [ ] Task 3: 实现 JSON 格式输出 (结构化)
+- [ ] Task 4: 实现多输出目标 (控制台 + 文件)
+- [ ] Task 5: 实现根据环境自动选择格式 (开发=文本, 生产=JSON)
+- [ ] Task 6: 配置文件支持设置日志格式和级别
+- [ ] Task 7: 编写单元测试 `format_test.go`
 
 **验证器**:
-- 当配置 `log_format: json` 时，日志输出应为有效的 JSON 格式
-- JSON 日志应包含 timestamp, level, module, message 字段
-- 上下文对象应被正确序列化为 JSON 字段
-- 包含特殊字符的消息应被正确转义
-- JSON 日志应可被标准日志分析工具解析（如 jq）
+- [ ] 文本格式输出包含时间、级别、消息、属性
+- [ ] JSON 格式输出是有效的 JSON 对象
+- [ ] 同时输出到控制台和文件
+- [ ] 配置文件正确控制日志行为
+- [ ] 开发环境默认文本格式，生产环境默认 JSON 格式
+- [ ] 所有单元测试通过 (覆盖率 >= 80%)
 
 **调试日志**:
-- 无
+- 待填充
 
 ---
 
@@ -167,44 +202,11 @@ DEBUG < INFO < WARN < ERROR < SUCCESS < LOOP
 **触发条件**: 模块内所有 Jobs 完成
 
 **验证器**:
-- 所有其他模块可以正常导入和使用日志功能
-- 日志级别动态调整可以实时生效
-- 大量日志写入（1000条/秒）不会导致性能问题
-- 日志轮转不会丢失消息
-- 磁盘满时可以优雅降级（如输出到 stderr）
+- [ ] 完整的日志生命周期: 创建 Logger → 记录日志 → 轮转 → 清理
+- [ ] Job 上下文正确传递到所有日志条目
+- [ ] 多输出目标同时工作
+- [ ] 轮转时不丢失日志
+- [ ] 集成测试通过 (覆盖率 >= 80%)
 
----
-
-## 待实现方法签名
-
-```bash
-# lib/logging.sh
-
-# 核心日志函数
-log(level, message, context="")
-log_debug(message, context="")
-log_info(message, context="")
-log_warn(message, context="")
-log_error(message, context="")
-log_success(message, context="")
-log_loop(message, context="")
-
-# 结构化日志
-log_structured(level, data)
-
-# Job 日志
-log_job_start(module, job_name)
-log_job_end(status="completed")
-log_job(message, level="INFO")
-log_job_debug(message)
-
-# 日志配置
-log_set_level(level)
-log_get_level()
-log_set_format(format)  # text/json
-
-# 内部函数
-_log_write(level, message, context)
-_log_rotate_if_needed()
-_log_archive_old_logs()
-```
+**调试日志**:
+- 待填充

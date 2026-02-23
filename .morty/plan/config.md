@@ -1,144 +1,477 @@
-# Plan: config
+# Plan: Config
 
 ## 模块概述
 
-**模块职责**: 提供统一的配置管理系统，通过单一的 `settings.json` 文件管理所有配置。工作目录固定为 `.morty`，配置文件存放在 `MORTY_HOME` 指定的全局位置。
+**模块职责**: 实现配置管理功能，包括配置结构定义、settings.json 的加载/读取/保存、配置层级合并和环境变量支持。
 
-**对应 Research**: 统一配置管理；简化配置层级
+**对应 Research**:
+- `morty-go-refactor-plan.md` 第 4.2 节 Config 模块接口定义
+- `morty-project-research.md` 第 4.1 节项目配置文件分析
 
-**依赖模块**: 无
+**现有实现参考**:
+- 原 Shell 版本: `lib/config.sh`，支持 dot notation 访问嵌套配置
 
-**被依赖模块**: logging, version_manager, doing, cli
+**依赖模块**: 无 (基础模块)
+
+**被依赖模块**: Logging, State, Executor, Call CLI
+
+---
+
+## 配置层级
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│                      配置层级结构                            │
+├─────────────────────────────────────────────────────────────┤
+│                                                             │
+│  ┌─────────────────────────────────────────────────────┐   │
+│  │  Level 1: 代码内置默认值                             │   │
+│  │  • 编译时嵌入二进制                                  │   │
+│  │  • 保证基本功能可用                                  │   │
+│  └─────────────────────────────────────────────────────┘   │
+│                           ▼                                  │
+│  ┌─────────────────────────────────────────────────────┐   │
+│  │  Level 2: 用户全局配置 (~/.morty/config.json)        │   │
+│  │  • 用户级默认值覆盖                                  │   │
+│  │  • 所有项目共享                                      │   │
+│  └─────────────────────────────────────────────────────┘   │
+│                           ▼                                  │
+│  ┌─────────────────────────────────────────────────────┐   │
+│  │  Level 3: 项目配置 (.morty/settings.json)            │   │
+│  │  • 项目特定配置                                      │   │
+│  │  • 随版本控制（可选）                                │   │
+│  └─────────────────────────────────────────────────────┘   │
+│                           ▼                                  │
+│  ┌─────────────────────────────────────────────────────┐   │
+│  │  Level 4: 环境变量覆盖                               │   │
+│  │  • MORTY_* 前缀                                      │   │
+│  │  • CLAUDE_CODE_CLI 等                                │   │
+│  └─────────────────────────────────────────────────────┘   │
+│                           ▼                                  │
+│  ┌─────────────────────────────────────────────────────┐   │
+│  │  Level 5: 命令行参数                                 │   │
+│  │  • --verbose, --debug 等                             │   │
+│  │  • 最高优先级                                        │   │
+│  └─────────────────────────────────────────────────────┘   │
+│                                                             │
+└─────────────────────────────────────────────────────────────┘
+```
+
+---
 
 ## 接口定义
 
 ### 输入接口
-- `settings.json`: 全局配置文件（位于 `$MORTY_HOME/settings.json`）
+- `configs/settings.json` 默认配置文件
+- `~/.morty/config.json` 用户配置文件
+- `.morty/settings.json` 项目配置文件
+- 环境变量（MORTY_* 前缀）
+- 命令行参数
 
 ### 输出接口
-- `config_get(key)`: 从 settings.json 读取配置值
-- `config_set(key, value)`: 设置配置值并保存到 settings.json
-- `config_load()`: 加载配置文件
-- `config_get_morty_home()`: 获取 MORTY_HOME 路径
+- `Manager` 接口实现
+- 类型安全的配置值获取方法
+- 配置结构定义
+
+---
 
 ## 数据模型
 
-### 配置文件路径
-```
-$MORTY_HOME/settings.json
+### Config 结构定义
+
+```go
+// Config 完整配置结构
+type Config struct {
+    Version    string         `json:"version"`
+    AICli      AICliConfig    `json:"ai_cli"`
+    Execution  ExecutionConfig `json:"execution"`
+    Logging    LoggingConfig  `json:"logging"`
+    State      StateConfig    `json:"state"`
+    Git        GitConfig      `json:"git"`
+    Plan       PlanConfig     `json:"plan"`
+    Prompts    PromptsConfig  `json:"prompts"`
+}
+
+// AICliConfig AI CLI 配置
+type AICliConfig struct {
+    Command               string   `json:"command"`
+    EnvVar                string   `json:"env_var"`
+    DefaultTimeout        string   `json:"default_timeout"`
+    MaxTimeout            string   `json:"max_timeout"`
+    EnableSkipPermissions bool     `json:"enable_skip_permissions"`
+    DefaultArgs           []string `json:"default_args"`
+    OutputFormat          string   `json:"output_format"`
+}
+
+// ExecutionConfig 执行配置
+type ExecutionConfig struct {
+    MaxRetryCount    int  `json:"max_retry_count"`
+    AutoGitCommit    bool `json:"auto_git_commit"`
+    ContinueOnError  bool `json:"continue_on_error"`
+    ParallelJobs     int  `json:"parallel_jobs"`
+}
+
+// LoggingConfig 日志配置
+type LoggingConfig struct {
+    Level    string       `json:"level"`
+    Format   string       `json:"format"`
+    Output   string       `json:"output"`
+    File     FileConfig   `json:"file"`
+}
+
+// FileConfig 日志文件配置
+type FileConfig struct {
+    Enabled     bool   `json:"enabled"`
+    Path        string `json:"path"`
+    MaxSize     string `json:"max_size"`
+    MaxBackups  int    `json:"max_backups"`
+    MaxAge      int    `json:"max_age"`
+}
+
+// StateConfig 状态配置
+type StateConfig struct {
+    File          string `json:"file"`
+    AutoSave      bool   `json:"auto_save"`
+    SaveInterval  string `json:"save_interval"`
+}
+
+// GitConfig Git 配置
+type GitConfig struct {
+    CommitPrefix          string `json:"commit_prefix"`
+    AutoCommit            bool   `json:"auto_commit"`
+    RequireCleanWorktree  bool   `json:"require_clean_worktree"`
+}
+
+// PlanConfig Plan 配置
+type PlanConfig struct {
+    Dir             string `json:"dir"`
+    FileExtension   string `json:"file_extension"`
+    AutoValidate    bool   `json:"auto_validate"`
+}
+
+// PromptsConfig 提示词配置
+type PromptsConfig struct {
+    Dir       string `json:"dir"`
+    Research  string `json:"research"`
+    Plan      string `json:"plan"`
+    Doing     string `json:"doing"`
+}
 ```
 
-### settings.json 结构
+### Manager 接口
+
+```go
+// Manager 配置管理接口
+type Manager interface {
+    // 加载配置
+    Load(path string) error
+    LoadWithMerge(userConfigPath string) error
+
+    // 读取配置（支持 dot notation，如 "ai_cli.command"）
+    Get(key string, defaultValue ...interface{}) (interface{}, error)
+    GetString(key string, defaultValue ...string) string
+    GetInt(key string, defaultValue ...int) int
+    GetBool(key string, defaultValue ...bool) bool
+    GetDuration(key string, defaultValue ...time.Duration) time.Duration
+
+    // 设置配置
+    Set(key string, value interface{}) error
+
+    // 保存配置
+    Save() error
+    SaveTo(path string) error
+
+    // 路径助手
+    GetWorkDir() string
+    GetLogDir() string
+    GetResearchDir() string
+    GetPlanDir() string
+    GetStatusFile() string
+    GetConfigFile() string
+}
+```
+
+---
+
+## 默认配置
+
+### 默认配置结构 (configs/settings.json)
+
 ```json
 {
   "version": "2.0",
-  "cli": {
-    "command": "claude"
+  "ai_cli": {
+    "command": "ai_cli",
+    "env_var": "CLAUDE_CODE_CLI",
+    "default_timeout": "10m",
+    "max_timeout": "30m",
+    "enable_skip_permissions": true,
+    "default_args": ["--verbose", "--debug"],
+    "output_format": "json"
   },
-  "defaults": {
-    "max_loops": 50,
-    "loop_delay": 5,
-    "log_level": "INFO",
-    "stat_refresh_interval": 60
+  "execution": {
+    "max_retry_count": 3,
+    "auto_git_commit": true,
+    "continue_on_error": false,
+    "parallel_jobs": 1
   },
-  "paths": {
-    "work_dir": ".morty",
-    "log_dir": ".morty/logs",
-    "research_dir": ".morty/research",
-    "plan_dir": ".morty/plan",
-    "status_file": ".morty/status.json"
+  "logging": {
+    "level": "info",
+    "format": "json",
+    "output": "stdout",
+    "file": {
+      "enabled": true,
+      "path": ".morty/doing/logs/morty.log",
+      "max_size": "10MB",
+      "max_backups": 5,
+      "max_age": 7
+    }
+  },
+  "state": {
+    "file": ".morty/status.json",
+    "auto_save": true,
+    "save_interval": "30s"
+  },
+  "git": {
+    "commit_prefix": "morty",
+    "auto_commit": true,
+    "require_clean_worktree": false
+  },
+  "plan": {
+    "dir": ".morty/plan",
+    "file_extension": ".md",
+    "auto_validate": true
+  },
+  "prompts": {
+    "dir": "prompts",
+    "research": "prompts/research.md",
+    "plan": "prompts/plan.md",
+    "doing": "prompts/doing.md"
   }
 }
 ```
 
-### 工作目录结构
+### 用户配置示例 (~/.morty/config.json)
+
+```json
+{
+  "version": "2.0",
+  "ai_cli": {
+    "command": "claude",
+    "default_timeout": "15m"
+  },
+  "logging": {
+    "level": "debug"
+  },
+  "execution": {
+    "max_retry_count": 5
+  }
+}
 ```
-.morty/                      # 工作目录（固定）
-├── logs/                    # 日志目录
-├── research/                # 研究结果
-│   └── [主题].md
-├── plan/                    # 计划文件
-│   ├── README.md
-│   ├── [模块].md
-│   └── [生产测试].md
-└── status.json              # 执行状态
-```
+
+---
+
+## 配置字段说明
+
+### ai_cli 配置
+
+| 字段 | 类型 | 默认值 | 说明 |
+|------|------|--------|------|
+| `command` | string | "ai_cli" | AI CLI 命令名称 |
+| `env_var` | string | "CLAUDE_CODE_CLI" | 环境变量名，优先级高于 command |
+| `default_timeout` | string | "10m" | 默认超时时间 |
+| `max_timeout` | string | "30m" | 最大允许超时 |
+| `enable_skip_permissions` | bool | true | 是否启用 --dangerously-skip-permissions |
+| `default_args` | []string | ["--verbose", "--debug"] | 默认参数 |
+| `output_format` | string | "json" | 输出格式（json/text） |
+
+### execution 配置
+
+| 字段 | 类型 | 默认值 | 说明 |
+|------|------|--------|------|
+| `max_retry_count` | int | 3 | 最大重试次数 |
+| `auto_git_commit` | bool | true | Job 完成后自动 Git 提交 |
+| `continue_on_error` | bool | false | 错误时是否继续执行 |
+| `parallel_jobs` | int | 1 | 并行 Job 数（预留） |
+
+### logging 配置
+
+| 字段 | 类型 | 默认值 | 说明 |
+|------|------|--------|------|
+| `level` | string | "info" | 日志级别（debug/info/warn/error） |
+| `format` | string | "json" | 日志格式（json/text） |
+| `output` | string | "stdout" | 输出目标（stdout/file/both） |
+| `file.enabled` | bool | true | 是否启用文件日志 |
+| `file.path` | string | ".morty/doing/logs/morty.log" | 日志文件路径 |
+| `file.max_size` | string | "10MB" | 单个日志文件最大大小 |
+| `file.max_backups` | int | 5 | 保留的备份文件数 |
+| `file.max_age` | int | 7 | 日志文件保留天数 |
+
+### state 配置
+
+| 字段 | 类型 | 默认值 | 说明 |
+|------|------|--------|------|
+| `file` | string | ".morty/status.json" | 状态文件路径 |
+| `auto_save` | bool | true | 自动保存状态 |
+| `save_interval` | string | "30s" | 自动保存间隔 |
+
+### git 配置
+
+| 字段 | 类型 | 默认值 | 说明 |
+|------|------|--------|------|
+| `commit_prefix` | string | "morty" | 提交信息前缀 |
+| `auto_commit` | bool | true | 自动创建提交 |
+| `require_clean_worktree` | bool | false | 是否要求干净的工作区 |
+
+### plan 配置
+
+| 字段 | 类型 | 默认值 | 说明 |
+|------|------|--------|------|
+| `dir` | string | ".morty/plan" | Plan 文件目录 |
+| `file_extension` | string | ".md" | Plan 文件扩展名 |
+| `auto_validate` | bool | true | 自动验证 Plan 格式 |
+
+### prompts 配置
+
+| 字段 | 类型 | 默认值 | 说明 |
+|------|------|--------|------|
+| `dir` | string | "prompts" | 提示词目录 |
+| `research` | string | "prompts/research.md" | Research 提示词路径 |
+| `plan` | string | "prompts/plan.md" | Plan 提示词路径 |
+| `doing` | string | "prompts/doing.md" | Doing 提示词路径 |
+
+---
+
+## 环境变量
+
+| 变量名 | 说明 | 示例 |
+|--------|------|------|
+| `CLAUDE_CODE_CLI` | AI CLI 命令路径 | `export CLAUDE_CODE_CLI=/usr/local/bin/claude` |
+| `MORTY_HOME` | Morty 安装目录 | `export MORTY_HOME=$HOME/.morty` |
+| `MORTY_CONFIG` | 配置文件路径 | `export MORTY_CONFIG=$HOME/.morty/config.json` |
+| `MORTY_LOG_LEVEL` | 日志级别覆盖 | `export MORTY_LOG_LEVEL=debug` |
+| `MORTY_DEBUG` | 调试模式 | `export MORTY_DEBUG=1` |
+
+---
 
 ## Jobs (Loop 块列表)
 
 ---
 
-### Job 1: 配置系统基础架构
+### Job 1: 配置结构定义
 
-**目标**: 建立配置系统的核心框架，支持从单一 JSON 文件读取配置
+**目标**: 定义完整的配置结构和默认配置
 
 **前置条件**: 无
 
 **Tasks (Todo 列表)**:
-- [ ] 创建 `lib/config.sh` 配置文件管理模块
-- [ ] 实现 `config_get_morty_home()`: 读取 MORTY_HOME 环境变量，验证路径存在
-- [ ] 实现 `config_load()`: 加载 settings.json
-- [ ] 实现 `config_get(key)`: 按 key 读取配置值
-- [ ] 实现 `config_set(key, value)`: 设置配置值并保存
-- [ ] 实现配置默认值机制
+- [ ] Task 1: 定义 Config 结构体及所有子结构
+- [ ] Task 2: 定义 Manager 接口
+- [ ] Task 3: 创建 `configs/settings.json` 默认配置文件
+- [ ] Task 4: 实现配置默认值常量
+- [ ] Task 5: 定义配置验证规则
+- [ ] Task 6: 编写单元测试验证配置结构
 
 **验证器**:
-- 当 `MORTY_HOME` 未设置时，应提示用户设置该环境变量
-- 当 `settings.json` 不存在时，应自动创建默认配置文件
-- `config_get("cli.command")` 应返回配置的值或默认值 "claude"
-- `config_set("log_level", "DEBUG")` 应更新配置文件
-- 配置加载时间应小于 100ms
+- [ ] `configs/settings.json` 是有效的 JSON
+- [ ] 所有配置字段都有默认值
+- [ ] 配置结构自文档化（清晰易理解）
+- [ ] 默认值合理（适合大多数场景）
+- [ ] 所有单元测试通过 (覆盖率 >= 80%)
 
 **调试日志**:
-- 无
+- 待填充
 
 ---
 
-### Job 2: 工作目录管理
+### Job 2: 配置加载器实现
 
-**目标**: 实现工作目录 `.morty` 的自动创建和管理
+**目标**: 实现配置的加载和层级合并
 
-**前置条件**: Job 1 完成
+**前置条件**:
+- Job 1 完成
 
 **Tasks (Todo 列表)**:
-- [ ] 实现 `config_check_work_dir()`: 检查当前目录是否有 `.morty`
-- [ ] 实现 `config_init_work_dir()`: 初始化工作目录结构
-- [ ] 实现 `config_ensure_work_dir()`: 确保工作目录存在（不存在则创建）
-- [ ] 实现子目录自动创建（logs, research, plan）
+- [ ] Task 1: 创建 `internal/config/loader.go` 文件结构
+- [ ] Task 2: 实现 `Load(path string) error` 加载单个配置
+- [ ] Task 3: 实现 `LoadWithMerge(userConfigPath string) error` 合并加载
+- [ ] Task 4: 支持 JSON 格式解析
+- [ ] Task 5: 实现配置层级合并（默认 → 用户 → 环境变量）
+- [ ] Task 6: 处理文件不存在时使用默认配置
+- [ ] Task 7: 实现配置验证（检查必需字段、类型、范围）
+- [ ] Task 8: 编写单元测试 `loader_test.go`
 
 **验证器**:
-- 调用 `config_ensure_work_dir()` 时，如 `.morty` 不存在应自动创建
-- 应同时创建 `.morty/logs/`, `.morty/research/`, `.morty/plan/` 子目录
-- 如目录已存在，应正常返回不报错
-- 应检查目录是否可写
+- [ ] 加载存在的配置文件返回正确结构
+- [ ] 加载不存在的配置文件使用默认配置
+- [ ] 用户配置正确覆盖默认配置
+- [ ] 环境变量正确覆盖配置文件
+- [ ] 加载无效 JSON 返回错误
+- [ ] 配置验证失败时返回具体错误信息
+- [ ] 所有单元测试通过 (覆盖率 >= 80%)
 
 **调试日志**:
-- 无
+- 待填充
 
 ---
 
-### Job 3: 前置条件检查
+### Job 3: 配置管理器实现
 
-**目标**: 实现 plan → doing 的前置条件检查；research 作为可选输入
+**目标**: 实现配置值的读取和设置，支持 dot notation
 
-**前置条件**: Job 2 完成
+**前置条件**:
+- Job 2 完成 (配置加载)
 
 **Tasks (Todo 列表)**:
-- [ ] 实现 `config_check_research_exists()`: 检查是否存在 research 文件
-- [ ] 实现 `config_check_plan_done()`: 检查是否已完成 plan
-- [ ] 实现 `config_require_plan()`: 要求必须先 plan
-- [ ] 实现 `config_load_research_facts()`: 加载 research 事实信息
-- [ ] 定义前置条件检查的错误提示信息
+- [ ] Task 1: 创建 `internal/config/manager.go` 文件结构
+- [ ] Task 2: 实现 Manager 接口的所有方法
+- [ ] Task 3: 实现 `Get(key string, ...)` 方法，支持 dot notation
+- [ ] Task 4: 实现类型安全的 getter: `GetString`, `GetInt`, `GetBool`, `GetDuration`
+- [ ] Task 5: 实现 `Set(key string, value interface{}) error`，支持嵌套设置
+- [ ] Task 6: 实现 `Save() error` 和 `SaveTo(path string) error` 方法
+- [ ] Task 7: 处理默认值逻辑
+- [ ] Task 8: 编写单元测试 `manager_test.go`
 
 **验证器**:
-- 当 `.morty/research/` 存在且有文件时，`config_load_research_facts()` 应返回文件列表和内容
-- 当 `.morty/research/` 不存在或为空时，plan 模式应提示 "未找到 research，将通过对话理解需求"
-- 当 `.morty/plan/` 为空时，`config_require_plan()` 应返回错误 "请先运行 morty plan"
-- doing 模式运行时如未完成 plan 应报错 "请先运行 morty plan"
-- research 不是 plan 的强制前置条件
+- [ ] `Get("ai_cli.command")` 返回正确值
+- [ ] `Get("execution.max_retry_count")` 返回正确值
+- [ ] `GetString("nonexistent", "default")` 返回默认值
+- [ ] `Set("execution.max_retry_count", 100)` 正确更新嵌套值
+- [ ] `Save()` 后文件内容正确更新
+- [ ] 所有单元测试通过 (覆盖率 >= 80%)
 
 **调试日志**:
-- 无
+- 待填充
+
+---
+
+### Job 4: 路径管理实现
+
+**目标**: 实现 Morty 工作目录路径管理
+
+**前置条件**:
+- Job 3 完成 (配置管理)
+
+**Tasks (Todo 列表)**:
+- [ ] Task 1: 创建 `internal/config/paths.go` 文件结构
+- [ ] Task 2: 实现 `GetWorkDir() string` 返回 `.morty` 路径
+- [ ] Task 3: 实现 `GetLogDir() string` 返回 `.morty/doing/logs` 路径
+- [ ] Task 4: 实现 `GetResearchDir() string` 返回 `.morty/research` 路径
+- [ ] Task 5: 实现 `GetPlanDir() string` 返回 `.morty/plan` 路径
+- [ ] Task 6: 实现 `GetStatusFile() string` 返回 `.morty/status.json` 路径
+- [ ] Task 7: 实现 `GetConfigFile() string` 返回配置文件路径
+- [ ] Task 8: 实现路径自动创建 (如果不存在)
+- [ ] Task 9: 编写单元测试 `paths_test.go`
+
+**验证器**:
+- [ ] `GetWorkDir()` 返回正确的绝对路径
+- [ ] `GetLogDir()` 返回 `.morty/doing/logs`
+- [ ] 路径不存在时自动创建目录
+- [ ] 路径包含特殊字符时正确处理
+- [ ] 所有单元测试通过 (覆盖率 >= 80%)
+
+**调试日志**:
+- 待填充
 
 ---
 
@@ -147,111 +480,81 @@ $MORTY_HOME/settings.json
 **触发条件**: 模块内所有 Jobs 完成
 
 **验证器**:
-- 配置系统可以被其他模块正常导入和使用
-- settings.json 可以正确读取和写入
-- 工作目录可以自动创建
-- plan 可以不依赖 research 直接运行
-- research 存在时 plan 可以正确加载事实信息
-- doing 强制依赖 plan，无 plan 时报错
-- 在任意模式下，缺少 `.morty` 目录时都会自动创建
+- [ ] 完整的配置生命周期: 定义 → 加载 → 读取 → 设置 → 保存
+- [ ] 配置层级合并正确（默认 → 用户 → 环境变量 → 命令行）
+- [ ] 配置变更后重新加载正确
+- [ ] 路径管理器与配置管理器协同工作
+- [ ] 集成测试通过 (覆盖率 >= 80%)
 
----
-
-## 待实现方法签名
-
-```bash
-# lib/config.sh
-
-# 路径和初始化
-config_get_morty_home()
-config_load()
-config_init_settings()
-
-# 配置读写
-config_get(key, default="")
-config_get_int(key, default=0)
-config_get_bool(key, default=false)
-config_set(key, value)
-
-# 工作目录
-config_check_work_dir()
-config_init_work_dir()
-config_ensure_work_dir()
-config_get_work_dir()
-
-# 前置条件检查
-config_check_research_exists()
-config_check_plan_done()
-config_require_plan()
-config_load_research_facts()
-
-# 路径获取
-config_get_log_dir()
-config_get_research_dir()
-config_get_plan_dir()
-config_get_status_file()
-```
-
----
-
-## 配置加载流程
-
-```
-1. 读取 MORTY_HOME 环境变量
-2. 加载 $MORTY_HOME/settings.json
-3. 检查当前目录是否有 .morty 工作目录
-4. 如无，自动创建工作目录结构
-```
-
----
-
-## 前置条件检查流程
-
-```
-plan 模式启动:
-  └─> 检查 .morty/research/ 是否有文件
-      ├─> 有 → 加载事实信息，继续执行
-      └─> 无 → 提示 "未找到 research，将通过对话理解需求"
-
-doing 模式启动:
-  └─> 检查 .morty/plan/ 是否有文件
-      ├─> 有 → 继续执行
-      └─> 无 → 报错 "请先运行 morty plan"
-```
+**调试日志**:
+- 待填充
 
 ---
 
 ## 使用示例
 
-### 初始化配置
-```bash
-export MORTY_HOME=$HOME/.morty
-morty research test-topic
-# 自动创建 .morty 工作目录和 $MORTY_HOME/settings.json
+### 基本使用
+
+```go
+// 创建配置管理器
+cfg, err := config.NewManager()
+if err != nil {
+    log.Fatal(err)
+}
+
+// 加载配置（自动合并默认、用户、环境变量配置）
+err = cfg.LoadWithMerge("~/.morty/config.json")
+
+// 读取配置
+aiCmd := cfg.GetString("ai_cli.command", "ai_cli")
+timeout := cfg.GetDuration("ai_cli.default_timeout", 10*time.Minute)
+maxRetry := cfg.GetInt("execution.max_retry_count", 3)
+enableDebug := cfg.GetBool("logging.debug", false)
+
+// 修改配置
+cfg.Set("execution.max_retry_count", 5)
+cfg.Save()
 ```
 
-### 读取配置
+### 创建用户配置
+
 ```bash
-# 在脚本中
-source lib/config.sh
-config_load
-AI_CLI=$(config_get "cli.command" "claude")
-LOG_LEVEL=$(config_get "defaults.log_level" "INFO")
+# 创建 ~/.morty/config.json
+mkdir -p ~/.morty
+cat > ~/.morty/config.json << 'EOF'
+{
+  "version": "2.0",
+  "ai_cli": {
+    "command": "claude",
+    "default_timeout": "15m"
+  },
+  "logging": {
+    "level": "debug"
+  }
+}
+EOF
 ```
 
-### 设置配置
+### 使用环境变量覆盖
+
 ```bash
-# 在脚本中
-config_set "cli.command" "mc --code"
-config_set "defaults.log_level" "DEBUG"
+# 临时使用不同的 AI CLI
+export CLAUDE_CODE_CLI="/path/to/claude"
+morty doing
+
+# 启用调试模式
+export MORTY_DEBUG=1
+morty doing --verbose
 ```
 
 ---
 
-## 重要说明
+## 文件清单
 
-1. **单一配置源**: 只有 `$MORTY_HOME/settings.json`，无项目级/用户级配置
-2. **环境变量**: 只使用 `MORTY_HOME` 指定配置目录，其他配置不从环境变量读取
-3. **自动创建**: 任意模式下如缺少 `.morty` 目录都会自动创建
-4. **前置条件**: plan 可选依赖 research（有则读取，无则对话），doing 必须依赖 plan
-5. **工作目录固定**: 统一使用 `.morty`，不可配置
+- `internal/config/config.go` - 配置结构定义
+- `internal/config/manager.go` - 配置管理器实现
+- `internal/config/loader.go` - 配置加载器实现
+- `internal/config/paths.go` - 路径管理实现
+- `configs/settings.json` - 默认配置模板
+- `configs/example.json` - 用户配置示例
+- `plan/config.md` - 本文件

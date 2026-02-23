@@ -1,8 +1,0 @@
-[2026-02-22 03:38:45] [INFO] [doing:job_1] Job doing:job_1 started
-[2026-02-22 03:38:45] [INFO] [doing:job_1] 这是一条测试消息
-[2026-02-22 03:38:45] [INFO] Job 独立日志消息
-[2026-02-22 03:38:47] [INFO] [doing:job_1] Job doing:job_1 completed (duration: 2s)
-
-=== Job completed ===
-End time: 2026-02-22 03:38:47
-Duration: 2s

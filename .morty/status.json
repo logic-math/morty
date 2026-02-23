@@ -4,13 +4,14 @@
   "current": {
     "module": "cli",
     "job": "job_1",
-    "status": "RUNNING",
-    "start_time": "2026-02-23T13:54:46Z"
+    "status": "INTERRUPTED",
+    "start_time": "2026-02-23T14:17:41Z",
+    "interrupted_at": "2026-02-23T14:24:39Z"
   },
   "session": {
     "start_time": "2026-02-23T13:54:41Z",
-    "last_update": "2026-02-23T13:54:46Z",
-    "total_loops": 1
+    "last_update": "2026-02-23T14:24:39Z",
+    "total_loops": 2
   },
   "modules": {
     "cli": {
@@ -21,14 +22,34 @@
           "loop_count": 1,
           "retry_count": 0,
           "tasks_total": 5,
-          "tasks_completed": 0,
-          "debug_logs": [],
+          "tasks_completed": 1,
+          "debug_logs": [
+            {
+              "id": 1771856671.696129,
+              "timestamp": "2026-02-23T14:24:31Z",
+              "phenomenon": "[{type:system,subtype:init,cwd:/opt/meituan/dolphinfs_sunquan20/ai_coding/Coding/morty,session_id:23ba9b99-e9cb-4f94-a731-87e0ef8de78d,tools:[Task,TaskOutput,Bash,Glob,Grep,ExitPlanMode,Read,Edit,Writ",
+              "reproduction": "查看日志文件: .morty/doing/logs/cli_job_1_task1_output.log",
+              "hypotheses": [
+                "执行过程中出现错误，可能原因: 1)代码问题 2)环境配置 3)依赖缺失"
+              ],
+              "fix": "需要人工检查日志并修复问题",
+              "resolved": false
+            }
+          ],
           "started_at": "2026-02-23T13:54:46Z",
           "completed_at": "",
           "error_count": 0,
-          "interrupted": false,
-          "interrupted_at": "",
-          "last_summary": ""
+          "interrupted": true,
+          "interrupted_at": "2026-02-23T14:24:39Z",
+          "last_summary": "",
+          "tasks": {
+            "1": {
+              "index": 1,
+              "status": "UNKNOWN",
+              "description": "创建 `morty` 主命令脚本",
+              "updated_at": "2026-02-23T14:24:31Z"
+            }
+          }
         },
         "job_2": {
           "status": "PENDING",
@@ -68,12 +89,18 @@
       "status": "pending",
       "jobs": {
         "job_1": {
-          "status": "PENDING",
-          "loop_count": 0,
+          "status": "RUNNING",
+          "loop_count": 1,
           "retry_count": 0,
           "tasks_total": 6,
           "tasks_completed": 0,
-          "debug_logs": []
+          "debug_logs": [],
+          "started_at": "2026-02-23T14:17:41Z",
+          "completed_at": "",
+          "error_count": 0,
+          "interrupted": false,
+          "interrupted_at": "",
+          "last_summary": ""
         },
         "job_2": {
           "status": "PENDING",
