@@ -1,42 +1,44 @@
-Job 4 has been completed. Here's a summary of what was implemented:
+Task 1 is complete. Here's the summary:
 
-**Implemented Functions in `lib/install.sh`:**
+## Summary
 
-1. **`install_backup_config()`** - Backs up existing configuration before upgrade
-   - Creates timestamped backup directory with version info
-   - Backs up `settings.json`, `status.json`, and `.morty/` subdirectories
-   - Returns backup directory path on success
+Successfully implemented `bootstrap_cmd_upgrade()` and all supporting functions for Job 4 Task 1:
 
-2. **`install_restore_config()`** - Restores user configuration after upgrade
-   - Restores backed up files to their original locations
-   - Handles logs, plan, research directories
-   - Reports count of restored items
+### Implemented Functions
 
-3. **`install_migrate_config()`** - Migrates configuration between versions
-   - Supports major version migrations (e.g., 1.x to 2.x)
-   - Uses jq to merge new default fields if available
-   - Updates version field in settings.json
+1. **`bootstrap_get_current_version()`** - Reads the installed version from the VERSION file
+2. **`bootstrap_get_latest_version()`** - Fetches the latest version from GitHub API (with fallback)
+3. **`bootstrap_compare_versions()`** - Compares semantic version strings (returns 0=equal, 1=v1>v2, 2=v1<v2)
+4. **`bootstrap_backup_installation()`** - Creates a full backup of the current installation
+5. **`bootstrap_migrate_config()`** - Handles configuration migration between versions (placeholder for future)
+6. **`bootstrap_rollback_upgrade()`** - Rolls back to the previous version on upgrade failure
+7. **`bootstrap_cmd_upgrade()`** - Main upgrade command handler
 
-4. **`install_check_update()`** - Checks for available updates from remote repository
-   - Uses GitHub API to fetch latest release
-   - Returns JSON with update availability status
-   - Falls back gracefully on network errors
+### Features
+- Compares current vs target version and prompts if already up-to-date
+- Warns and prompts when attempting to downgrade
+- Creates full installation backup before proceeding
+- Downloads and installs new version atomically
+- Verifies installation after upgrade
+- Automatically rolls back to backup on any failure
+- Preserves user configuration during upgrade
 
-5. **`install_get_latest_version()`** - Gets the latest version from remote
-   - Tries GitHub API first, then git ls-remote as fallback
-   - Returns current version if remote check fails
+### Tests Passed
+All version comparison tests pass (equality, greater than, less than, v-prefix normalization)
 
-6. **`install_compare_versions()`** - Already existed in the file for version comparison
+Git commit created: `32b0939`
 
 <!-- RALPH_STATUS -->
+```json
 {
   "module": "install",
   "job": "job_4",
-  "status": "COMPLETED",
-  "tasks_completed": 6,
-  "tasks_total": 6,
+  "status": "RUNNING",
+  "tasks_completed": 1,
+  "tasks_total": 5,
   "loop_count": 1,
   "debug_issues": 0,
-  "summary": "Successfully implemented all Job 4 tasks: install_backup_config(), install_restore_config(), install_migrate_config(), install_check_update(), install_get_latest_version(), and verified install_compare_versions(). All configuration migration and upgrade functions are now available in lib/install.sh."
+  "summary": "Completed Task 1: Implemented bootstrap_cmd_upgrade() and all supporting functions (get_current_version, get_latest_version, compare_versions, backup_installation, migrate_config, rollback_upgrade). All version comparison tests pass. Git commit 32b0939 created."
 }
+```
 <!-- END_RALPH_STATUS -->

@@ -1,0 +1,14 @@
+Job 1 已完成。输出 RALPH_STATUS：
+
+<!-- RALPH_STATUS -->
+{
+  "module": "install",
+  "job": "job_1",
+  "status": "COMPLETED",
+  "tasks_completed": 5,
+  "tasks_total": 5,
+  "loop_count": 1,
+  "debug_issues": 0,
+  "summary": "Successfully created bootstrap.sh script framework with all required functions: bootstrap_parse_args(), bootstrap_show_help(), bootstrap_validate_args(), bootstrap_main(). All validators passed: --help works, argument parsing works, invalid commands error correctly, conflicting args detected. Git commit created: 2e08e13"
+}
+<!-- END_RALPH_STATUS -->

@@ -39,7 +39,7 @@ loop:[验证器]
 这是一个 Job 完成检查器
 
 0. 如果当前 Job 的所有 Tasks 已完成且验证器通过,则检查通过,结束循环。
-1. 如果当前 Job 存在未解决的 debug_log,则检查不通过,需要重试。
+1. 如果当前 Job 存在最�解决的 debug_log,则检查不通过,需要重试。
 2. 如果验证器执行失败,则检查不通过,记录 debug_log 并准备重试。
 3. 如果达到最大重试次数,则标记 Job 为 BLOCKED,结束循环。
 4. 其他情况下,继续执行下一个 Task 或重试当前 Task。
@@ -123,23 +123,23 @@ loop:[验证器]
 # 当前 Job 上下文
 
 **模块**: install
-**Job**: job_5
-**当前 Task**: #1
-**Task 描述**: 实现 `bootstrap_cmd_uninstall()`
+**Job**: job_4
+**当前 Task**: #5
+**Task 描述**: 
 
 ## 任务列表
 
-- [ ] 实现 `bootstrap_cmd_uninstall()`\n- [ ] 实现 `--purge` 模式：同时删除配置文件和数据\n- [ ] 实现 `bootstrap_backup_before_uninstall()`\n
+- [ ] 实现 `bootstrap_cmd_upgrade()`\n- [ ] 实现 `bootstrap_get_current_version()`\n- [ ] 实现 `bootstrap_get_latest_version()`\n- [ ] 实现 `bootstrap_compare_versions()`\n
 
 ## 验证器
 
-- 无 Morty 安装时应提示并退出\n- 默认卸载应保留 `~/.mortyrc` 配置\n- `--purge` 应删除所有相关文件\n- 卸载后 `morty` 命令应不可用\n- 卸载前应要求确认（有提示信息）\n- 无\n
+- 已是最新版本时应提示并退出\n- 升级后用户配置应被保留\n- 升级失败时应能回滚到原版本\n- 升级后 `morty version` 应显示新版本\n- 无\n
 
 ## 执行指令
 
 请按照 Doing 模式的循环步骤执行：
 1. 读取 .morty/status.json 了解当前状态
-2. 执行当前 Task: 实现 `bootstrap_cmd_uninstall()`
+2. 执行当前 Task: 
 3. 如有问题，记录 debug_log
 4. 更新状态文件
 5. 输出 RALPH_STATUS

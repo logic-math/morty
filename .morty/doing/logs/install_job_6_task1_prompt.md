@@ -125,21 +125,21 @@ loop:[验证器]
 **模块**: install
 **Job**: job_6
 **当前 Task**: #1
-**Task 描述**: 实现 `install_get_version()`
+**Task 描述**: 确保 `bootstrap.sh` 支持管道执行（`curl ... | bash`）
 
 ## 任务列表
 
-- [ ] 实现 `install_get_version()`\n- [ ] 实现 `install_get_full_version()`\n- [ ] 实现 `install_check_update()`\n- [ ] 实现 `install_get_sandbox_status()`\n- [ ] 集成到 `morty version` 命令\n- [ ] 集成到 `morty upgrade --check` 命令\n- [ ] 添加版本兼容性检查\n- [ ] 添加隔离环境健康检查\n
+- [ ] 确保 `bootstrap.sh` 支持管道执行（`curl ... | bash`）\n- [ ] 测试一键安装命令：`curl -sSL https\n- [ ] 编写 `INSTALL.md` 安装指南文档\n- [ ] 在 `README.md` 中添加安装说明\n
 
 ## 验证器
 
-- `morty version` 应显示版本号\n- `morty version --verbose` 应显示安装路径、配置路径、隔离环境状态等\n- 检查更新应能访问 GitHub API 获取最新版本\n- 有新版本时应提示用户升级\n- 离线状态下应优雅降级，不报错\n- 隔离环境状态检查应报告当前是否有待完成的操作\n- 无\n
+- `curl -sSL <url> | bash` 应能成功安装\n- 离线环境下手动安装步骤应清晰可行\n- 安装文档应覆盖所有使用场景\n- 无\n
 
 ## 执行指令
 
 请按照 Doing 模式的循环步骤执行：
 1. 读取 .morty/status.json 了解当前状态
-2. 执行当前 Task: 实现 `install_get_version()`
+2. 执行当前 Task: 确保 `bootstrap.sh` 支持管道执行（`curl ... | bash`）
 3. 如有问题，记录 debug_log
 4. 更新状态文件
 5. 输出 RALPH_STATUS

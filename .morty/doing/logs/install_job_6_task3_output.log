@@ -1,0 +1,30 @@
+## Task 3 完成
+
+已成功编写 `INSTALL.md` 安装指南文档。
+
+### 文档内容概述
+
+`INSTALL.md` 包含以下章节：
+
+| 章节 | 内容 |
+|------|------|
+| **系统要求** | 必需依赖（Bash >= 4.0, Git >= 2.0, curl/wget）、可选依赖、磁盘空间要求 |
+| **快速安装** | 一键安装命令 `curl -sSL https://get.morty.dev \| bash`，自定义路径安装 |
+| **手动安装** | 离线环境下的手动安装步骤（Git 克隆或下载压缩包） |
+| **开发模式安装** | 使用 `--source ./` 从本地源码安装 |
+| **升级指南** | `upgrade` 命令使用说明，包括升级到指定版本 |
+| **卸载指南** | 标准卸载（保留配置）和彻底卸载（`--purge`） |
+| **常见问题排查** | 8 个常见问题及解决方案（Bash 版本低、无 curl/wget、权限不足等） |
+
+<!-- RALPH_STATUS -->
+{
+  "module": "install",
+  "job": "job_6",
+  "status": "RUNNING",
+  "tasks_completed": 3,
+  "tasks_total": 4,
+  "loop_count": 1,
+  "debug_issues": 0,
+  "summary": "Task 3 完成：编写 INSTALL.md 安装指南文档，包含快速安装、手动安装、升级/卸载指南和常见问题排查"
+}
+<!-- END_RALPH_STATUS -->

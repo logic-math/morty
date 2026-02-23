@@ -708,8 +708,6 @@ install_copy_files() {
 
     # Define files to copy to bin/
     local bin_scripts=(
-        "morty_fix.sh"
-        "morty_loop.sh"
         "morty_reset.sh"
         "morty_research.sh"
         "morty_plan.sh"
@@ -914,14 +912,6 @@ case "${1:-}" in
     doing)
         shift
         exec "$MORTY_HOME/bin/morty_doing.sh" "$@"
-        ;;
-    fix)
-        shift
-        exec "$MORTY_HOME/bin/morty_fix.sh" "$@"
-        ;;
-    loop)
-        shift
-        exec "$MORTY_HOME/bin/morty_loop.sh" "$@"
         ;;
     reset)
         shift

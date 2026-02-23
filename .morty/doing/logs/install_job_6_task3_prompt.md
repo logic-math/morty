@@ -123,23 +123,23 @@ loop:[验证器]
 # 当前 Job 上下文
 
 **模块**: install
-**Job**: job_5
-**当前 Task**: #1
-**Task 描述**: 实现 `bootstrap_cmd_uninstall()`
+**Job**: job_6
+**当前 Task**: #3
+**Task 描述**: 编写 `INSTALL.md` 安装指南文档
 
 ## 任务列表
 
-- [ ] 实现 `bootstrap_cmd_uninstall()`\n- [ ] 实现 `--purge` 模式：同时删除配置文件和数据\n- [ ] 实现 `bootstrap_backup_before_uninstall()`\n
+- [ ] 确保 `bootstrap.sh` 支持管道执行（`curl ... | bash`）\n- [ ] 测试一键安装命令：`curl -sSL https\n- [ ] 编写 `INSTALL.md` 安装指南文档\n- [ ] 在 `README.md` 中添加安装说明\n
 
 ## 验证器
 
-- 无 Morty 安装时应提示并退出\n- 默认卸载应保留 `~/.mortyrc` 配置\n- `--purge` 应删除所有相关文件\n- 卸载后 `morty` 命令应不可用\n- 卸载前应要求确认（有提示信息）\n- 无\n
+- `curl -sSL <url> | bash` 应能成功安装\n- 离线环境下手动安装步骤应清晰可行\n- 安装文档应覆盖所有使用场景\n- 无\n
 
 ## 执行指令
 
 请按照 Doing 模式的循环步骤执行：
 1. 读取 .morty/status.json 了解当前状态
-2. 执行当前 Task: 实现 `bootstrap_cmd_uninstall()`
+2. 执行当前 Task: 编写 `INSTALL.md` 安装指南文档
 3. 如有问题，记录 debug_log
 4. 更新状态文件
 5. 输出 RALPH_STATUS

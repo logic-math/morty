@@ -123,23 +123,23 @@ loop:[验证器]
 # 当前 Job 上下文
 
 **模块**: install
-**Job**: job_5
+**Job**: job_7
 **当前 Task**: #1
-**Task 描述**: 实现 `bootstrap_cmd_uninstall()`
+**Task 描述**: **识别过时代码**
 
 ## 任务列表
 
-- [ ] 实现 `bootstrap_cmd_uninstall()`\n- [ ] 实现 `--purge` 模式：同时删除配置文件和数据\n- [ ] 实现 `bootstrap_backup_before_uninstall()`\n
+- [ ] **识别过时代码**\n- [ ] **备份（可选）**\n- [ ] **执行删除**\n- [ ] **验证清理**\n- [ ] **更新文档**\n
 
 ## 验证器
 
-- 无 Morty 安装时应提示并退出\n- 默认卸载应保留 `~/.mortyrc` 配置\n- `--purge` 应删除所有相关文件\n- 卸载后 `morty` 命令应不可用\n- 卸载前应要求确认（有提示信息）\n- 无\n
+- 删除后 `morty_fix` 命令应不存在\n- 删除后 `morty_loop` 命令应不存在\n- 删除后 `morty doing/plan/research/reset` 应正常工作\n- 代码库中不应再有对 loop_monitor 的引用\n- git 历史中仍保留这些文件的记录（可回溯）\n- 只删除已确认被替代的功能\n- 确保有 git 历史可回溯\n- 删除前在团队中沟通\n- 删除后进行完整测试\n- 无\n
 
 ## 执行指令
 
 请按照 Doing 模式的循环步骤执行：
 1. 读取 .morty/status.json 了解当前状态
-2. 执行当前 Task: 实现 `bootstrap_cmd_uninstall()`
+2. 执行当前 Task: **识别过时代码**
 3. 如有问题，记录 debug_log
 4. 更新状态文件
 5. 输出 RALPH_STATUS

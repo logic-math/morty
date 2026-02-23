@@ -1,4 +1,4 @@
-Task 1 completed successfully. Let me output the RALPH_STATUS:
+Task 1 完成。以下是本次循环的执行结果：
 
 <!-- RALPH_STATUS -->
 {
@@ -9,6 +9,40 @@ Task 1 completed successfully. Let me output the RALPH_STATUS:
   "tasks_total": 6,
   "loop_count": 1,
   "debug_issues": 0,
-  "summary": "Successfully implemented Task 1: install_copy_files() function and related helper functions. Added install_copy_files(), install_create_main_command(), install_set_permissions(), install_create_symlink(), install_get_repo_root(), install_get_current_version(), install_write_version(), and install_init_config() to lib/install.sh. Updated install_do_install() to integrate all new functions. Git commit created: b87b4a0."
+  "summary": "成功实现 bootstrap_cmd_install() 函数及相关辅助函数。实现了从本地源码和 GitHub Release 下载的安装方式，包括文件复制、权限设置、符号链接创建和安装验证。测试验证通过：安装后 $MORTY_HOME/bin/morty 存在且可执行，符号链接正确，morty version 返回正确版本。"
 }
 <!-- END_RALPH_STATUS -->
+
+---
+
+**本次完成的工作**：
+
+1. **实现 `bootstrap_cmd_install()`** (`bootstrap.sh:655-759`)
+   - 检查是否已存在安装
+   - 支持从本地源码（`--source`）或 GitHub Release 安装
+   - 创建临时目录并确保失败时清理
+   - 调用文件复制、权限设置、符号链接创建
+
+2. **实现 `bootstrap_download_release(version, target_dir)`** (`bootstrap.sh:774-875`)
+   - 从 GitHub API 获取 release 信息
+   - 支持 curl/wget 两种下载方式
+   - 失败时回退到 git clone
+   - 自动解压并整理文件结构
+
+3. **实现 `bootstrap_install_from_source(source_path, target_dir)`** (`bootstrap.sh:882-927`)
+   - 复制本地源码到目标目录
+   - 支持 rsync 或手动复制（带文件过滤）
+   - 排除 `.git`, `.morty`, `*.log` 等目录
+
+4. **实现 `bootstrap_verify_install()`** (`bootstrap.sh:1007-1055`)
+   - 验证 morty 二进制文件存在且可执行
+   - 验证符号链接指向正确
+   - 运行 `morty version` 确认安装成功
+
+5. **修复路径问题**：创建 `bin/lib -> ../lib` 符号链接，使 morty 脚本能正确加载库文件
+
+**验证结果**：
+- ✅ 安装后 `$MORTY_HOME/bin/morty` 存在且可执行
+- ✅ 安装后 `$BIN_DIR/morty` 符号链接正确指向
+- ✅ 安装后 `morty version` 返回正确版本
+- ✅ 安装失败时通过 trap 机制清理临时文件

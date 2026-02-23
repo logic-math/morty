@@ -1,24 +1,12 @@
-Job 6 已成功完成！以下是本次执行的总结：
-
 <!-- RALPH_STATUS -->
 {
   "module": "install",
   "job": "job_6",
-  "status": "COMPLETED",
-  "tasks_completed": 7,
-  "tasks_total": 7,
+  "status": "RUNNING",
+  "tasks_completed": 1,
+  "tasks_total": 4,
   "loop_count": 1,
   "debug_issues": 0,
-  "summary": "Successfully implemented version information and management functions including: install_get_version(), install_get_full_version(), install_get_sandbox_status(), version compatibility check, sandbox health check, and integration with 'morty version --verbose' and 'morty upgrade --check' commands. All tests passed and Git commit created."
+  "summary": "Task 1 完成：bootstrap.sh 已支持管道执行。添加了管道模式检测函数、终端输入处理函数，并更新了所有交互式确认逻辑。已测试通过 `cat bootstrap.sh | bash /dev/stdin install --source . --prefix /tmp/test --force` 成功安装。Git 提交已创建 (4674566)。待执行任务：2. 测试一键安装命令，3. 编写 INSTALL.md，4. 更新 README.md"
 }
 <!-- END_RALPH_STATUS -->
-
-**完成的功能:**
-
-1. **`install_get_version()`** - 从安装目录的 VERSION 文件获取当前版本
-2. **`install_get_full_version()`** - 返回包含版本、安装路径、配置路径和沙盒状态的详细 JSON 信息
-3. **`install_get_sandbox_status()`** - 检查并返回隔离环境的运行状态（是否有待完成的操作、当前 Job 等）
-4. **`morty version --verbose`** - 集成详细版本信息显示
-5. **`morty upgrade --check`** - 集成更新检查功能
-6. **`install_check_version_compat()`** - 版本兼容性检查，验证组件版本是否匹配
-7. **`install_check_sandbox_health()`** - 隔离环境健康检查，验证目录结构、文件完整性等

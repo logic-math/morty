@@ -125,21 +125,21 @@ loop:[验证器]
 **模块**: install
 **Job**: job_2
 **当前 Task**: #1
-**Task 描述**: 实现 `install_get_default_prefix()`
+**Task 描述**: 实现 `bootstrap_check_system_deps()`
 
 ## 任务列表
 
-- [ ] 实现 `install_get_default_prefix()`\n- [ ] 实现 `install_validate_prefix()`\n- [ ] 实现 `install_check_existing()`\n- [ ] 实现 `install_ensure_dirs()`\n- [ ] 实现 PATH 检查，提示用户添加 PATH\n- [ ] 处理已存在安装时的冲突（备份、覆盖、取消）\n
+- [ ] 实现 `bootstrap_check_system_deps()`\n- [ ] 实现 `bootstrap_check_install_env()`\n- [ ] 实现友好的错误提示和修复建议\n
 
 ## 验证器
 
-- **测试原则**\n- 默认安装路径应为 `$HOME/.morty`\n- 路径包含空格时应正确处理\n- 无写入权限时应提示权限不足\n- 已存在安装时 `--force` 应备份并覆盖\n- 应正确创建 `bin/`, `lib/`, `prompts/` 子目录\n- 目录创建失败时应清理已创建的部分目录\n- 无\n- 路径包含空格时应正确处理\n- 无写入权限时应提示权限不足\n- 已存在安装时 `--force` 应备份并覆盖\n- 应正确创建 `bin/`, `lib/`, `prompts/` 子目录\n- 目录创建失败时应清理已创建的部分目录\n- 无\n
+- Bash < 4.0 时应提示升级 Bash\n- 无 curl/wget 时应提示安装其中之一\n- 目录无写权限时应提示权限不足\n- 已存在安装时应提示使用 `reinstall` 或 `upgrade`\n- 无\n
 
 ## 执行指令
 
 请按照 Doing 模式的循环步骤执行：
 1. 读取 .morty/status.json 了解当前状态
-2. 执行当前 Task: 实现 `install_get_default_prefix()`
+2. 执行当前 Task: 实现 `bootstrap_check_system_deps()`
 3. 如有问题，记录 debug_log
 4. 更新状态文件
 5. 输出 RALPH_STATUS

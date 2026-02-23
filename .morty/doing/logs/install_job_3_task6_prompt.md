@@ -123,23 +123,23 @@ loop:[验证器]
 # 当前 Job 上下文
 
 **模块**: install
-**Job**: job_5
-**当前 Task**: #1
-**Task 描述**: 实现 `bootstrap_cmd_uninstall()`
+**Job**: job_3
+**当前 Task**: #6
+**Task 描述**: 
 
 ## 任务列表
 
-- [ ] 实现 `bootstrap_cmd_uninstall()`\n- [ ] 实现 `--purge` 模式：同时删除配置文件和数据\n- [ ] 实现 `bootstrap_backup_before_uninstall()`\n
+- [ ] 实现 `bootstrap_cmd_install()`\n- [ ] 实现 `bootstrap_cmd_reinstall()`\n- [ ] 实现 `bootstrap_download_release()`\n- [ ] 实现 `bootstrap_install_from_source()`\n
 
 ## 验证器
 
-- 无 Morty 安装时应提示并退出\n- 默认卸载应保留 `~/.mortyrc` 配置\n- `--purge` 应删除所有相关文件\n- 卸载后 `morty` 命令应不可用\n- 卸载前应要求确认（有提示信息）\n- 无\n
+- 安装后 `$MORTY_HOME/bin/morty` 应存在且可执行\n- 安装后 `$BIN_DIR/morty` 符号链接应正确指向\n- 安装后 `morty version` 应返回正确版本\n- reinstall 应保留用户配置（settings.json）\n- 安装失败时应清理已创建的文件，不遗留垃圾\n- 无\n
 
 ## 执行指令
 
 请按照 Doing 模式的循环步骤执行：
 1. 读取 .morty/status.json 了解当前状态
-2. 执行当前 Task: 实现 `bootstrap_cmd_uninstall()`
+2. 执行当前 Task: 
 3. 如有问题，记录 debug_log
 4. 更新状态文件
 5. 输出 RALPH_STATUS

@@ -1,162 +1,163 @@
 # Morty
 
-简化的 AI 开发循环与迭代式 PRD 改进
+上下文优先的 AI Coding Agent 编排框架
 
 ## 概述
 
-Morty 是一个精简的 AI 开发系统,帮助你:
-1. **迭代改进 PRD** - 通过与 Claude Code 的交互式对话
-2. **管理模块知识** - 在 specs/ 目录中维护功能模块规范
-3. **自主执行开发循环** - 基于改进的需求文档
+Morty 是一个上下文优先的 AI 开发系统,帮助你:
+1. **Research 研究** - 深入理解问题和需求
+2. **Plan 规划** - 制定模块化的开发计划
+3. **Doing 执行** - 基于 Plan 执行分层 TDD 开发
+4. **版本管理** - Git 自动提交和回滚支持
 
 ## 核心特性
 
-### 🔧 Fix 模式 - 迭代式 PRD 改进
+### 🔬 Research 模式 - 深度研究
 - 启动交互式 Claude Code 会话
-- 三种改进方向:问题诊断、功能迭代、架构优化
-- 生成改进版 PRD 文档
-- 维护模块化知识库(specs/ 目录)
-- 可选的项目结构生成
+- 深入理解问题空间
+- 记录研究事实到 `.morty/research/`
+- 为 Plan 阶段提供知识基础
 
-### 🔄 开发循环(集成监控)
-- 自主 AI 开发迭代
-- 简单生命周期: 初始化 → 循环 → 错误/完成
-- 带上下文更新的退出钩子
-- 集成 tmux 三面板监控(自动启动)
-  - Claude Code 监控(Token 使用情况)
-  - 循环实时日志
-  - 交互式命令行
-- 后台运行支持(循环不受终端关闭影响)
+### 📋 Plan 模式 - 结构化规划
+- 基于 Research 结果制定开发计划
+- 模块化设计，支持分层开发
+- 生成 `.morty/plan/*.md` 计划文档
+- 定义清晰的 Jobs 和 Tasks
+
+### 🚀 Doing 模式 - 执行开发
+- 执行 Plan 制定的开发计划
+- 支持分层 TDD 开发范式
+- 自动状态管理和断点恢复
+- Job 级别 Git 自动提交
 
 ### 🔄 版本管理(Git 自动提交)
 - 自动 Git 初始化(首次运行时)
-- 每次循环自动创建 commit
+- 每个 Job 完成后自动创建 commit
 - 完整的变更历史记录
-- 支持回滚到任意循环状态
-- 支持人工干预和代码修改
+- 支持回滚到任意状态
+- 支持人工干预后继续执行
 
 ### 📁 项目管理
 - 在现有项目中启用 Morty
 - 自动检测项目类型
 - 生成构建/测试命令
-- 在 `.morty/` 目录中维护上下文
+- 在 `.morty/` 目录中维护完整上下文
 
 ## Installation
 
+### 一键安装（推荐）
+
 ```bash
-cd morty
-./install.sh
+curl -sSL https://get.morty.dev | bash
 ```
 
-Ensure `~/.local/bin` is in your PATH:
+### 本地安装
+
+```bash
+cd morty
+./bootstrap.sh install
+```
+
+### 自定义路径安装
+
+```bash
+./bootstrap.sh install --prefix /opt/morty --bin-dir /usr/local/bin
+```
+
+Ensure `~/.local/bin` (or your custom bin dir) is in your PATH:
 ```bash
 export PATH="$HOME/.local/bin:$PATH"
 ```
 
 ## 快速开始
 
-### 步骤 1: 创建初始 PRD
+### 步骤 1: Research 研究
 
 ```bash
-cat > prd.md << 'EOF'
-# Todo 应用
-
-## 概述
-一个简单的命令行 todo 应用,用于管理任务。
-
-## 功能
-- 添加任务
-- 列出任务
-- 标记任务完成
-- 删除任务
-
-## 用户
-- 偏好 CLI 工具的开发者
-- 需要简单任务管理的人
-
-## 需求
-- 快速响应
-- 数据持久化
-- 易于使用
-EOF
-```
-
-### 步骤 2: 启动 Fix 模式
-
-```bash
-morty fix prd.md
+morty research "创建一个命令行 todo 应用"
 ```
 
 这会启动一个 **交互式 Claude Code 会话**:
-- Claude 分析你的 PRD
+- Claude 分析你的需求
 - 提出澄清问题
-- 深入探索需求
-- 通过对话改进
-- 生成改进版 `prd.md`
-- 创建/更新 `specs/*.md` 模块规范
-- 可选:生成项目结构
+- 深入探索问题空间
+- 记录研究事实到 `.morty/research/`
 
-### 步骤 3: 开始开发
+### 步骤 2: Plan 规划
 
 ```bash
-morty loop
+morty plan
 ```
 
-这会自动在 tmux 中启动三面板监控:
-- 左侧(50%): 循环实时日志(显示项目进度、任务执行过程)
-- 右上(30%): Claude Code 监控(Token 使用、错误、系统资源)
-- 右下(70%): 交互式命令行(便捷命令: status, progress, logs, plan)
+基于 Research 结果制定开发计划:
+- 模块化设计
+- 定义 Jobs 和 Tasks
+- 生成 `.morty/plan/*.md`
 
-使用 `Ctrl+B D` 可以分离会话,循环将在后台继续运行。
+### 步骤 3: Doing 执行
+
+```bash
+morty doing
+```
+
+执行开发计划:
+- 按顺序执行 Jobs
+- 支持断点自动恢复
+- 每个 Job 完成后自动提交
+- 实时显示执行状态
 
 ## 命令
 
-### `morty fix <prd.md>`
-迭代式 PRD 改进模式。
+### `morty research <topic>`
+研究模式 - 深入理解问题空间。
 
 **功能:**
-1. 使用 fix 模式系统提示词启动 Claude Code
-2. 通过对话改进需求
-3. 生成改进版 prd.md
-4. 创建完整项目结构:
-   - `.morty/PROMPT.md` - 开发指令
-   - `.morty/fix_plan.md` - 任务分解
-   - `.morty/AGENT.md` - 构建/测试命令
-   - `.morty/specs/*.md` - 模块规范
+1. 使用 research 模式系统提示词启动 Claude Code
+2. 通过对话深入理解需求
+3. 记录研究事实到 `.morty/research/`
+4. 为 Plan 阶段提供知识基础
 
 **示例:**
 ```bash
-morty fix requirements.md
-morty fix docs/prd.md
+morty research "创建一个 REST API"
+morty research "优化数据库查询性能"
 ```
 
-### `morty loop [options]`
-启动开发循环(集成 tmux 监控)。
+### `morty plan [options]`
+规划模式 - 制定结构化开发计划。
 
 **功能:**
-- 默认在 tmux 中启动三面板监控
-- 左侧(50%): 循环实时日志(项目进度)
-- 右上(30%): Claude Code 监控(Token 使用、错误、资源)
-- 右下(70%): 交互式命令行
-- 循环在后台运行,不受终端关闭影响
+- 读取 `.morty/research/` 中的研究结果
+- 制定模块化的开发计划
+- 生成 `.morty/plan/[模块名].md`
+- 定义清晰的 Jobs 和 Tasks
+
+**示例:**
+```bash
+morty plan                      # 基于 research 生成计划
+```
+
+### `morty doing [options]`
+执行模式 - 执行开发计划。
+
+**功能:**
+- 读取 `.morty/plan/*.md` 中的开发计划
+- 按顺序逐个执行 Job
+- 支持断点自动恢复
+- 分层 TDD 开发（单元测试 → 集成测试 → 端到端测试）
 
 **选项:**
-- `--max-loops N` - 最大循环次数(默认: 50)
-- `--delay N` - 循环间延迟秒数(默认: 5)
-- `--no-monitor` - 不启动监控,直接运行循环
+- `--module <name>` - 只执行指定模块
+- `--job <name>` - 只执行指定 Job
+- `--restart` - 强制从头开始（忽略已有状态）
 
 **示例:**
 ```bash
-morty loop                      # 启动带监控的循环(推荐)
-morty loop --max-loops 100      # 自定义最大循环次数
-morty loop --no-monitor         # 不启动监控
+morty doing                     # 执行所有待完成的 Jobs
+morty doing --module install    # 只执行 install 模块
+morty doing --job job_1         # 只执行 job_1
+morty doing --restart           # 强制重新开始
 ```
-
-**tmux 快捷键:**
-- `Ctrl+B D` - 分离会话(后台运行)
-- `Ctrl+B 方向键` - 切换面板
-- `Ctrl+B [` - 进入滚动模式(查看历史)
-- `Ctrl+B X` - 关闭当前面板
 
 ### `morty reset [options]`
 版本回滚和循环管理。
@@ -185,34 +186,35 @@ morty reset -s              # 查看当前状态
 2. 找到目标 commit ID
 3. 运行 `morty reset -c <commit-id>` 回滚
 4. 可选: 手动修改代码进行干预
-5. 运行 `morty loop` 从当前状态继续
+5. 运行 `morty doing` 从当前状态继续
 
 ## Git Auto-Commit
 
 Morty automatically commits changes after each successful loop iteration:
 
 **Features:**
-- **Auto-commit after each loop**: Creates a snapshot with loop metadata
-- **Rollback capability**: Use `morty rollback <N>` to revert to any loop
-- **Loop history**: Use `morty history` to view all loop commits
+- **Auto-commit after each job**: Creates a snapshot with job metadata
+- **Rollback capability**: Use `morty reset <commit>` to revert to any state
+- **Job history**: Use `morty reset -l` to view all job commits
 - **Commit metadata**: Each commit includes:
-  - Loop number
+  - Job name
   - Timestamp (ISO format)
-  - Work summary
+  - Task completion status
   - Auto-commit marker
 
 **Example commit message:**
 ```
-morty: Loop #5 - Loop iteration completed
+feat(install): complete Job 3 - installation functions
 
-Auto-committed by Morty development loop.
+- Implemented bootstrap_cmd_install()
+- Implemented bootstrap_cmd_reinstall()
+- Added config backup and restore functionality
 
-Loop: 5
+Job: install/job_3
+Tasks: 6/6 completed
 Timestamp: 2024-01-15T10:30:45Z
-Summary: Loop iteration completed
 
-This commit represents the state after loop iteration 5.
-You can rollback to this point using: git reset --hard HEAD~N
+🤖 Generated with Claude Code
 ```
 
 **Benefits:**
@@ -230,11 +232,19 @@ You can rollback to this point using: git reset --hard HEAD~N
 - Commits are local (not pushed to remote)
 - Uses `git add -A` to stage all changes
 
-## Plan Mode Deep Dive
+## Workflow Deep Dive
 
-### How Plan Mode Works
+### How Morty Works
 
-Plan mode uses a sophisticated system prompt that enables Claude Code to:
+Morty uses a 3-phase workflow:
+
+1. **Research** - Understand the problem space
+2. **Plan** - Create structured development plans
+3. **Doing** - Execute plans with state management
+
+### Research Mode
+
+Research mode uses a system prompt that enables Claude Code to:
 
 1. **Deep Exploration**
    - Ask probing questions
@@ -242,91 +252,54 @@ Plan mode uses a sophisticated system prompt that enables Claude Code to:
    - Explore edge cases
    - Identify dependencies
 
-2. **Structured Thinking**
-   - Break down complex problems
-   - Identify patterns
-   - Recognize gaps
-   - Map relationships
+2. **Knowledge Recording**
+   - Record facts to `.morty/research/`
+   - Maintain research context
+   - Build domain understanding
 
-3. **Technical Insight**
-   - Assess feasibility
-   - Suggest technologies
-   - Identify challenges
-   - Recommend architectures
+### Plan Mode
 
-4. **User-Centric Analysis**
-   - Understand user personas
-   - Identify core features
-   - Prioritize by value
-   - Consider accessibility
+Plan mode creates structured development plans:
 
-### Dialogue Phases
+1. **Modular Design**
+   - Break down into modules
+   - Define Jobs and Tasks
+   - Set clear dependencies
 
-**Phase 1: Understanding**
-- Claude summarizes initial PRD
-- Identifies ambiguities
-- Lists assumptions
-- Asks critical questions
+2. **Output Structure**
+   - Generates `.morty/plan/[module].md`
+   - Defines validation criteria
+   - Creates executable specifications
 
-**Phase 2: Deep Dive**
-- Explores functional requirements
-- Discusses non-functional requirements
-- Develops user stories
-- Defines acceptance criteria
+### Doing Mode
 
-**Phase 3: Validation**
-- Summarizes all requirements
-- Confirms priorities
-- Validates approach
-- Checks for gaps
+Doing mode executes the plan:
 
-**Phase 4: Synthesis**
-- Generates `problem_description.md`
-- Creates project structure
-- Outputs completion signal
+1. **State Management**
+   - Track task completion in `.morty/status.json`
+   - Support breakpoint resume
+   - Handle failures and retries
 
-### Claude Command Configuration
-
-Plan mode launches Claude with these flags:
-
-```bash
-claude \
-  -p "<interactive prompt>" \
-  --continue \
-  --dangerously-skip-permissions \
-  --allowedTools Read Write Glob Grep WebSearch WebFetch
-```
-
-**Why these flags:**
-- `--continue`: Maintains context across the dialogue
-- `--dangerously-skip-permissions`: Full tool access for exploration
-- `--allowedTools`: Enables research and file operations
-
-### System Prompt Highlights
-
-The plan mode system prompt (`prompts/plan_mode_system.md`) includes:
-
-- **Dialogue Framework**: 4-phase refinement process
-- **Question Patterns**: "What if...", "Why...", "How..."
-- **Exploration Techniques**: 5 Whys, scenario mapping, constraint exploration
-- **Output Template**: Comprehensive problem_description.md structure
-- **Completion Signal**: `<!-- PLAN_MODE_COMPLETE -->` marker
+2. **Git Integration**
+   - Auto-commit after each Job
+   - Support rollback to any state
+   - Preserve full history
 
 ## Project Structure
 
-After running `morty plan`, you get:
+After running `morty research` and `morty plan`, you get:
 
 ```
 my-project/
 ├── .morty/
-│   ├── PROMPT.md              # Development instructions
-│   ├── fix_plan.md            # Task breakdown
-│   ├── AGENT.md               # Build/test commands
-│   ├── specs/                 # Module specifications
-│   │   └── *.md               # Module spec files
-│   ├── notes/                 # Claude generated notes
-│   │   └── *.md               # Summary and decision notes
-│   └── logs/                  # Execution logs
+│   ├── status.json            # Execution state
+│   ├── research/              # Research facts
+│   │   └── *.md               # Research documents
+│   ├── plan/                  # Development plans
+│   │   └── [module].md        # Module plans
+│   ├── doing/                 # Execution context
+│   │   └── logs/              # Execution logs
+│   └── logs/                  # System logs
 ├── src/                       # Source code
 ├── README.md
 └── .gitignore
@@ -334,93 +307,67 @@ my-project/
 
 ### Key Files
 
-**`.morty/PROMPT.md`**
-- Development instructions for Claude
-- References problem description
-- Defines workflow and quality standards
-- Includes RALPH_STATUS block format
+**`.morty/status.json`**
+- Current execution state
+- Task completion tracking
+- Module and Job status
+- Debug logs
 
-**`.morty/fix_plan.md`**
-- Prioritized task list
-- Checkbox format: `- [ ] Task`
-- Extracted from problem description
+**`.morty/research/*.md`**
+- Research findings
+- Problem understanding
+- Technical constraints
+- Domain knowledge
 
-**`.morty/AGENT.md`**
-- Build commands (auto-detected by project type)
-- Test commands
-- Development commands
-- Supports: Python, Node.js, Rust, Go
+**`.morty/plan/*.md`**
+- Module development plans
+- Jobs and Tasks definition
+- Validation criteria
+- Dependencies
 
-**`.morty/specs/*.md`**
-- Module specifications (one file per functional module)
-- Generated through fix mode dialogue
-- Includes: module purpose, scope, technical details, evolution history
+**`.morty/doing/logs/`**
+- Execution logs
+- Prompt and output history
+- Error logs
 
-**`.morty/notes/*.md`**
-- Claude generated notes and summaries
-- Created during loop iterations
-- Includes: implementation summaries, decisions, lessons learned
-- File naming: `YYYYMMDD_HHMMSS_topic.md`
-
-## Development Loop Lifecycle
+## Development Workflow
 
 ```
-init → loop → [error | done]
-       ↑  |
-       └──┘
+research → plan → doing
+   ↑         ↑      |
+   └────────┴──────┘
 ```
 
 **States:**
-- **init**: Project initialized
-- **loop**: Execute development iterations
-- **error**: Exit on error (updates PROMPT.md)
-- **done**: Exit on completion (updates PROMPT.md)
+- **research**: Understanding the problem space
+- **plan**: Creating structured development plans
+- **doing**: Executing plans with state management
 
 **Exit Conditions:**
-- All tasks in `fix_plan.md` completed
-- Error detected in Claude output
-- Completion signal detected
-- Maximum loops reached
+- All Jobs completed
+- Error detected (with retry logic)
+- User interrupt
 
-## 监控
+## 状态监控
 
-`morty loop` 默认启动集成 tmux 监控:
+### `morty stat` - 监控大盘
 
-**三面板布局:**
+显示当前执行状态和进度:
+
+```bash
+morty stat
 ```
-┌──────────────────┬───────────────┐
-│                  │ Claude监控    │
-│  循环日志        │ (Token/30%)   │
-│  (项目进度)      ├───────────────┤
-│                  │ 交互终端(70%) │
-└──────────────────┴───────────────┘
-```
+
+**显示内容:**
+- 当前模块和 Job
+- Task 完成进度
+- 整体完成百分比
+- 最近的执行日志
 
 **特性:**
-- 左侧 (50%): 循环实时日志
-  - 显示项目进度
-  - 任务执行过程
-  - Claude Code 完整输出
-  - 实时尾随最新日志
-- 右上 (30%): Claude Code 监控
-  - Token 使用统计
-  - 循环状态信息
-  - 最近错误显示
-  - 系统资源监控
-- 右下 (70%): 交互式命令行终端
-- 后台运行: 分离会话后循环继续执行
-
-**便捷命令(在右下终端中):**
-- `status` - 显示循环状态
-- `progress` - 显示任务进度
-- `logs` - 查看最新日志
-- `plan` - 查看任务计划
-- `help` - 显示帮助信息
-
-**tmux 控制:**
-- `Ctrl+B` 然后 `D` - 分离会话
-- `Ctrl+B` 然后 `←/→` - 切换面板
-- `Ctrl+B` 然后 `[` - 滚动模式(q 退出)
+- 自动刷新（可配置间隔）
+- 彩色输出
+- 简洁摘要或详细视图
 
 ## Configuration
 
@@ -443,14 +390,15 @@ export CLAUDE_CODE_CLI="/path/to/ai_cli"
 export CLAUDE_CODE_CLI="ai_cli --config enterprise"
 
 # Then use Morty normally
-morty plan requirements.md
-morty monitor
+morty research "your topic"
+morty plan
+morty doing
 ```
 
 **Project Files:**
-- `.morty/PROMPT.md` - Customize development instructions
-- `.morty/fix_plan.md` - Add/modify tasks
-- `.morty/AGENT.md` - Update build/test commands
+- `.morty/status.json` - View and manage execution state
+- `.morty/plan/*.md` - Review and modify development plans
+- `.morty/doing/logs/` - Review execution history
 
 ## Requirements
 
@@ -467,8 +415,8 @@ morty monitor
 ./tests/run_all_tests.sh
 
 # Or run individual tests
-./tests/test_plan_mode.sh          # Plan mode tests (10 tests)
-./tests/test_git_autocommit.sh     # Git auto-commit tests (9 tests)
+./tests/test_git_autocommit.sh     # Git auto-commit tests
+./tests/test_json_logging.sh       # JSON logging tests
 ```
 
 See [tests/README.md](tests/README.md) for detailed test documentation.
@@ -478,28 +426,8 @@ See [tests/README.md](tests/README.md) for detailed test documentation.
 ### Example 1: Web API Project
 
 ```bash
-# Create initial PRD
-cat > api_prd.md << 'EOF'
-# REST API for Blog
-
-## Overview
-A RESTful API for a blogging platform.
-
-## Features
-- User authentication
-- Create/edit/delete posts
-- Comments
-- Tags and categories
-
-## Technical Requirements
-- Node.js + Express
-- MongoDB database
-- JWT authentication
-- API documentation
-EOF
-
-# Refine through plan mode
-morty plan api_prd.md blog-api
+# Research the problem space
+morty research "Create a REST API for a blogging platform"
 
 # Claude will ask questions like:
 # - What's the expected load?
@@ -507,40 +435,34 @@ morty plan api_prd.md blog-api
 # - What's the permission model?
 # - Should we support markdown?
 
-# After dialogue, project is generated
-cd blog-api
-morty loop
+# After research, create the plan
+morty plan
+
+# Execute the development plan
+morty doing
 ```
 
 ### Example 2: CLI Tool
 
 ```bash
-cat > cli_prd.md << 'EOF'
-# File Organizer CLI
+# Research
+morty research "Build a CLI tool to organize files by rules"
 
-## Overview
-Organize files automatically based on rules.
+# Plan
+morty plan
 
-## Features
-- Scan directories
-- Apply rules (by extension, date, size)
-- Move/copy files
-- Dry-run mode
-EOF
-
-morty fix cli_prd.md
-cd file-organizer
-morty loop
+# Execute
+morty doing
 ```
 
 ## Tips
 
-1. **Start with a rough PRD** - Fix mode will help refine it
+1. **Research first** - Spend time understanding the problem before planning
 2. **Be specific in dialogue** - Answer Claude's questions thoughtfully
-3. **Review generated files** - Customize `.morty/PROMPT.md` as needed
-4. **Use integrated monitoring** - `morty loop` automatically starts tmux monitoring
-5. **Check logs** - `.morty/logs/` for detailed execution history
-6. **Detach when needed** - Use `Ctrl+B D` to let loop run in background
+3. **Review generated plans** - Customize `.morty/plan/*.md` as needed
+4. **Monitor progress** - Use `morty stat` to check execution status
+5. **Check logs** - `.morty/doing/logs/` for detailed execution history
+6. **Use reset when needed** - `morty reset` to rollback if something goes wrong
 
 ## Troubleshooting
 
@@ -552,9 +474,9 @@ npm install -g @anthropic-ai/claude-code
 
 ### Plan mode doesn't start
 Ensure:
-- PRD file exists and is Markdown (.md)
+- Research phase is completed (`.morty/research/` exists)
 - Claude CLI is installed
-- `prompts/plan_mode_system.md` exists
+- `prompts/plan.md` exists
 
 ### Project not generated
 Check if Claude created `problem_description.md` in the working directory during plan mode.
@@ -563,17 +485,24 @@ Check if Claude created `problem_description.md` in the working directory during
 
 **Core Components:**
 - `morty` - Main command router
-- `morty_fix.sh` - Fix mode implementation
-- `morty_loop.sh` - Development loop (with integrated monitoring)
+- `morty_research.sh` - Research mode implementation
+- `morty_plan.sh` - Plan mode implementation
+- `morty_doing.sh` - Doing mode execution
+- `morty_reset.sh` - Version management and rollback
 - `lib/common.sh` - Shared utilities
-- `lib/loop_monitor.sh` - tmux monitoring integration
-- `prompts/fix_mode_system.md` - Fix mode system prompt
+- `lib/config.sh` - Configuration management
+- `lib/logging.sh` - Logging system
+- `lib/version_manager.sh` - Git integration
+- `prompts/research.md` - Research mode system prompt
+- `prompts/plan.md` - Plan mode system prompt
+- `prompts/doing.md` - Doing mode system prompt
+- `bootstrap.sh` - Installation script
 
 **Design Principles:**
-- Simplicity over complexity
-- Interactive over automated
-- Context-rich over minimal
-- Dialogue-driven refinement
+- Context-first over prompt-first
+- Structured workflow over free-form
+- State management over stateless
+- Modular design over monolithic
 
 ## License
 
@@ -594,5 +523,5 @@ Inspired by [Ralph for Claude Code](https://github.com/frankbria/ralph-claude-co
 
 ---
 
-**Version**: 0.3.0 (Integrated Monitoring)
+**Version**: 2.0.0 (Context-First Framework)
 **Status**: Production Ready

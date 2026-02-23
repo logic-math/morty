@@ -125,21 +125,21 @@ loop:[验证器]
 **模块**: install
 **Job**: job_4
 **当前 Task**: #1
-**Task 描述**: 实现 `install_backup_config()`
+**Task 描述**: 实现 `bootstrap_cmd_upgrade()`
 
 ## 任务列表
 
-- [ ] 实现 `install_backup_config()`\n- [ ] 实现 `install_restore_config()`\n- [ ] 实现 `install_migrate_config()`\n- [ ] 实现 `install_check_update()`\n- [ ] 实现 `install_get_latest_version()`\n- [ ] 实现 `install_compare_versions()`\n
+- [ ] 实现 `bootstrap_cmd_upgrade()`\n- [ ] 实现 `bootstrap_get_current_version()`\n- [ ] 实现 `bootstrap_get_latest_version()`\n- [ ] 实现 `bootstrap_compare_versions()`\n
 
 ## 验证器
 
-- **功能验证**\n- **隔离执行原则（测试时强制执行）**\n- 无\n
+- 已是最新版本时应提示并退出\n- 升级后用户配置应被保留\n- 升级失败时应能回滚到原版本\n- 升级后 `morty version` 应显示新版本\n- 无\n
 
 ## 执行指令
 
 请按照 Doing 模式的循环步骤执行：
 1. 读取 .morty/status.json 了解当前状态
-2. 执行当前 Task: 实现 `install_backup_config()`
+2. 执行当前 Task: 实现 `bootstrap_cmd_upgrade()`
 3. 如有问题，记录 debug_log
 4. 更新状态文件
 5. 输出 RALPH_STATUS
