@@ -3,16 +3,16 @@
   "state": "running",
   "current": {
     "module": "config",
-    "job": "job_3",
+    "job": "job_4",
     "status": "COMPLETED",
-    "start_time": "2026-02-24T19:46:36Z",
+    "start_time": "2026-02-24T20:00:57Z",
     "interrupted_at": "2026-02-24T16:51:59Z",
-    "completed_at": "2026-02-24T20:00:55Z"
+    "completed_at": "2026-02-24T20:25:01Z"
   },
   "session": {
     "start_time": "2026-02-24T12:51:47Z",
-    "last_update": "2026-02-24T20:00:55Z",
-    "total_loops": 9
+    "last_update": "2026-02-24T20:25:01Z",
+    "total_loops": 10
   },
   "modules": {
     "go_env_setup": {
@@ -422,12 +422,71 @@
           "completion_summary": "Job executed successfully"
         },
         "job_4": {
-          "status": "PENDING",
-          "loop_count": 0,
+          "status": "COMPLETED",
+          "loop_count": 1,
           "retry_count": 0,
           "tasks_total": 9,
-          "tasks_completed": 0,
-          "debug_logs": []
+          "tasks_completed": 9,
+          "debug_logs": [],
+          "started_at": "2026-02-24T20:00:57Z",
+          "tasks": {
+            "1": {
+              "index": 1,
+              "status": "COMPLETED",
+              "description": "Task 1: 创建 `internal/config/paths.go` 文件结构",
+              "updated_at": "2026-02-24T20:24:56Z"
+            },
+            "2": {
+              "index": 2,
+              "status": "COMPLETED",
+              "description": "Task 2: 实现 `GetWorkDir() string` 返回 `.morty` 路径",
+              "updated_at": "2026-02-24T20:24:56Z"
+            },
+            "3": {
+              "index": 3,
+              "status": "COMPLETED",
+              "description": "Task 3: 实现 `GetLogDir() string` 返回 `.morty/doing/logs` 路径",
+              "updated_at": "2026-02-24T20:24:57Z"
+            },
+            "4": {
+              "index": 4,
+              "status": "COMPLETED",
+              "description": "Task 4: 实现 `GetResearchDir() string` 返回 `.morty/research` 路径",
+              "updated_at": "2026-02-24T20:24:58Z"
+            },
+            "5": {
+              "index": 5,
+              "status": "COMPLETED",
+              "description": "Task 5: 实现 `GetPlanDir() string` 返回 `.morty/plan` 路径",
+              "updated_at": "2026-02-24T20:24:58Z"
+            },
+            "6": {
+              "index": 6,
+              "status": "COMPLETED",
+              "description": "Task 6: 实现 `GetStatusFile() string` 返回 `.morty/status.json` 路径",
+              "updated_at": "2026-02-24T20:24:59Z"
+            },
+            "7": {
+              "index": 7,
+              "status": "COMPLETED",
+              "description": "Task 7: 实现 `GetConfigFile() string` 返回配置文件路径",
+              "updated_at": "2026-02-24T20:24:59Z"
+            },
+            "8": {
+              "index": 8,
+              "status": "COMPLETED",
+              "description": "Task 8: 实现路径自动创建 (如果不存在)",
+              "updated_at": "2026-02-24T20:25:00Z"
+            },
+            "9": {
+              "index": 9,
+              "status": "COMPLETED",
+              "description": "Task 9: 编写单元测试 `paths_test.go`",
+              "updated_at": "2026-02-24T20:25:00Z"
+            }
+          },
+          "completed_at": "2026-02-24T20:25:01Z",
+          "completion_summary": "Job executed successfully"
         }
       }
     },
