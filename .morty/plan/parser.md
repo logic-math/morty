@@ -217,23 +217,25 @@ func NewFactory() Factory
 - Job 1 完成
 
 **Tasks (Todo 列表)**:
-- [ ] Task 1: 创建 `internal/parser/markdown/parser.go`
-- [ ] Task 2: 实现 `Parse(content string) (Document, error)`
-- [ ] Task 3: 实现标题解析 (H1-H6)
-- [ ] Task 4: 实现段落和列表解析
-- [ ] Task 5: 实现代码块解析
-- [ ] Task 6: 注册到工厂
-- [ ] Task 7: 编写单元测试 `markdown/parser_test.go`
+- [x] Task 1: 创建 `internal/parser/markdown/parser.go`
+- [x] Task 2: 实现 `Parse(content string) (Document, error)`
+- [x] Task 3: 实现标题解析 (H1-H6)
+- [x] Task 4: 实现段落和列表解析
+- [x] Task 5: 实现代码块解析
+- [x] Task 6: 注册到工厂
+- [x] Task 7: 编写单元测试 `markdown/parser_test.go`
 
 **验证器**:
-- [ ] 正确解析标题层级
-- [ ] 正确解析无序列表和有序列表
-- [ ] 正确解析代码块（带语言标识）
-- [ ] 通过工厂能获取 Markdown 解析器
-- [ ] 所有单元测试通过 (覆盖率 >= 80%)
+- [x] 正确解析标题层级
+- [x] 正确解析无序列表和有序列表
+- [x] 正确解析代码块（带语言标识）
+- [x] 通过工厂能获取 Markdown 解析器
+- [x] 所有单元测试通过 (覆盖率 >= 80%)
 
 **调试日志**:
-- 待填充
+- explore1: [探索发现] 项目使用标准 Go 项目结构, parser 模块包含 factory.go 和 interface.go, Parser 接口定义包含 Parse/ParseString/Supports/FileType 方法, 使用 ParseResult 结构体返回结果, 已记录
+- debug1: 编译错误 - fmt.Sprintf 递归调用, 现象: go test 报错 "fmt.Sprintf format %v with arg n causes recursive String method call", 复现: 在 Node.String() 方法中使用 fmt.Sprintf("Unknown: %v", n) 导致递归, 猜想: 1)%v 格式会调用 String() 方法造成递归 2)需要避免在 String() 中使用 %v 格式化自身, 验证: 将 %v 改为具体字段引用, 修复: 修改为 fmt.Sprintf("Unknown: type=%s content=%q", n.Type, n.Content), 已修复
+- debug2: 文件路径问题, 现象: 创建的文件在 /opt/meituan/... 但测试运行目录是 /home/sankuai/..., 复现: 写入文件后执行 go test 找不到包, 猜想: 1)存在两个独立的工作目录 2)symlink 导致路径混淆, 验证: 检查两个目录内容发现差异, 修复: 复制文件到正确的 /home/sankuai/.../internal/parser/ 目录, 已修复
 
 ---
 

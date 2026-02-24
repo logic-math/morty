@@ -3,16 +3,16 @@
   "state": "running",
   "current": {
     "module": "parser",
-    "job": "job_1",
+    "job": "job_2",
     "status": "COMPLETED",
-    "start_time": "2026-02-24T22:15:33Z",
+    "start_time": "2026-02-24T22:45:11Z",
     "interrupted_at": "2026-02-24T16:51:59Z",
-    "completed_at": "2026-02-24T22:45:09Z"
+    "completed_at": "2026-02-24T23:10:10Z"
   },
   "session": {
     "start_time": "2026-02-24T12:51:47Z",
-    "last_update": "2026-02-24T22:45:09Z",
-    "total_loops": 14
+    "last_update": "2026-02-24T23:10:10Z",
+    "total_loops": 15
   },
   "modules": {
     "go_env_setup": {
@@ -737,12 +737,59 @@
           "completion_summary": "Job executed successfully"
         },
         "job_2": {
-          "status": "PENDING",
-          "loop_count": 0,
+          "status": "COMPLETED",
+          "loop_count": 1,
           "retry_count": 0,
           "tasks_total": 7,
-          "tasks_completed": 0,
-          "debug_logs": []
+          "tasks_completed": 7,
+          "debug_logs": [],
+          "started_at": "2026-02-24T22:45:11Z",
+          "tasks": {
+            "1": {
+              "index": 1,
+              "status": "COMPLETED",
+              "description": "Task 1: 创建 `internal/parser/markdown/parser.go`",
+              "updated_at": "2026-02-24T23:10:06Z"
+            },
+            "2": {
+              "index": 2,
+              "status": "COMPLETED",
+              "description": "Task 2: 实现 `Parse(content string) (Document, error)`",
+              "updated_at": "2026-02-24T23:10:07Z"
+            },
+            "3": {
+              "index": 3,
+              "status": "COMPLETED",
+              "description": "Task 3: 实现标题解析 (H1-H6)",
+              "updated_at": "2026-02-24T23:10:07Z"
+            },
+            "4": {
+              "index": 4,
+              "status": "COMPLETED",
+              "description": "Task 4: 实现段落和列表解析",
+              "updated_at": "2026-02-24T23:10:08Z"
+            },
+            "5": {
+              "index": 5,
+              "status": "COMPLETED",
+              "description": "Task 5: 实现代码块解析",
+              "updated_at": "2026-02-24T23:10:09Z"
+            },
+            "6": {
+              "index": 6,
+              "status": "COMPLETED",
+              "description": "Task 6: 注册到工厂",
+              "updated_at": "2026-02-24T23:10:09Z"
+            },
+            "7": {
+              "index": 7,
+              "status": "COMPLETED",
+              "description": "Task 7: 编写单元测试 `markdown/parser_test.go`",
+              "updated_at": "2026-02-24T23:10:10Z"
+            }
+          },
+          "completed_at": "2026-02-24T23:10:10Z",
+          "completion_summary": "Job executed successfully"
         },
         "job_3": {
           "status": "PENDING",
