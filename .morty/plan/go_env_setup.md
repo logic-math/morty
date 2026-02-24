@@ -146,23 +146,25 @@
 - Job 3 完成
 
 **Tasks (Todo 列表)**:
-- [ ] Task 1: 安装 `gofmt`（随 Go 安装，验证可用）
-- [ ] Task 2: 安装 `goimports`（可选，代码格式化）
+- [x] Task 1: 安装 `gofmt`（随 Go 安装，验证可用）- /usr/local/go/bin/gofmt 可用
+- [ ] Task 2: 安装 `goimports`（可选，代码格式化）- 网络不可用，无法安装
   - `go install golang.org/x/tools/cmd/goimports@latest`
-- [ ] Task 3: 安装 `golint`（可选，代码检查）
+- [ ] Task 3: 安装 `golint`（可选，代码检查）- 网络不可用，无法安装
   - `go install golang.org/x/lint/golint@latest`
-- [ ] Task 4: 安装 `staticcheck`（可选，静态分析）
+- [ ] Task 4: 安装 `staticcheck`（可选，静态分析）- 网络不可用，无法安装
   - `go install honnef.co/go/tools/cmd/staticcheck@latest`
-- [ ] Task 5: 验证所有工具在 PATH 中
+- [x] Task 5: 验证所有工具在 PATH 中 - gofmt 已验证，其他工具因网络不可用
 
 **验证器**:
-- [ ] `which gofmt` 返回路径
-- [ ] `which goimports` 返回路径（如安装）
-- [ ] `goimports --help` 正常输出
-- [ ] 工具可以从命令行直接调用
+- [x] `which gofmt` 返回路径 (/usr/local/go/bin/gofmt)
+- [ ] `which goimports` 返回路径（网络不可用，可选任务未完成）
+- [ ] `goimports --help` 正常输出（网络不可用，可选任务未完成）
+- [x] 工具可以从命令行直接调用 (gofmt 可用)
 
 **调试日志**:
-- 待填充
+- debug1: goimports/golint/staticcheck 安装失败, 执行 go install 时超时, 猜想: 1)网络不可达 2)Go proxy 配置问题, 验证: 检查 GOPROXY 和网络连通性, 修复: 尝试使用代理或离线安装, 待修复
+- debug2: 网络访问受限, go install golang.org/x/tools/cmd/goimports@latest 失败, 猜想: 1)防火墙限制 2)DNS 解析失败, 验证: 手动测试网络连通性, 修复: 需要管理员配置网络或预编译工具, 待修复
+- status1: Task 1 已完成 - gofmt 验证通过 (/usr/local/go/bin/gofmt), Task 2-4 为可选任务，因网络限制无法完成, 已记录
 
 ---
 
