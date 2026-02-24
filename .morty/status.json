@@ -2,60 +2,33 @@
   "version": "2.0",
   "state": "running",
   "current": {
-    "module": "cli",
+    "module": "go_env_setup",
     "job": "job_1",
-    "status": "INTERRUPTED",
-    "start_time": "2026-02-23T14:17:41Z",
-    "interrupted_at": "2026-02-23T14:24:39Z"
+    "status": "PENDING",
+    "start_time": null
   },
   "session": {
-    "start_time": "2026-02-23T13:54:41Z",
-    "last_update": "2026-02-23T14:24:39Z",
-    "total_loops": 2
+    "start_time": "2026-02-24T12:51:47Z",
+    "last_update": "2026-02-24T12:52:00Z",
+    "total_loops": 0
   },
   "modules": {
-    "cli": {
+    "go_env_setup": {
       "status": "pending",
       "jobs": {
         "job_1": {
-          "status": "RUNNING",
-          "loop_count": 1,
+          "status": "PENDING",
+          "loop_count": 0,
           "retry_count": 0,
-          "tasks_total": 5,
-          "tasks_completed": 1,
-          "debug_logs": [
-            {
-              "id": 1771856671.696129,
-              "timestamp": "2026-02-23T14:24:31Z",
-              "phenomenon": "[{type:system,subtype:init,cwd:/opt/meituan/dolphinfs_sunquan20/ai_coding/Coding/morty,session_id:23ba9b99-e9cb-4f94-a731-87e0ef8de78d,tools:[Task,TaskOutput,Bash,Glob,Grep,ExitPlanMode,Read,Edit,Writ",
-              "reproduction": "查看日志文件: .morty/doing/logs/cli_job_1_task1_output.log",
-              "hypotheses": [
-                "执行过程中出现错误，可能原因: 1)代码问题 2)环境配置 3)依赖缺失"
-              ],
-              "fix": "需要人工检查日志并修复问题",
-              "resolved": false
-            }
-          ],
-          "started_at": "2026-02-23T13:54:46Z",
-          "completed_at": "",
-          "error_count": 0,
-          "interrupted": true,
-          "interrupted_at": "2026-02-23T14:24:39Z",
-          "last_summary": "",
-          "tasks": {
-            "1": {
-              "index": 1,
-              "status": "UNKNOWN",
-              "description": "创建 `morty` 主命令脚本",
-              "updated_at": "2026-02-23T14:24:31Z"
-            }
-          }
+          "tasks_total": 7,
+          "tasks_completed": 0,
+          "debug_logs": []
         },
         "job_2": {
           "status": "PENDING",
           "loop_count": 0,
           "retry_count": 0,
-          "tasks_total": 10,
+          "tasks_total": 7,
           "tasks_completed": 0,
           "debug_logs": []
         },
@@ -71,7 +44,7 @@
           "status": "PENDING",
           "loop_count": 0,
           "retry_count": 0,
-          "tasks_total": 3,
+          "tasks_total": 5,
           "tasks_completed": 0,
           "debug_logs": []
         },
@@ -79,7 +52,7 @@
           "status": "PENDING",
           "loop_count": 0,
           "retry_count": 0,
-          "tasks_total": 3,
+          "tasks_total": 8,
           "tasks_completed": 0,
           "debug_logs": []
         }
@@ -89,24 +62,18 @@
       "status": "pending",
       "jobs": {
         "job_1": {
-          "status": "RUNNING",
-          "loop_count": 1,
+          "status": "PENDING",
+          "loop_count": 0,
           "retry_count": 0,
           "tasks_total": 6,
           "tasks_completed": 0,
-          "debug_logs": [],
-          "started_at": "2026-02-23T14:17:41Z",
-          "completed_at": "",
-          "error_count": 0,
-          "interrupted": false,
-          "interrupted_at": "",
-          "last_summary": ""
+          "debug_logs": []
         },
         "job_2": {
           "status": "PENDING",
           "loop_count": 0,
           "retry_count": 0,
-          "tasks_total": 4,
+          "tasks_total": 8,
           "tasks_completed": 0,
           "debug_logs": []
         },
@@ -114,36 +81,7 @@
           "status": "PENDING",
           "loop_count": 0,
           "retry_count": 0,
-          "tasks_total": 5,
-          "tasks_completed": 0,
-          "debug_logs": []
-        }
-      }
-    },
-    "doing": {
-      "status": "pending",
-      "jobs": {
-        "job_1": {
-          "status": "PENDING",
-          "loop_count": 0,
-          "retry_count": 0,
-          "tasks_total": 5,
-          "tasks_completed": 0,
-          "debug_logs": []
-        },
-        "job_2": {
-          "status": "PENDING",
-          "loop_count": 0,
-          "retry_count": 0,
-          "tasks_total": 5,
-          "tasks_completed": 0,
-          "debug_logs": []
-        },
-        "job_3": {
-          "status": "PENDING",
-          "loop_count": 0,
-          "retry_count": 0,
-          "tasks_total": 4,
+          "tasks_total": 8,
           "tasks_completed": 0,
           "debug_logs": []
         },
@@ -151,44 +89,20 @@
           "status": "PENDING",
           "loop_count": 0,
           "retry_count": 0,
-          "tasks_total": 5,
-          "tasks_completed": 0,
-          "debug_logs": []
-        },
-        "job_5": {
-          "status": "PENDING",
-          "loop_count": 0,
-          "retry_count": 0,
-          "tasks_total": 4,
-          "tasks_completed": 0,
-          "debug_logs": []
-        },
-        "job_6": {
-          "status": "PENDING",
-          "loop_count": 0,
-          "retry_count": 0,
-          "tasks_total": 5,
-          "tasks_completed": 0,
-          "debug_logs": []
-        },
-        "job_7": {
-          "status": "PENDING",
-          "loop_count": 0,
-          "retry_count": 0,
-          "tasks_total": 4,
+          "tasks_total": 9,
           "tasks_completed": 0,
           "debug_logs": []
         }
       }
     },
-    "install": {
+    "git": {
       "status": "pending",
       "jobs": {
         "job_1": {
           "status": "PENDING",
           "loop_count": 0,
           "retry_count": 0,
-          "tasks_total": 5,
+          "tasks_total": 8,
           "tasks_completed": 0,
           "debug_logs": []
         },
@@ -196,7 +110,7 @@
           "status": "PENDING",
           "loop_count": 0,
           "retry_count": 0,
-          "tasks_total": 3,
+          "tasks_total": 7,
           "tasks_completed": 0,
           "debug_logs": []
         },
@@ -204,7 +118,36 @@
           "status": "PENDING",
           "loop_count": 0,
           "retry_count": 0,
-          "tasks_total": 4,
+          "tasks_total": 9,
+          "tasks_completed": 0,
+          "debug_logs": []
+        }
+      }
+    },
+    "parser": {
+      "status": "pending",
+      "jobs": {
+        "job_1": {
+          "status": "PENDING",
+          "loop_count": 0,
+          "retry_count": 0,
+          "tasks_total": 7,
+          "tasks_completed": 0,
+          "debug_logs": []
+        },
+        "job_2": {
+          "status": "PENDING",
+          "loop_count": 0,
+          "retry_count": 0,
+          "tasks_total": 7,
+          "tasks_completed": 0,
+          "debug_logs": []
+        },
+        "job_3": {
+          "status": "PENDING",
+          "loop_count": 0,
+          "retry_count": 0,
+          "tasks_total": 6,
           "tasks_completed": 0,
           "debug_logs": []
         },
@@ -212,7 +155,7 @@
           "status": "PENDING",
           "loop_count": 0,
           "retry_count": 0,
-          "tasks_total": 4,
+          "tasks_total": 6,
           "tasks_completed": 0,
           "debug_logs": []
         },
@@ -220,7 +163,7 @@
           "status": "PENDING",
           "loop_count": 0,
           "retry_count": 0,
-          "tasks_total": 3,
+          "tasks_total": 6,
           "tasks_completed": 0,
           "debug_logs": []
         },
@@ -228,7 +171,7 @@
           "status": "PENDING",
           "loop_count": 0,
           "retry_count": 0,
-          "tasks_total": 4,
+          "tasks_total": 8,
           "tasks_completed": 0,
           "debug_logs": []
         },
@@ -236,11 +179,65 @@
           "status": "PENDING",
           "loop_count": 0,
           "retry_count": 0,
-          "tasks_total": 5,
+          "tasks_total": 7,
           "tasks_completed": 0,
           "debug_logs": []
         }
       }
+    },
+    "deploy": {
+      "status": "pending",
+      "jobs": {
+        "job_1": {
+          "status": "PENDING",
+          "loop_count": 0,
+          "retry_count": 0,
+          "tasks_total": 7,
+          "tasks_completed": 0,
+          "debug_logs": []
+        },
+        "job_2": {
+          "status": "PENDING",
+          "loop_count": 0,
+          "retry_count": 0,
+          "tasks_total": 7,
+          "tasks_completed": 0,
+          "debug_logs": []
+        },
+        "job_3": {
+          "status": "PENDING",
+          "loop_count": 0,
+          "retry_count": 0,
+          "tasks_total": 7,
+          "tasks_completed": 0,
+          "debug_logs": []
+        },
+        "job_4": {
+          "status": "PENDING",
+          "loop_count": 0,
+          "retry_count": 0,
+          "tasks_total": 8,
+          "tasks_completed": 0,
+          "debug_logs": []
+        }
+      }
+    },
+    "errors": {
+      "status": "pending",
+      "jobs": {
+        "job_1": {
+          "status": "PENDING",
+          "loop_count": 0,
+          "retry_count": 0,
+          "tasks_total": 7,
+          "tasks_completed": 0,
+          "debug_logs": []
+        }
+      }
+    },
+    "prompts": {
+      "status": "pending",
+      "jobs": {}
     },
     "logging": {
       "status": "pending",
@@ -249,7 +246,7 @@
           "status": "PENDING",
           "loop_count": 0,
           "retry_count": 0,
-          "tasks_total": 5,
+          "tasks_total": 8,
           "tasks_completed": 0,
           "debug_logs": []
         },
@@ -257,7 +254,7 @@
           "status": "PENDING",
           "loop_count": 0,
           "retry_count": 0,
-          "tasks_total": 5,
+          "tasks_total": 7,
           "tasks_completed": 0,
           "debug_logs": []
         },
@@ -265,7 +262,7 @@
           "status": "PENDING",
           "loop_count": 0,
           "retry_count": 0,
-          "tasks_total": 5,
+          "tasks_total": 7,
           "tasks_completed": 0,
           "debug_logs": []
         },
@@ -273,13 +270,13 @@
           "status": "PENDING",
           "loop_count": 0,
           "retry_count": 0,
-          "tasks_total": 5,
+          "tasks_total": 7,
           "tasks_completed": 0,
           "debug_logs": []
         }
       }
     },
-    "plan": {
+    "call_cli": {
       "status": "pending",
       "jobs": {
         "job_1": {
@@ -289,13 +286,48 @@
           "tasks_total": 7,
           "tasks_completed": 0,
           "debug_logs": []
-        }
-      }
-    },
-    "research": {
-      "status": "pending",
-      "jobs": {
-        "job_1": {
+        },
+        "job_2": {
+          "status": "PENDING",
+          "loop_count": 0,
+          "retry_count": 0,
+          "tasks_total": 7,
+          "tasks_completed": 0,
+          "debug_logs": []
+        },
+        "job_3": {
+          "status": "PENDING",
+          "loop_count": 0,
+          "retry_count": 0,
+          "tasks_total": 7,
+          "tasks_completed": 0,
+          "debug_logs": []
+        },
+        "job_4": {
+          "status": "PENDING",
+          "loop_count": 0,
+          "retry_count": 0,
+          "tasks_total": 7,
+          "tasks_completed": 0,
+          "debug_logs": []
+        },
+        "job_5": {
+          "status": "PENDING",
+          "loop_count": 0,
+          "retry_count": 0,
+          "tasks_total": 8,
+          "tasks_completed": 0,
+          "debug_logs": []
+        },
+        "job_6": {
+          "status": "PENDING",
+          "loop_count": 0,
+          "retry_count": 0,
+          "tasks_total": 7,
+          "tasks_completed": 0,
+          "debug_logs": []
+        },
+        "job_7": {
           "status": "PENDING",
           "loop_count": 0,
           "retry_count": 0,
@@ -305,11 +337,335 @@
         }
       }
     },
-    "test": {
+    "state": {
       "status": "pending",
-      "jobs": {}
+      "jobs": {
+        "job_1": {
+          "status": "PENDING",
+          "loop_count": 0,
+          "retry_count": 0,
+          "tasks_total": 8,
+          "tasks_completed": 0,
+          "debug_logs": []
+        },
+        "job_2": {
+          "status": "PENDING",
+          "loop_count": 0,
+          "retry_count": 0,
+          "tasks_total": 8,
+          "tasks_completed": 0,
+          "debug_logs": []
+        },
+        "job_3": {
+          "status": "PENDING",
+          "loop_count": 0,
+          "retry_count": 0,
+          "tasks_total": 9,
+          "tasks_completed": 0,
+          "debug_logs": []
+        }
+      }
     },
-    "version_manager": {
+    "cli": {
+      "status": "pending",
+      "jobs": {
+        "job_1": {
+          "status": "PENDING",
+          "loop_count": 0,
+          "retry_count": 0,
+          "tasks_total": 8,
+          "tasks_completed": 0,
+          "debug_logs": []
+        },
+        "job_2": {
+          "status": "PENDING",
+          "loop_count": 0,
+          "retry_count": 0,
+          "tasks_total": 8,
+          "tasks_completed": 0,
+          "debug_logs": []
+        },
+        "job_3": {
+          "status": "PENDING",
+          "loop_count": 0,
+          "retry_count": 0,
+          "tasks_total": 6,
+          "tasks_completed": 0,
+          "debug_logs": []
+        }
+      }
+    },
+    "executor": {
+      "status": "pending",
+      "jobs": {
+        "job_1": {
+          "status": "PENDING",
+          "loop_count": 0,
+          "retry_count": 0,
+          "tasks_total": 8,
+          "tasks_completed": 0,
+          "debug_logs": []
+        },
+        "job_2": {
+          "status": "PENDING",
+          "loop_count": 0,
+          "retry_count": 0,
+          "tasks_total": 8,
+          "tasks_completed": 0,
+          "debug_logs": []
+        },
+        "job_3": {
+          "status": "PENDING",
+          "loop_count": 0,
+          "retry_count": 0,
+          "tasks_total": 8,
+          "tasks_completed": 0,
+          "debug_logs": []
+        },
+        "job_4": {
+          "status": "PENDING",
+          "loop_count": 0,
+          "retry_count": 0,
+          "tasks_total": 8,
+          "tasks_completed": 0,
+          "debug_logs": []
+        },
+        "job_5": {
+          "status": "PENDING",
+          "loop_count": 0,
+          "retry_count": 0,
+          "tasks_total": 8,
+          "tasks_completed": 0,
+          "debug_logs": []
+        },
+        "job_6": {
+          "status": "PENDING",
+          "loop_count": 0,
+          "retry_count": 0,
+          "tasks_total": 8,
+          "tasks_completed": 0,
+          "debug_logs": []
+        }
+      }
+    },
+    "research_cmd": {
+      "status": "pending",
+      "jobs": {
+        "job_1": {
+          "status": "PENDING",
+          "loop_count": 0,
+          "retry_count": 0,
+          "tasks_total": 7,
+          "tasks_completed": 0,
+          "debug_logs": []
+        },
+        "job_2": {
+          "status": "PENDING",
+          "loop_count": 0,
+          "retry_count": 0,
+          "tasks_total": 7,
+          "tasks_completed": 0,
+          "debug_logs": []
+        },
+        "job_3": {
+          "status": "PENDING",
+          "loop_count": 0,
+          "retry_count": 0,
+          "tasks_total": 6,
+          "tasks_completed": 0,
+          "debug_logs": []
+        }
+      }
+    },
+    "plan_cmd": {
+      "status": "pending",
+      "jobs": {
+        "job_1": {
+          "status": "PENDING",
+          "loop_count": 0,
+          "retry_count": 0,
+          "tasks_total": 8,
+          "tasks_completed": 0,
+          "debug_logs": []
+        },
+        "job_2": {
+          "status": "PENDING",
+          "loop_count": 0,
+          "retry_count": 0,
+          "tasks_total": 7,
+          "tasks_completed": 0,
+          "debug_logs": []
+        },
+        "job_3": {
+          "status": "PENDING",
+          "loop_count": 0,
+          "retry_count": 0,
+          "tasks_total": 8,
+          "tasks_completed": 0,
+          "debug_logs": []
+        },
+        "job_4": {
+          "status": "PENDING",
+          "loop_count": 0,
+          "retry_count": 0,
+          "tasks_total": 8,
+          "tasks_completed": 0,
+          "debug_logs": []
+        }
+      }
+    },
+    "doing_cmd": {
+      "status": "pending",
+      "jobs": {
+        "job_1": {
+          "status": "PENDING",
+          "loop_count": 0,
+          "retry_count": 0,
+          "tasks_total": 7,
+          "tasks_completed": 0,
+          "debug_logs": []
+        },
+        "job_2": {
+          "status": "PENDING",
+          "loop_count": 0,
+          "retry_count": 0,
+          "tasks_total": 7,
+          "tasks_completed": 0,
+          "debug_logs": []
+        },
+        "job_3": {
+          "status": "PENDING",
+          "loop_count": 0,
+          "retry_count": 0,
+          "tasks_total": 7,
+          "tasks_completed": 0,
+          "debug_logs": []
+        },
+        "job_4": {
+          "status": "PENDING",
+          "loop_count": 0,
+          "retry_count": 0,
+          "tasks_total": 7,
+          "tasks_completed": 0,
+          "debug_logs": []
+        },
+        "job_5": {
+          "status": "PENDING",
+          "loop_count": 0,
+          "retry_count": 0,
+          "tasks_total": 7,
+          "tasks_completed": 0,
+          "debug_logs": []
+        },
+        "job_6": {
+          "status": "PENDING",
+          "loop_count": 0,
+          "retry_count": 0,
+          "tasks_total": 7,
+          "tasks_completed": 0,
+          "debug_logs": []
+        },
+        "job_7": {
+          "status": "PENDING",
+          "loop_count": 0,
+          "retry_count": 0,
+          "tasks_total": 7,
+          "tasks_completed": 0,
+          "debug_logs": []
+        }
+      }
+    },
+    "stat_cmd": {
+      "status": "pending",
+      "jobs": {
+        "job_1": {
+          "status": "PENDING",
+          "loop_count": 0,
+          "retry_count": 0,
+          "tasks_total": 6,
+          "tasks_completed": 0,
+          "debug_logs": []
+        },
+        "job_2": {
+          "status": "PENDING",
+          "loop_count": 0,
+          "retry_count": 0,
+          "tasks_total": 7,
+          "tasks_completed": 0,
+          "debug_logs": []
+        },
+        "job_3": {
+          "status": "PENDING",
+          "loop_count": 0,
+          "retry_count": 0,
+          "tasks_total": 6,
+          "tasks_completed": 0,
+          "debug_logs": []
+        },
+        "job_4": {
+          "status": "PENDING",
+          "loop_count": 0,
+          "retry_count": 0,
+          "tasks_total": 6,
+          "tasks_completed": 0,
+          "debug_logs": []
+        },
+        "job_5": {
+          "status": "PENDING",
+          "loop_count": 0,
+          "retry_count": 0,
+          "tasks_total": 7,
+          "tasks_completed": 0,
+          "debug_logs": []
+        }
+      }
+    },
+    "reset_cmd": {
+      "status": "pending",
+      "jobs": {
+        "job_1": {
+          "status": "PENDING",
+          "loop_count": 0,
+          "retry_count": 0,
+          "tasks_total": 7,
+          "tasks_completed": 0,
+          "debug_logs": []
+        },
+        "job_2": {
+          "status": "PENDING",
+          "loop_count": 0,
+          "retry_count": 0,
+          "tasks_total": 7,
+          "tasks_completed": 0,
+          "debug_logs": []
+        },
+        "job_3": {
+          "status": "PENDING",
+          "loop_count": 0,
+          "retry_count": 0,
+          "tasks_total": 7,
+          "tasks_completed": 0,
+          "debug_logs": []
+        },
+        "job_4": {
+          "status": "PENDING",
+          "loop_count": 0,
+          "retry_count": 0,
+          "tasks_total": 8,
+          "tasks_completed": 0,
+          "debug_logs": []
+        },
+        "job_5": {
+          "status": "PENDING",
+          "loop_count": 0,
+          "retry_count": 0,
+          "tasks_total": 7,
+          "tasks_completed": 0,
+          "debug_logs": []
+        }
+      }
+    },
+    "e2e_test": {
       "status": "pending",
       "jobs": {
         "job_1": {
@@ -324,7 +680,7 @@
           "status": "PENDING",
           "loop_count": 0,
           "retry_count": 0,
-          "tasks_total": 5,
+          "tasks_total": 6,
           "tasks_completed": 0,
           "debug_logs": []
         },
@@ -332,7 +688,39 @@
           "status": "PENDING",
           "loop_count": 0,
           "retry_count": 0,
+          "tasks_total": 6,
+          "tasks_completed": 0,
+          "debug_logs": []
+        },
+        "job_4": {
+          "status": "PENDING",
+          "loop_count": 0,
+          "retry_count": 0,
+          "tasks_total": 6,
+          "tasks_completed": 0,
+          "debug_logs": []
+        },
+        "job_5": {
+          "status": "PENDING",
+          "loop_count": 0,
+          "retry_count": 0,
+          "tasks_total": 7,
+          "tasks_completed": 0,
+          "debug_logs": []
+        },
+        "job_6": {
+          "status": "PENDING",
+          "loop_count": 0,
+          "retry_count": 0,
           "tasks_total": 5,
+          "tasks_completed": 0,
+          "debug_logs": []
+        },
+        "job_7": {
+          "status": "PENDING",
+          "loop_count": 0,
+          "retry_count": 0,
+          "tasks_total": 6,
           "tasks_completed": 0,
           "debug_logs": []
         }
@@ -340,12 +728,12 @@
     }
   },
   "summary": {
-    "total_modules": 9,
+    "total_modules": 18,
     "completed_modules": 0,
     "running_modules": 0,
-    "pending_modules": 9,
+    "pending_modules": 18,
     "blocked_modules": 0,
-    "total_jobs": 31,
+    "total_jobs": 78,
     "completed_jobs": 0,
     "running_jobs": 0,
     "failed_jobs": 0,
