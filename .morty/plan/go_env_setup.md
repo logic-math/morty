@@ -53,24 +53,24 @@
 - 无
 
 **Tasks (Todo 列表)**:
-- [ ] Task 1: 检查操作系统类型 (`uname -s`)
-- [ ] Task 2: 检查架构类型 (`uname -m`)
-- [ ] Task 3: 安装 wget 或 curl（用于下载）
-- [ ] Task 4: 安装 tar（用于解压）
-- [ ] Task 5: 检查 git 版本 >= 2.0
-- [ ] Task 6: 安装 make（用于构建）
-- [ ] Task 7: 验证所有依赖可用
+- [x] Task 1: 检查操作系统类型 (`uname -s`)
+- [x] Task 2: 检查架构类型 (`uname -m`)
+- [x] Task 3: 安装 wget 或 curl（用于下载）
+- [x] Task 4: 安装 tar（用于解压）
+- [x] Task 5: 检查 git 版本 >= 2.0
+- [x] Task 6: 安装 make（用于构建）
+- [x] Task 7: 验证所有依赖可用
 
 **验证器**:
-- [ ] `uname` 命令返回正确结果
-- [ ] `wget` 或 `curl` 可用
-- [ ] `tar` 命令可用
-- [ ] `git --version` >= 2.0
-- [ ] `make --version` 可用
-- [ ] 所有检查通过
+- [x] `uname` 命令返回正确结果 (Linux, x86_64)
+- [x] `wget` 或 `curl` 可用 (/usr/bin/wget)
+- [x] `tar` 命令可用 (/usr/bin/tar)
+- [x] `git --version` >= 2.0 (git version 2.33.0)
+- [x] `make --version` 可用 (GNU Make 4.3)
+- [x] 所有检查通过
 
 **调试日志**:
-- 待填充
+- debug1: 系统依赖检查全部通过, 执行所有 Tasks 验证, 猜想: 环境已预装所有依赖, 验证: 执行命令检查, 修复: 无需修复, 已修复
 
 ---
 
@@ -84,7 +84,7 @@
 **Tasks (Todo 列表)**:
 - [ ] Task 1: 检查现有 Go 版本 (`go version`)
 - [ ] Task 2: 如已安装且版本 >= 1.21，跳过安装
-- [ ] Task 3: 确定下载 URL（根据 OS 和架构）
+- [ ] Task 3: 确定下载 URL（根据 OS 和架构) 如果 网络不可用 则使用代理后尝试: export http_proxy=http://10.229.18.27:8412 && export https_proxy=http://10.229.18.27:8412
   - Linux x86_64: https://go.dev/dl/go1.21.0.linux-amd64.tar.gz
   - Linux arm64: https://go.dev/dl/go1.21.0.linux-arm64.tar.gz
   - macOS x86_64: https://go.dev/dl/go1.21.0.darwin-amd64.tar.gz

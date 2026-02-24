@@ -3,34 +3,88 @@
   "state": "running",
   "current": {
     "module": "go_env_setup",
-    "job": "job_1",
-    "status": "PENDING",
-    "start_time": null
+    "job": "job_2",
+    "status": "COMPLETED",
+    "start_time": "2026-02-24T17:06:09Z",
+    "interrupted_at": "2026-02-24T16:51:59Z",
+    "completed_at": "2026-02-24T17:21:18Z"
   },
   "session": {
     "start_time": "2026-02-24T12:51:47Z",
-    "last_update": "2026-02-24T12:52:00Z",
-    "total_loops": 0
+    "last_update": "2026-02-24T17:21:18Z",
+    "total_loops": 3
   },
   "modules": {
     "go_env_setup": {
       "status": "pending",
       "jobs": {
         "job_1": {
-          "status": "PENDING",
-          "loop_count": 0,
-          "retry_count": 0,
+          "status": "RUNNING",
+          "loop_count": 2,
+          "retry_count": 1,
           "tasks_total": 7,
           "tasks_completed": 0,
-          "debug_logs": []
+          "debug_logs": [],
+          "started_at": "2026-02-24T16:48:10Z",
+          "last_failure_reason": "Execution failed with exit code 1",
+          "last_failure_at": "2026-02-24T16:29:30Z",
+          "interrupted_at": "2026-02-24T16:51:59Z",
+          "interrupted": true
         },
         "job_2": {
-          "status": "PENDING",
-          "loop_count": 0,
+          "status": "COMPLETED",
+          "loop_count": 1,
           "retry_count": 0,
           "tasks_total": 7,
-          "tasks_completed": 0,
-          "debug_logs": []
+          "tasks_completed": 7,
+          "debug_logs": [],
+          "started_at": "2026-02-24T17:06:09Z",
+          "tasks": {
+            "1": {
+              "index": 1,
+              "status": "COMPLETED",
+              "description": "Task 1: 检查现有 Go 版本 (`go version`)",
+              "updated_at": "2026-02-24T17:21:15Z"
+            },
+            "2": {
+              "index": 2,
+              "status": "COMPLETED",
+              "description": "Task 2: 如已安装且版本 >= 1.21，跳过安装",
+              "updated_at": "2026-02-24T17:21:15Z"
+            },
+            "3": {
+              "index": 3,
+              "status": "COMPLETED",
+              "description": "Task 3: 确定下载 URL（根据 OS 和架构) 如果 网络不可用 则使用代理后尝试: export http_proxy=http://10.229.18.27:8412 && export https_proxy=http://10.229.18.27:8412",
+              "updated_at": "2026-02-24T17:21:16Z"
+            },
+            "4": {
+              "index": 4,
+              "status": "COMPLETED",
+              "description": "Task 4: 下载 Go 安装包到 `/tmp/`",
+              "updated_at": "2026-02-24T17:21:16Z"
+            },
+            "5": {
+              "index": 5,
+              "status": "COMPLETED",
+              "description": "Task 5: 删除旧版本（如存在）`rm -rf /usr/local/go`",
+              "updated_at": "2026-02-24T17:21:17Z"
+            },
+            "6": {
+              "index": 6,
+              "status": "COMPLETED",
+              "description": "Task 6: 解压到 `/usr/local/go`",
+              "updated_at": "2026-02-24T17:21:17Z"
+            },
+            "7": {
+              "index": 7,
+              "status": "COMPLETED",
+              "description": "Task 7: 验证安装 `/usr/local/go/bin/go version`",
+              "updated_at": "2026-02-24T17:21:18Z"
+            }
+          },
+          "completed_at": "2026-02-24T17:21:19Z",
+          "completion_summary": "Job executed successfully"
         },
         "job_3": {
           "status": "PENDING",

@@ -903,10 +903,18 @@ doing_mark_failed() {
     else
         log ERROR "Job 已达到最大重试次数 ($DOING_MAX_RETRY_COUNT)，标记为 FAILED"
 
-        # 更新状态为 FAILED
-        if ! doing_update_job_status "$module" "$job" "FAILED"; then
-            log ERROR "无法更新 Job 状态为 FAILED"
-            return 1
+        # 获取当前状态
+        local current_status=$(doing_get_job_status "$module" "$job")
+
+        # 只有当当前状态不是 FAILED 时才更新状态
+        if [[ "$current_status" != "FAILED" ]]; then
+            # 更新状态为 FAILED
+            if ! doing_update_job_status "$module" "$job" "FAILED"; then
+                log ERROR "无法更新 Job 状态为 FAILED"
+                return 1
+            fi
+        else
+            log INFO "Job 状态已经是 FAILED，跳过状态更新"
         fi
 
         # 记录最终失败信息
@@ -1448,7 +1456,7 @@ doing_resume_job() {
     esac
 }
 
-# 执行单个 Job
+# 执行单个 Job - 一次性调用 ai_cli 完成所有 tasks
 doing_execute_job() {
     local module="$1"
     local job="$2"
@@ -1465,31 +1473,17 @@ doing_execute_job() {
 
     log INFO "  总任务数: $tasks_total, 当前循环: $current_loop"
 
-    # 执行每个 Task
-    local task_index=1
-    while [[ $task_index -le $tasks_total ]]; do
-        if doing_is_task_completed "$module" "$job" "$task_index"; then
-            log INFO "  Task $task_index 已完成，跳过"
-        else
-            log INFO "  执行 Task $task_index/$tasks_total..."
+    # 检查是否收到中断信号
+    if [[ "$INTERRUPT_RECEIVED" == true ]]; then
+        log WARN "Job 执行被中断"
+        return 130
+    fi
 
-            # 获取 Task 描述
-            local task_desc=$(get_job_tasks "$module" "$job" | sed -n "${task_index}p" | cut -d'|' -f2)
-            log INFO "    任务: $task_desc"
-
-            # 执行 Task
-            if doing_run_task "$module" "$job" "$task_index" "$task_desc"; then
-                doing_mark_task_complete "$module" "$job" "$task_index"
-                log SUCCESS "  Task $task_index 完成"
-            else
-                log ERROR "  Task $task_index 失败"
-                doing_update_job_status "$module" "$job" "FAILED"
-                return 1
-            fi
-        fi
-
-        ((task_index++))
-    done
+    # 一次性执行整个 Job（所有 tasks）
+    if ! doing_run_job_all_tasks "$module" "$job"; then
+        log ERROR "Job $module/$job 执行失败"
+        return 1
+    fi
 
     # 检查是否收到中断信号
     if [[ "$INTERRUPT_RECEIVED" == true ]]; then
@@ -1497,7 +1491,7 @@ doing_execute_job() {
         return 130
     fi
 
-    # 所有 Task 完成，返回成功（状态更新由调用者 doing_mark_completed 处理）
+    # 所有 Task 完成，返回成功
     log SUCCESS "Job $module/$job 所有 Task 执行完成"
 
     # 重置全局变量
@@ -1725,7 +1719,7 @@ doing_build_prompt() {
         task_desc=$(get_job_tasks "$module" "$job" | sed -n "${task_index}p" | cut -d'|' -f2)
     fi
 
-    # 构建完整提示词
+    # 构建完整提示词（已废弃函数，保留用于兼容）
     cat << EOF
 $system_prompt
 
@@ -1733,9 +1727,9 @@ $system_prompt
 
 # 精简上下文
 
-\`\`\`json
+\\`\\`\\`json
 $compact_context
-\`\`\`
+\\`\\`\\`
 
 ---
 
@@ -1760,27 +1754,6 @@ $validator_list
 1. 读取精简上下文了解当前状态
 2. 执行当前 Task: $task_desc
 3. 如有问题，记录 debug_log
-
-## 任务完成要求（必须执行）
-
-任务执行完毕后，你必须在文件 \`.morty/doing/job/${module}_${job}\` 中写入执行结果：
-
-- 如果任务成功完成且通过所有验证器检查，写入：**成功**
-- 如果任务失败或未通过验证器，写入：**失败**
-
-文件路径: \`.morty/doing/job/${module}_${job}\`
-
-### 验证器自检清单
-在写入结果前，请确认：
-- [ ] 我已执行完当前 Task 的所有要求
-- [ ] 我已运行所有验证器检查
-- [ ] 验证器全部通过（或在失败情况下明确记录原因）
-- [ ] 我已在指定路径创建了结果文件
-- [ ] 文件内容准确反映了任务执行状态
-
-**注意**: 系统将通过读取此文件来判断任务是否成功，未创建文件或读取失败将导致任务被标记为失败。
-
-开始执行!
 EOF
 }
 
@@ -1832,12 +1805,232 @@ build_task_prompt() {
     doing_build_prompt "$module" "$job" "$task_index" "$task_desc"
 }
 
-# 执行单个 Task
+# 执行整个 Job 的所有 Tasks - 一次性调用 ai_cli
+doing_run_job_all_tasks() {
+    local module="$1"
+    local job="$2"
+
+    # 检查是否收到中断信号
+    if [[ "$INTERRUPT_RECEIVED" == true ]]; then
+        log WARN "    Job 执行被中断"
+        return 130
+    fi
+
+    log INFO "    调用 ai_cli 执行整个 Job..."
+
+    # 获取所有 tasks
+    local tasks=$(get_job_tasks "$module" "$job")
+    local tasks_total=$(echo "$tasks" | wc -l)
+
+    # 构建包含所有 tasks 的 prompt
+    local task_prompt
+    if ! task_prompt=$(build_job_prompt "$module" "$job" "$tasks"); then
+        log ERROR "构建 Job 提示词失败"
+        return 1
+    fi
+
+    # 保存提示词到临时文件
+    local prompt_file="$DOING_LOGS/${module}_${job}_prompt.md"
+    if ! doing_save_prompt_to_file "$task_prompt" "$prompt_file"; then
+        log ERROR "保存提示词失败"
+        return 1
+    fi
+
+    # 构建 ai_cli 命令
+    local ai_args=(
+        "$CLAUDE_CMD"
+        "--verbose"
+        "--debug"
+        "--dangerously-skip-permissions"
+    )
+
+    # 执行 ai_cli
+    local output_file="$DOING_LOGS/${module}_${job}_output.log"
+    log INFO "    执行 ai_cli..."
+    log INFO "    输出日志: $output_file"
+
+    # 使用子shell执行 ai_cli，以便可以捕获中断信号
+    local exit_code=0
+    (
+        cat "$prompt_file" | "${ai_args[@]}" 2>&1
+    ) > "$output_file" &
+    local ai_pid=$!
+
+    # 等待子进程完成，同时检查中断信号
+    while kill -0 $ai_pid 2>/dev/null; do
+        if [[ "$INTERRUPT_RECEIVED" == true ]]; then
+            log WARN "    中断 Job 执行..."
+            kill -TERM $ai_pid 2>/dev/null || true
+            wait $ai_pid 2>/dev/null || true
+            return 130
+        fi
+        sleep 0.5
+    done
+
+    wait $ai_pid
+    exit_code=$?
+
+    log INFO "    ai_cli 退出码: $exit_code"
+
+    # 输出日志内容到控制台（用于实时查看）
+    if [[ -f "$output_file" ]]; then
+        cat "$output_file"
+    fi
+
+    # 检查是否被中断
+    if [[ $exit_code -eq 130 ]]; then
+        log WARN "    Job 被中断"
+        return 130
+    fi
+
+    # 检查 ai_cli 是否执行失败
+    if [[ $exit_code -ne 0 ]]; then
+        log ERROR "    ai_cli 执行失败 (退出码: $exit_code)"
+        return 1
+    fi
+
+    # 验证输出内容 - 检查是否包含 "status": "COMPLETED"
+    log INFO "    验证任务执行结果..."
+
+    if [[ ! -f "$output_file" ]]; then
+        log ERROR "    输出文件不存在: $output_file"
+        return 1
+    fi
+
+    local output_content
+    output_content=$(cat "$output_file" 2>/dev/null)
+
+    if [[ $? -ne 0 ]]; then
+        log ERROR "    读取输出文件失败: $output_file"
+        return 1
+    fi
+
+    # 检查输出中是否包含 "status": "COMPLETED" (支持各种 JSON 格式变体)
+    # 支持格式: "status": "COMPLETED", 'status': 'COMPLETED', status: "COMPLETED" 等
+    if echo "$output_content" | grep -qE '("status"|status)[[:space:]]*:[[:space:]]*("COMPLETED"|COMPLETED)'; then
+        log SUCCESS "    Job 执行成功（检测到 status: COMPLETED）"
+        # 标记所有 tasks 为完成
+        local task_index=1
+        while [[ $task_index -le $tasks_total ]]; do
+            local task_desc=$(echo "$tasks" | sed -n "${task_index}p" | cut -d'|' -f2)
+            doing_mark_task_complete "$module" "$job" "$task_index"
+            doing_update_task_detail "$module" "$job" "$task_index" "COMPLETED" "$task_desc"
+            ((task_index++))
+        done
+        return 0
+    else
+        log ERROR "    Job 执行失败（输出中未检测到 status: COMPLETED）"
+        return 1
+    fi
+}
+
+# 构建 Job 级别的执行提示词
+build_job_prompt() {
+    local module="$1"
+    local job="$2"
+    local tasks="$3"
+
+    # 读取系统提示词
+    local system_prompt=""
+    if [[ -f "$DOING_PROMPT" ]]; then
+        system_prompt=$(cat "$DOING_PROMPT")
+    else
+        log ERROR "系统提示词文件不存在: $DOING_PROMPT"
+        return 1
+    fi
+
+    # 构建精简上下文
+    local compact_context
+    if ! compact_context=$(doing_build_compact_context "$module" "$job"); then
+        log ERROR "构建精简上下文失败"
+        return 1
+    fi
+
+    # 从精简上下文中提取任务列表用于显示
+    local task_list=""
+    while IFS= read -r task_line; do
+        if [[ -n "$task_line" ]]; then
+            local status=$(echo "$task_line" | cut -d'|' -f3)
+            local desc=$(echo "$task_line" | cut -d'|' -f2)
+            if [[ "$status" == "completed" ]]; then
+                task_list="${task_list}- [x] ${desc}
+"
+            else
+                task_list="${task_list}- [ ] ${desc}
+"
+            fi
+        fi
+    done <<< "$tasks"
+
+    # 获取验证器列表
+    local validators=$(get_job_validators "$module" "$job")
+    local validator_list=""
+    while IFS= read -r val_line; do
+        if [[ -n "$val_line" ]]; then
+            local vdesc=$(echo "$val_line" | cut -d'|' -f2)
+            validator_list="${validator_list}- ${vdesc}
+"
+        fi
+    done <<< "$validators"
+
+    local tasks_total=$(echo "$tasks" | wc -l)
+
+    # 构建完整提示词
+    # 注意: 使用 printf 和显式转义来避免 heredoc 解析问题
+    printf '%s\n' "$system_prompt"
+    printf '\n---\n\n'
+    printf '# 精简上下文\n\n'
+    printf '\`\`\`json\n%s\n\`\`\`\n\n' "$compact_context"
+    printf '---\n\n'
+    printf '# 当前 Job 上下文\n\n'
+    printf '**模块**: %s\n' "$module"
+    printf '**Job**: %s\n' "$job"
+    printf '**总 Tasks**: %s\n\n' "$tasks_total"
+    printf '## 任务列表\n\n你需要按顺序完成以下所有 tasks：\n\n%s\n\n' "$task_list"
+    printf '## 验证器\n\n%s\n\n' "$validator_list"
+    printf '## 执行指令\n\n'
+    printf '请按照 Doing 模式的循环步骤执行：\n'
+    printf '1. 读取精简上下文了解当前状态\n'
+    printf '2. **按顺序执行所有 Tasks**，完成一个后再进行下一个\n'
+    printf '3. 每个 Task 完成后在内部标记进度\n'
+    printf '4. 所有 Tasks 完成后，运行所有验证器检查\n'
+    printf '5. 如有问题，记录 debug_log\n\n'
+    printf '## 任务完成要求（必须执行）\n\n'
+    printf '**所有 Tasks 执行完毕后**，你必须在输出中返回 JSON 格式的执行结果（RALPH_STATUS）：\n\n'
+    printf '\`\`\`json\n{\n'
+    printf '  "module": "%s",\n' "$module"
+    printf '  "job": "%s",\n' "$job"
+    printf '  "status": "COMPLETED",\n'
+    printf '  "tasks_completed": %s,\n' "$tasks_total"
+    printf '  "tasks_total": %s,\n' "$tasks_total"
+    printf '  "summary": "执行摘要"\n'
+    printf '}\n\`\`\`\n\n'
+    printf '### 重要规则：\n'
+    printf '- **成功时**: status 必须是 "COMPLETED"（全部大写）\n'
+    printf '- **失败时**: status 可以是 "FAILED"\n'
+    printf '- 系统会检查输出内容中是否包含 "status": "COMPLETED" 来判断任务是否成功\n'
+    printf '- **不需要写入任何文件**，只需要在输出中包含上述 JSON\n\n'
+    printf '### 验证器自检清单\n'
+    printf '在输出结果前，请确认：\n'
+    printf '- [ ] 我已执行完当前 Job 的所有 Tasks\n'
+    printf '- [ ] 我已运行所有验证器检查\n'
+    printf '- [ ] 验证器全部通过（或在失败情况下明确记录原因）\n'
+    printf '- [ ] 我已输出 RALPH_STATUS JSON 且 status 为 "COMPLETED"\n\n'
+    printf '**注意**: 系统通过检测输出中的 "status": "COMPLETED" 来判断任务成功，未检测到则标记为失败。\n\n'
+    printf '开始执行!\n'
+}
+
+# 执行单个 Task (已废弃，保留用于兼容性)
+# 注意: 此函数已废弃，实际逻辑已合并到 doing_run_job_all_tasks
+# 现在每个 Job 只调用一次 ai_cli，由 AI 自行完成所有 tasks
 doing_run_task() {
     local module="$1"
     local job="$2"
     local task_index="$3"
     local task_desc="$4"
+
+    log WARN "doing_run_task 已废弃，请使用 doing_run_job_all_tasks"
+    return 1
 
     # 检查是否收到中断信号
     if [[ "$INTERRUPT_RECEIVED" == true ]]; then
