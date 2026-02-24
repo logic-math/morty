@@ -115,6 +115,5 @@ type Manager interface {
 	GetConfigFile() string
 }
 
-// Ensure managerImpl implements Manager interface.
-// This will be uncommented when managerImpl is implemented.
-// var _ Manager = (*managerImpl)(nil)
+// Ensure Loader implements Manager interface.
+var _ Manager = (*Loader)(nil)
