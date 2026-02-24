@@ -3,16 +3,16 @@
   "state": "running",
   "current": {
     "module": "git",
-    "job": "job_2",
+    "job": "job_3",
     "status": "COMPLETED",
-    "start_time": "2026-02-24T20:58:56Z",
+    "start_time": "2026-02-24T21:37:50Z",
     "interrupted_at": "2026-02-24T16:51:59Z",
-    "completed_at": "2026-02-24T21:37:48Z"
+    "completed_at": "2026-02-24T22:15:31Z"
   },
   "session": {
     "start_time": "2026-02-24T12:51:47Z",
-    "last_update": "2026-02-24T21:37:48Z",
-    "total_loops": 12
+    "last_update": "2026-02-24T22:15:31Z",
+    "total_loops": 13
   },
   "modules": {
     "go_env_setup": {
@@ -610,12 +610,71 @@
           "completion_summary": "Job executed successfully"
         },
         "job_3": {
-          "status": "PENDING",
-          "loop_count": 0,
+          "status": "COMPLETED",
+          "loop_count": 1,
           "retry_count": 0,
           "tasks_total": 9,
-          "tasks_completed": 0,
-          "debug_logs": []
+          "tasks_completed": 9,
+          "debug_logs": [],
+          "started_at": "2026-02-24T21:37:50Z",
+          "tasks": {
+            "1": {
+              "index": 1,
+              "status": "COMPLETED",
+              "description": "Task 1: 创建 `internal/git/version.go` 文件结构",
+              "updated_at": "2026-02-24T22:15:27Z"
+            },
+            "2": {
+              "index": 2,
+              "status": "COMPLETED",
+              "description": "Task 2: 实现 `ResetToCommit(commitHash string, dir string) error`",
+              "updated_at": "2026-02-24T22:15:27Z"
+            },
+            "3": {
+              "index": 3,
+              "status": "COMPLETED",
+              "description": "Task 3: 回滚前创建备份分支",
+              "updated_at": "2026-02-24T22:15:28Z"
+            },
+            "4": {
+              "index": 4,
+              "status": "COMPLETED",
+              "description": "Task 4: 支持 hard reset 和 soft reset 选项",
+              "updated_at": "2026-02-24T22:15:28Z"
+            },
+            "5": {
+              "index": 5,
+              "status": "COMPLETED",
+              "description": "Task 5: 实现 `ShowLoopHistory(n int, dir string) ([]LoopCommit, error)`",
+              "updated_at": "2026-02-24T22:15:29Z"
+            },
+            "6": {
+              "index": 6,
+              "status": "COMPLETED",
+              "description": "Task 6: 解析提交信息提取循环编号和状态",
+              "updated_at": "2026-02-24T22:15:29Z"
+            },
+            "7": {
+              "index": 7,
+              "status": "COMPLETED",
+              "description": "Task 7: 按时间倒序返回历史记录",
+              "updated_at": "2026-02-24T22:15:30Z"
+            },
+            "8": {
+              "index": 8,
+              "status": "COMPLETED",
+              "description": "Task 8: 实现历史记录格式化输出",
+              "updated_at": "2026-02-24T22:15:30Z"
+            },
+            "9": {
+              "index": 9,
+              "status": "COMPLETED",
+              "description": "Task 9: 编写单元测试 `version_test.go`",
+              "updated_at": "2026-02-24T22:15:31Z"
+            }
+          },
+          "completed_at": "2026-02-24T22:15:32Z",
+          "completion_summary": "Job executed successfully"
         }
       }
     },
