@@ -3,16 +3,16 @@
   "state": "running",
   "current": {
     "module": "go_env_setup",
-    "job": "job_2",
+    "job": "job_3",
     "status": "COMPLETED",
-    "start_time": "2026-02-24T17:06:09Z",
+    "start_time": "2026-02-24T17:21:20Z",
     "interrupted_at": "2026-02-24T16:51:59Z",
-    "completed_at": "2026-02-24T17:21:18Z"
+    "completed_at": "2026-02-24T17:30:10Z"
   },
   "session": {
     "start_time": "2026-02-24T12:51:47Z",
-    "last_update": "2026-02-24T17:21:18Z",
-    "total_loops": 3
+    "last_update": "2026-02-24T17:30:10Z",
+    "total_loops": 4
   },
   "modules": {
     "go_env_setup": {
@@ -87,12 +87,59 @@
           "completion_summary": "Job executed successfully"
         },
         "job_3": {
-          "status": "PENDING",
-          "loop_count": 0,
+          "status": "COMPLETED",
+          "loop_count": 1,
           "retry_count": 0,
           "tasks_total": 7,
-          "tasks_completed": 0,
-          "debug_logs": []
+          "tasks_completed": 7,
+          "debug_logs": [],
+          "started_at": "2026-02-24T17:21:20Z",
+          "tasks": {
+            "1": {
+              "index": 1,
+              "status": "COMPLETED",
+              "description": "Task 1: 创建 GOPATH 目录 `$HOME/go`",
+              "updated_at": "2026-02-24T17:30:07Z"
+            },
+            "2": {
+              "index": 2,
+              "status": "COMPLETED",
+              "description": "Task 2: 创建子目录 `$HOME/go/bin`, `$HOME/go/pkg`, `$HOME/go/src`",
+              "updated_at": "2026-02-24T17:30:07Z"
+            },
+            "3": {
+              "index": 3,
+              "status": "COMPLETED",
+              "description": "Task 3: 检测用户 shell 类型 (bash/zsh)",
+              "updated_at": "2026-02-24T17:30:08Z"
+            },
+            "4": {
+              "index": 4,
+              "status": "COMPLETED",
+              "description": "Task 4: 配置 PATH 包含 `/usr/local/go/bin`",
+              "updated_at": "2026-02-24T17:30:08Z"
+            },
+            "5": {
+              "index": 5,
+              "status": "COMPLETED",
+              "description": "Task 5: 配置 GOPATH 环境变量",
+              "updated_at": "2026-02-24T17:30:09Z"
+            },
+            "6": {
+              "index": 6,
+              "status": "COMPLETED",
+              "description": "Task 6: 配置 GOPROXY（中国大陆可选）",
+              "updated_at": "2026-02-24T17:30:09Z"
+            },
+            "7": {
+              "index": 7,
+              "status": "COMPLETED",
+              "description": "Task 7: 加载配置 `source ~/.bashrc` 或 `~/.zshrc`",
+              "updated_at": "2026-02-24T17:30:10Z"
+            }
+          },
+          "completed_at": "2026-02-24T17:30:11Z",
+          "completion_summary": "Job executed successfully"
         },
         "job_4": {
           "status": "PENDING",
