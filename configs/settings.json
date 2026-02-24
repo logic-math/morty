@@ -1,0 +1,51 @@
+{
+  "version": "2.0",
+  "ai_cli": {
+    "command": "ai_cli",
+    "env_var": "CLAUDE_CODE_CLI",
+    "default_timeout": "10m",
+    "max_timeout": "30m",
+    "enable_skip_permissions": true,
+    "default_args": ["--verbose", "--debug"],
+    "output_format": "json"
+  },
+  "execution": {
+    "max_retry_count": 3,
+    "auto_git_commit": true,
+    "continue_on_error": false,
+    "parallel_jobs": 1
+  },
+  "logging": {
+    "level": "info",
+    "format": "json",
+    "output": "stdout",
+    "file": {
+      "enabled": true,
+      "path": ".morty/doing/logs/morty.log",
+      "max_size": "10MB",
+      "max_backups": 5,
+      "max_age": 7
+    }
+  },
+  "state": {
+    "file": ".morty/status.json",
+    "auto_save": true,
+    "save_interval": "30s"
+  },
+  "git": {
+    "commit_prefix": "morty",
+    "auto_commit": true,
+    "require_clean_worktree": false
+  },
+  "plan": {
+    "dir": ".morty/plan",
+    "file_extension": ".md",
+    "auto_validate": true
+  },
+  "prompts": {
+    "dir": "prompts",
+    "research": "prompts/research.md",
+    "plan": "prompts/plan.md",
+    "doing": "prompts/doing.md"
+  }
+}
