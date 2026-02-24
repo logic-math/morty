@@ -1700,9 +1700,11 @@ doing_build_prompt() {
             local status=$(echo "$task_line" | cut -d':' -f3)
             local desc=$(echo "$task_line" | cut -d':' -f2)
             if [[ "$status" == "completed" ]]; then
-                task_list="${task_list}- [x] ${desc}\n"
+                task_list="${task_list}- [x] ${desc}
+"
             else
-                task_list="${task_list}- [ ] ${desc}\n"
+                task_list="${task_list}- [ ] ${desc}
+"
             fi
         fi
     done <<< "$tasks"
@@ -1713,7 +1715,8 @@ doing_build_prompt() {
     while IFS= read -r val_line; do
         if [[ -n "$val_line" ]]; then
             local vdesc=$(echo "$val_line" | cut -d':' -f2)
-            validator_list="${validator_list}- ${vdesc}\n"
+            validator_list="${validator_list}- ${vdesc}
+"
         fi
     done <<< "$validators"
 
@@ -1757,8 +1760,25 @@ $validator_list
 1. 读取精简上下文了解当前状态
 2. 执行当前 Task: $task_desc
 3. 如有问题，记录 debug_log
-4. 更新状态文件
-5. 输出 RALPH_STATUS
+
+## 任务完成要求（必须执行）
+
+任务执行完毕后，你必须在文件 \`.morty/doing/job/${module}_${job}\` 中写入执行结果：
+
+- 如果任务成功完成且通过所有验证器检查，写入：**成功**
+- 如果任务失败或未通过验证器，写入：**失败**
+
+文件路径: \`.morty/doing/job/${module}_${job}\`
+
+### 验证器自检清单
+在写入结果前，请确认：
+- [ ] 我已执行完当前 Task 的所有要求
+- [ ] 我已运行所有验证器检查
+- [ ] 验证器全部通过（或在失败情况下明确记录原因）
+- [ ] 我已在指定路径创建了结果文件
+- [ ] 文件内容准确反映了任务执行状态
+
+**注意**: 系统将通过读取此文件来判断任务是否成功，未创建文件或读取失败将导致任务被标记为失败。
 
 开始执行!
 EOF
@@ -1847,13 +1867,16 @@ doing_run_task() {
         "--verbose"
         "--debug"
         "--dangerously-skip-permissions"
-        "--output-format" "json"
     )
 
     # 执行 ai_cli
     local output_file="$DOING_LOGS/${module}_${job}_task${task_index}_output.log"
     log INFO "    执行 ai_cli..."
     log INFO "    输出日志: $output_file"
+
+    # 清除之前的结果文件（如果存在）
+    local result_file="$DOING_DIR/job/${module}_${job}"
+    rm -f "$result_file"
 
     # 使用子shell执行 ai_cli，以便可以捕获中断信号
     local exit_code=0
@@ -1883,67 +1906,46 @@ doing_run_task() {
         cat "$output_file"
     fi
 
-    # 解析执行结果
-    log INFO "    解析执行结果..."
-    local parsed_result
-    parsed_result=$(doing_parse_execution_result "$output_file")
-
-    # 提取解析结果
-    local result_status=$(echo "$parsed_result" | grep -o 'status=[^;]*' | cut -d'=' -f2)
-    local result_tasks_completed=$(echo "$parsed_result" | grep -o 'tasks_completed=[^;]*' | cut -d'=' -f2)
-    local result_tasks_total=$(echo "$parsed_result" | grep -o 'tasks_total=[^;]*' | cut -d'=' -f2)
-    local result_summary=$(echo "$parsed_result" | grep -o 'summary=[^;]*' | cut -d'=' -f2)
-
-    log INFO "    解析结果: status=$result_status, tasks=$result_tasks_completed/$result_tasks_total"
-
-    # 更新 Task 详细状态
-    if [[ "$result_status" == "COMPLETED" ]]; then
-        doing_update_task_detail "$module" "$job" "$task_index" "COMPLETED" "$task_desc"
-    else
-        doing_update_task_detail "$module" "$job" "$task_index" "$result_status" "$task_desc"
-    fi
-
-    # 检查输出中是否有成功标记
-    if [[ $exit_code -eq 0 ]]; then
-        # 根据解析的状态判断
-        case "$result_status" in
-            "COMPLETED")
-                log SUCCESS "    Task 执行完成 (RALPH 报告 COMPLETED)"
-                log INFO "    摘要: $result_summary"
-                return 0
-                ;;
-            "FAILED")
-                log ERROR "    Task 执行失败 (RALPH 报告 FAILED)"
-                log ERROR "    失败原因: $result_summary"
-                # 记录 debug_log
-                doing_extract_debug_logs "$module" "$job" "$output_file"
-                return 1
-                ;;
-            *)
-                # 检查是否有错误输出
-                if grep -qi "error\|failed\|失败" "$output_file" 2>/dev/null; then
-                    log WARN "    输出中包含错误信息，请检查日志"
-                    doing_extract_debug_logs "$module" "$job" "$output_file"
-                fi
-                # 默认认为成功
-                log SUCCESS "    Task 执行完成 (退出码: 0)"
-                return 0
-                ;;
-        esac
-    elif [[ $exit_code -eq 130 ]]; then
+    # 检查是否被中断
+    if [[ $exit_code -eq 130 ]]; then
         log WARN "    Task 被中断"
         return 130
-    else
+    fi
+
+    # 检查 ai_cli 是否执行失败
+    if [[ $exit_code -ne 0 ]]; then
         log ERROR "    ai_cli 执行失败 (退出码: $exit_code)"
-        # 尝试从输出中提取错误信息
-        if [[ -f "$output_file" ]]; then
-            local error_msg=$(tail -20 "$output_file" | grep -i "error\|failed" | head -1 || echo "")
-            if [[ -n "$error_msg" ]]; then
-                log ERROR "    错误信息: $error_msg"
-            fi
-        fi
-        # 记录 debug_log
-        doing_extract_debug_logs "$module" "$job" "$output_file"
+        return 1
+    fi
+
+    # 验证结果文件
+    log INFO "    验证任务结果文件: $result_file"
+
+    if [[ ! -f "$result_file" ]]; then
+        log ERROR "    结果文件不存在: $result_file"
+        log ERROR "    AI 未按要求创建结果文件，终止执行"
+        return 1
+    fi
+
+    local result_content
+    result_content=$(cat "$result_file" 2>/dev/null | tr -d '[:space:]')
+
+    if [[ $? -ne 0 ]]; then
+        log ERROR "    读取结果文件失败: $result_file"
+        log ERROR "    终止执行"
+        return 1
+    fi
+
+    log INFO "    结果文件内容: $result_content"
+
+    # 检查结果
+    if [[ "$result_content" == "成功" ]]; then
+        log SUCCESS "    Task 执行成功（结果文件验证通过）"
+        doing_update_task_detail "$module" "$job" "$task_index" "COMPLETED" "$task_desc"
+        return 0
+    else
+        log ERROR "    Task 执行失败（结果文件内容: $result_content）"
+        doing_update_task_detail "$module" "$job" "$task_index" "FAILED" "$task_desc"
         return 1
     fi
 }
