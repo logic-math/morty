@@ -247,22 +247,25 @@ func NewFactory() Factory
 - Job 2 完成
 
 **Tasks (Todo 列表)**:
-- [ ] Task 1: 创建 `internal/parser/markdown/section.go`
-- [ ] Task 2: 实现 `ExtractSections(doc) ([]Section, error)`
-- [ ] Task 3: 实现 `FindSection(doc, title) (Section, error)`
-- [ ] Task 4: 实现 Section 内容范围计算
-- [ ] Task 5: 支持递归提取子章节
-- [ ] Task 6: 编写单元测试 `markdown/section_test.go`
+- [x] Task 1: 创建 `internal/parser/markdown/section.go`
+- [x] Task 2: 实现 `ExtractSections(doc) ([]Section, error)`
+- [x] Task 3: 实现 `FindSection(doc, title) (Section, error)`
+- [x] Task 4: 实现 Section 内容范围计算
+- [x] Task 5: 支持递归提取子章节
+- [x] Task 6: 编写单元测试 `markdown/section_test.go`
 
 **验证器**:
-- [ ] 正确提取指定级别的所有 sections
-- [ ] 正确提取 section 的内容范围
-- [ ] 递归提取子章节正确
-- [ ] 按名称查找 section 正确
-- [ ] 所有单元测试通过 (覆盖率 >= 80%)
+- [x] 正确提取指定级别的所有 sections
+- [x] 正确提取 section 的内容范围
+- [x] 递归提取子章节正确
+- [x] 按名称查找 section 正确
+- [x] 所有单元测试通过 (覆盖率 >= 80%)
 
 **调试日志**:
-- 待填充
+- explore1: [探索发现] 项目使用标准 Go 项目结构, markdown parser 已实现基础解析功能, 包含 NodeType (heading/paragraph/list/codeblock), Document 结构包含 Nodes 切片, parser.go 使用正则表达式解析, 已记录
+- debug1: 路径问题导致测试无法找到, 现象: go test 运行但不执行 section_test.go 中的测试, 复现: 在 /opt/meituan/... 目录运行但 go.mod 在 /home/sankuai/..., 猜想: 1)存在两个独立的工作目录 2)Go 模块路径不匹配, 验证: 检查 go env GOMOD 发现路径不一致, 修复: 切换到正确目录 /home/sankuai/... 运行测试, 已修复
+- debug2: parser.go 编译错误, 现象: go test 报错 "fmt.Sprintf format %v with arg n causes recursive String method call", 复现: Node.String() 方法中使用 fmt.Sprintf("Unknown: %v", n) 导致无限递归, 猜想: %v 格式会调用 String() 方法造成递归调用, 验证: 修改为 %s 格式引用具体字段, 修复: 改为 fmt.Sprintf("Unknown: %s", n.Type), 已修复
+- debug3: Section 提取逻辑问题, 现象: TestExtractSections_Basic 期望 1 个顶级 section 但得到 2 个, 复现: 嵌套 section 的层级关系计算错误, 猜想: 1)EndIndex 计算错误 2)父子关系建立逻辑错误, 验证: 使用递归 buildSections 函数重建层级关系, 修复: 重写 extractAllSections 使用两阶段方法: 先收集所有 headings, 然后递归构建层级树, 已修复
 
 ---
 

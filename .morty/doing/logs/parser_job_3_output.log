@@ -1,0 +1,51 @@
+所有 Tasks 已完成，验证通过。让我输出最终的 RALPH_STATUS。
+
+---
+
+## 执行摘要
+
+**parser/job_3** 已成功完成。实现了以下功能：
+
+### 已完成 Tasks
+1. **创建 `internal/parser/markdown/section.go`** - Section 提取模块
+2. **实现 `ExtractSections(doc)`** - 提取所有章节及其层级关系
+3. **实现 `FindSection(doc, title)`** - 按标题查找章节（支持大小写不敏感）
+4. **实现 Section 内容范围计算** - 正确计算 StartIndex/EndIndex 和内容提取
+5. **支持递归提取子章节** - 完整支持 H1-H6 的嵌套层级
+6. **编写单元测试 `section_test.go`** - 19 个测试用例，覆盖各种场景
+
+### 附加功能
+- `FindSectionsByLevel(doc, level)` - 按级别查找所有章节
+- `GetSectionContent(section)` - 获取章节内容（不含标题）
+- `GetSectionHierarchy(doc)` - 获取扁平化的章节列表
+- `CountSections(doc)` - 统计章节总数
+
+### 验证结果
+- ✅ 所有 19 个单元测试通过
+- ✅ 代码覆盖率 92.2% (>= 80%)
+- ✅ 正确提取指定级别的所有 sections
+- ✅ 正确提取 section 的内容范围
+- ✅ 递归提取子章节正确
+- ✅ 按名称查找 section 正确
+
+### 修复的问题
+1. 修复了 parser.go 中的递归 String() 调用问题
+2. 修正了工作目录路径问题
+3. 重写了 section 层级关系计算逻辑
+
+<!-- RALPH_STATUS -->
+```json
+{
+  "module": "parser",
+  "job": "job_3",
+  "status": "COMPLETED",
+  "tasks_completed": 6,
+  "tasks_total": 6,
+  "loop_count": 1,
+  "debug_issues": 3,
+  "debug_logs_in_plan": true,
+  "explore_subagent_used": true,
+  "summary": "Markdown Section 提取功能实现完成。实现了 ExtractSections、FindSection 等核心函数，支持递归提取子章节和内容范围计算。编写了 19 个单元测试，覆盖率 92.2%。修复了 parser.go 递归调用问题，更新了 Plan 文件调试日志。"
+}
+```
+<!-- END_RALPH_STATUS -->

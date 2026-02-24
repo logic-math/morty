@@ -310,6 +310,6 @@ func (n *Node) String() string {
 	case NodeTypeCodeBlock:
 		return fmt.Sprintf("CodeBlock (%s): %d lines", n.Language, len(strings.Split(n.Content, "\n")))
 	default:
-		return fmt.Sprintf("Unknown: %v", n)
+		return fmt.Sprintf("Unknown: %s", n.Type)
 	}
 }
