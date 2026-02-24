@@ -375,7 +375,7 @@ parse_plan_file() {
                 print "JOB:" job_name ":tasks=" tc
 
                 for (t = 1; t <= tc; t++) {
-                    print "TASK:" module ":" job_name ":" t ":" tasks[job_name, t] ":" task_status[job_name, t]
+                    print "TASK|" module "|" job_name "|" t "|" tasks[job_name, t] "|" task_status[job_name, t]
                 }
 
                 # 输出 validators
@@ -388,7 +388,7 @@ parse_plan_file() {
                 print "JOB:" job_name ":validators=" vc
 
                 for (v = 1; v <= vc; v++) {
-                    print "VALIDATOR:" module ":" job_name ":" v ":" validators[job_name, v]
+                    print "VALIDATOR|" module "|" job_name "|" v "|" validators[job_name, v]
                 }
             }
         }
@@ -472,9 +472,9 @@ get_job_tasks() {
     local job="$2"
     local parse_file="${3:-$PLAN_PARSE_RESULT}"
 
-    awk -v mod="$module" -v j="$job" -F':' '
-        /^TASK:/ && $2 == mod && $3 == j {
-            print $4 ":" $5 ":" $6
+    awk -v mod="$module" -v j="$job" -F'|' '
+        /^TASK\|/ && $2 == mod && $3 == j {
+            print $4 "|" $5 "|" $6
         }
     ' "$parse_file"
 }
@@ -485,9 +485,9 @@ get_job_validators() {
     local job="$2"
     local parse_file="${3:-$PLAN_PARSE_RESULT}"
 
-    awk -v mod="$module" -v j="$job" -F':' '
-        /^VALIDATOR:/ && $2 == mod && $3 == j {
-            print $4 ":" $5
+    awk -v mod="$module" -v j="$job" -F'|' '
+        /^VALIDATOR\|/ && $2 == mod && $3 == j {
+            print $4 "|" $5
         }
     ' "$parse_file"
 }
@@ -1474,7 +1474,7 @@ doing_execute_job() {
             log INFO "  执行 Task $task_index/$tasks_total..."
 
             # 获取 Task 描述
-            local task_desc=$(get_job_tasks "$module" "$job" | sed -n "${task_index}p" | cut -d':' -f2)
+            local task_desc=$(get_job_tasks "$module" "$job" | sed -n "${task_index}p" | cut -d'|' -f2)
             log INFO "    任务: $task_desc"
 
             # 执行 Task
@@ -1537,7 +1537,7 @@ doing_build_compact_context() {
     local idx=1
     while IFS= read -r task_line; do
         if [[ -n "$task_line" ]]; then
-            local task_desc=$(echo "$task_line" | cut -d':' -f2)
+            local task_desc=$(echo "$task_line" | cut -d'|' -f2)
             if [[ -n "$task_array" ]]; then
                 task_array="${task_array},"
             fi
@@ -1551,7 +1551,7 @@ doing_build_compact_context() {
     local validator_desc=""
     while IFS= read -r val_line; do
         if [[ -n "$val_line" ]]; then
-            validator_desc=$(echo "$val_line" | cut -d':' -f2)
+            validator_desc=$(echo "$val_line" | cut -d'|' -f2)
             break  # 只取第一个验证器描述
         fi
     done <<< "$validators"
@@ -1622,8 +1622,8 @@ doing_load_plan_context() {
     local idx=1
     while IFS= read -r task_line; do
         if [[ -n "$task_line" ]]; then
-            local status=$(echo "$task_line" | cut -d':' -f3)
-            local desc=$(echo "$task_line" | cut -d':' -f2)
+            local status=$(echo "$task_line" | cut -d'|' -f3)
+            local desc=$(echo "$task_line" | cut -d'|' -f2)
             if [[ "$status" == "completed" ]]; then
                 task_list="${task_list}- [x] ${desc}\n"
             else
@@ -1638,7 +1638,7 @@ doing_load_plan_context() {
     local validator_list=""
     while IFS= read -r val_line; do
         if [[ -n "$val_line" ]]; then
-            local vdesc=$(echo "$val_line" | cut -d':' -f2)
+            local vdesc=$(echo "$val_line" | cut -d'|' -f2)
             validator_list="${validator_list}- ${vdesc}\n"
         fi
     done <<< "$validators"
@@ -1697,8 +1697,8 @@ doing_build_prompt() {
     local task_list=""
     while IFS= read -r task_line; do
         if [[ -n "$task_line" ]]; then
-            local status=$(echo "$task_line" | cut -d':' -f3)
-            local desc=$(echo "$task_line" | cut -d':' -f2)
+            local status=$(echo "$task_line" | cut -d'|' -f3)
+            local desc=$(echo "$task_line" | cut -d'|' -f2)
             if [[ "$status" == "completed" ]]; then
                 task_list="${task_list}- [x] ${desc}
 "
@@ -1714,7 +1714,7 @@ doing_build_prompt() {
     local validator_list=""
     while IFS= read -r val_line; do
         if [[ -n "$val_line" ]]; then
-            local vdesc=$(echo "$val_line" | cut -d':' -f2)
+            local vdesc=$(echo "$val_line" | cut -d'|' -f2)
             validator_list="${validator_list}- ${vdesc}
 "
         fi
@@ -1722,7 +1722,7 @@ doing_build_prompt() {
 
     # 如果未提供 task_desc，从上下文中获取
     if [[ -z "$task_desc" ]]; then
-        task_desc=$(get_job_tasks "$module" "$job" | sed -n "${task_index}p" | cut -d':' -f2)
+        task_desc=$(get_job_tasks "$module" "$job" | sed -n "${task_index}p" | cut -d'|' -f2)
     fi
 
     # 构建完整提示词
