@@ -3,16 +3,16 @@
   "state": "running",
   "current": {
     "module": "config",
-    "job": "job_1",
+    "job": "job_2",
     "status": "COMPLETED",
-    "start_time": "2026-02-24T17:47:34Z",
+    "start_time": "2026-02-24T18:43:04Z",
     "interrupted_at": "2026-02-24T16:51:59Z",
-    "completed_at": "2026-02-24T18:43:02Z"
+    "completed_at": "2026-02-24T19:46:34Z"
   },
   "session": {
     "start_time": "2026-02-24T12:51:47Z",
-    "last_update": "2026-02-24T18:43:02Z",
-    "total_loops": 7
+    "last_update": "2026-02-24T19:46:34Z",
+    "total_loops": 8
   },
   "modules": {
     "go_env_setup": {
@@ -300,12 +300,65 @@
           "completion_summary": "Job executed successfully"
         },
         "job_2": {
-          "status": "PENDING",
-          "loop_count": 0,
+          "status": "COMPLETED",
+          "loop_count": 1,
           "retry_count": 0,
           "tasks_total": 8,
-          "tasks_completed": 0,
-          "debug_logs": []
+          "tasks_completed": 8,
+          "debug_logs": [],
+          "started_at": "2026-02-24T18:43:04Z",
+          "tasks": {
+            "1": {
+              "index": 1,
+              "status": "COMPLETED",
+              "description": "Task 1: 创建 `internal/config/loader.go` 文件结构",
+              "updated_at": "2026-02-24T19:46:29Z"
+            },
+            "2": {
+              "index": 2,
+              "status": "COMPLETED",
+              "description": "Task 2: 实现 `Load(path string) error` 加载单个配置",
+              "updated_at": "2026-02-24T19:46:30Z"
+            },
+            "3": {
+              "index": 3,
+              "status": "COMPLETED",
+              "description": "Task 3: 实现 `LoadWithMerge(userConfigPath string) error` 合并加载",
+              "updated_at": "2026-02-24T19:46:31Z"
+            },
+            "4": {
+              "index": 4,
+              "status": "COMPLETED",
+              "description": "Task 4: 支持 JSON 格式解析",
+              "updated_at": "2026-02-24T19:46:31Z"
+            },
+            "5": {
+              "index": 5,
+              "status": "COMPLETED",
+              "description": "Task 5: 实现配置层级合并（默认 → 用户 → 环境变量）",
+              "updated_at": "2026-02-24T19:46:32Z"
+            },
+            "6": {
+              "index": 6,
+              "status": "COMPLETED",
+              "description": "Task 6: 处理文件不存在时使用默认配置",
+              "updated_at": "2026-02-24T19:46:32Z"
+            },
+            "7": {
+              "index": 7,
+              "status": "COMPLETED",
+              "description": "Task 7: 实现配置验证（检查必需字段、类型、范围）",
+              "updated_at": "2026-02-24T19:46:33Z"
+            },
+            "8": {
+              "index": 8,
+              "status": "COMPLETED",
+              "description": "Task 8: 编写单元测试 `loader_test.go`",
+              "updated_at": "2026-02-24T19:46:33Z"
+            }
+          },
+          "completed_at": "2026-02-24T19:46:34Z",
+          "completion_summary": "Job executed successfully"
         },
         "job_3": {
           "status": "PENDING",

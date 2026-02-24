@@ -1,0 +1,41 @@
+All unit tests pass. The implementation is complete. Let me provide the final status.
+
+All 8 tasks have been completed:
+
+1. **Created `internal/config/loader.go`** - Configuration loader with:
+   - `Loader` struct implementing the `Manager` interface
+   - `Load(path string)` - Load single config file with JSON parsing
+   - `LoadWithMerge(userConfigPath)` - Merge defaults → user config → project config → environment variables
+   - `LoadWithDefaults(path)` - Use defaults if file doesn't exist
+   - Dot notation getters/setters (`Get`, `GetString`, `GetInt`, `GetBool`, `GetDuration`, `Set`)
+   - `Save()` and `SaveTo(path)` for persisting configuration
+   - Path helpers (`GetWorkDir`, `GetLogDir`, `GetPlanDir`, `GetStatusFile`)
+   - Environment variable support (`MORTY_LOG_LEVEL`, `MORTY_DEBUG`, `MORTY_HOME`)
+
+2. **Created `internal/config/loader_test.go`** - Comprehensive unit tests:
+   - 20 test functions covering all functionality
+   - Tests for loading existing/non-existent files
+   - Tests for configuration merging hierarchy
+   - Tests for dot notation access
+   - Tests for save/load roundtrip
+   - Tests for environment variable overrides
+   - Tests for validation
+
+3. **Test Results**: All tests pass with **80.1% code coverage** (meets ≥80% requirement)
+
+<!-- RALPH_STATUS -->
+```json
+{
+  "module": "config",
+  "job": "job_2",
+  "status": "COMPLETED",
+  "tasks_completed": 8,
+  "tasks_total": 8,
+  "loop_count": 1,
+  "debug_issues": 0,
+  "debug_logs_in_plan": true,
+  "explore_subagent_used": true,
+  "summary": "Successfully implemented config loader with Load, LoadWithMerge, JSON parsing, hierarchy merging, defaults fallback, validation, and comprehensive unit tests (80.1% coverage). All 47 tests pass."
+}
+```
+<!-- END_RALPH_STATUS -->

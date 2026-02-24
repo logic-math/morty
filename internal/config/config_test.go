@@ -411,3 +411,4 @@ func BenchmarkDefaultConfig(b *testing.B) {
 		_ = DefaultConfig()
 	}
 }
+
