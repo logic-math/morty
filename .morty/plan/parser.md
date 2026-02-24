@@ -189,22 +189,23 @@ func NewFactory() Factory
 - 无
 
 **Tasks (Todo 列表)**:
-- [ ] Task 1: 创建 `internal/parser/interface.go` 定义核心接口
-- [ ] Task 2: 创建 `internal/parser/factory.go` 实现解析器工厂
-- [ ] Task 3: 实现 `DetectFileType()` 文件类型检测
-- [ ] Task 4: 实现 `Register()` 解析器注册
-- [ ] Task 5: 实现 `Get()` 和 `GetByExtension()` 解析器获取
-- [ ] Task 6: 实现错误处理（未知文件类型等）
-- [ ] Task 7: 编写单元测试 `factory_test.go`
+- [x] Task 1: 创建 `internal/parser/interface.go` 定义核心接口
+- [x] Task 2: 创建 `internal/parser/factory.go` 实现解析器工厂
+- [x] Task 3: 实现 `DetectFileType()` 文件类型检测
+- [x] Task 4: 实现 `Register()` 解析器注册
+- [x] Task 5: 实现 `Get()` 和 `GetByExtension()` 解析器获取
+- [x] Task 6: 实现错误处理（未知文件类型等）
+- [x] Task 7: 编写单元测试 `factory_test.go`
 
 **验证器**:
-- [ ] 能根据扩展名正确检测文件类型
-- [ ] 能注册和获取解析器
-- [ ] 未知文件类型返回错误
-- [ ] 所有单元测试通过 (覆盖率 >= 80%)
+- [x] 能根据扩展名正确检测文件类型
+- [x] 能注册和获取解析器
+- [x] 未知文件类型返回错误
+- [x] 所有单元测试通过 (覆盖率 >= 80%)
 
 **调试日志**:
-- 待填充
+- explore1: [探索发现] 项目使用标准 Go 项目结构, internal/ 包含 config/ 和 git/ 模块, 测试使用标准 Go testing 模式, 已记录
+- debug1: 初始文件创建路径错误, 文件写入到 /opt/meituan/... 但 shell 工作目录是 /home/sankuai/..., 验证: 检查目录结构发现差异, 修复: 在正确位置 /home/sankuai/.../internal/parser/ 重新创建文件, 已修复
 
 ---
 
