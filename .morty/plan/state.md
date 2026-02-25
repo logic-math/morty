@@ -188,27 +188,32 @@ type JobState struct {
 - Job 2 完成 (状态管理器)
 
 **Tasks (Todo 列表)**:
-- [ ] Task 1: 创建 `internal/state/transitions.go` 文件结构
-- [ ] Task 2: 定义有效状态转换规则表
-- [ ] Task 3: 实现 `IsValidTransition(from, to Status) bool`
-- [ ] Task 4: 实现 PENDING → RUNNING → COMPLETED 主流程
-- [ ] Task 5: 实现 FAILED → PENDING 重试流程
-- [ ] Task 6: 实现 BLOCKED → PENDING 解除阻塞流程
-- [ ] Task 7: 实现 RUNNING → BLOCKED 阻塞流程
-- [ ] Task 8: 无效转换返回错误并记录日志
-- [ ] Task 9: 编写单元测试 `transitions_test.go`
+- [x] Task 1: 创建 `internal/state/transitions.go` 文件结构
+- [x] Task 2: 定义有效状态转换规则表
+- [x] Task 3: 实现 `IsValidTransition(from, to Status) bool`
+- [x] Task 4: 实现 PENDING → RUNNING → COMPLETED 主流程
+- [x] Task 5: 实现 FAILED → PENDING 重试流程
+- [x] Task 6: 实现 BLOCKED → PENDING 解除阻塞流程
+- [x] Task 7: 实现 RUNNING → BLOCKED 阻塞流程
+- [x] Task 8: 无效转换返回错误并记录日志
+- [x] Task 9: 编写单元测试 `transitions_test.go`
 
 **验证器**:
-- [ ] PENDING → RUNNING 是有效转换
-- [ ] RUNNING → COMPLETED 是有效转换
-- [ ] RUNNING → FAILED 是有效转换
-- [ ] FAILED → PENDING 是有效转换 (重试)
-- [ ] PENDING → COMPLETED 是无效转换
-- [ ] 无效转换返回 false 和错误信息
-- [ ] 所有单元测试通过 (覆盖率 >= 80%)
+- [x] PENDING → RUNNING 是有效转换
+- [x] RUNNING → COMPLETED 是有效转换
+- [x] RUNNING → FAILED 是有效转换
+- [x] FAILED → PENDING 是有效转换 (重试)
+- [x] PENDING → COMPLETED 是无效转换
+- [x] 无效转换返回 false 和错误信息
+- [x] 所有单元测试通过 (覆盖率 >= 80%)
 
 **调试日志**:
-- 待填充
+- explore1: [探索发现] 已存在 state 模块包含 state.go, status_json.go, manager.go，需要在这些基础上添加 transitions.go，已记录
+- debug1: logging 包导入路径错误，猜想: 使用了不存在的 pkg/logging 路径，验证: 检查发现 logging 在 internal/logging，修复: 修改导入路径为 github.com/morty/morty/internal/logging，已修复
+- debug2: Logger 接口方法签名不匹配，猜想: transitions.go 使用了错误的 logger 调用方式，验证: 检查 logging/logger.go 发现使用 logging.Attr 类型，修复: 更新为使用 logging.String() 等 Attr 构造函数，已修复
+- debug3: 工作目录不一致导致测试不被识别，猜想: Go 从 /home/sankuai/... 读取但文件写在 /opt/meituan/...，验证: stat 检查 inode 确认不同，修复: 同步文件到 /home/sankuai/... 路径，已修复
+- debug4: internal/logging 包编译失败，猜想: /home/sankuai/... 路径的 logging 文件版本过旧，验证: 对比两个路径文件内容确认，修复: 同步所有 logging 文件到 /home/sankuai/... 路径，已修复
+- debug5: 测试覆盖率 92.2% 超过 80% 要求，所有验证器检查通过，任务完成
 
 ---
 
