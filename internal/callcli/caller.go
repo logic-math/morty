@@ -2,7 +2,6 @@
 package callcli
 
 import (
-	"bytes"
 	"context"
 	"fmt"
 	"os"
@@ -97,20 +96,31 @@ func (c *CallerImpl) CallWithOptions(ctx context.Context, name string, args []st
 		cmd.Stdin = strings.NewReader(opts.Stdin)
 	}
 
-	// Capture stdout and stderr
-	var stdoutBuf, stderrBuf bytes.Buffer
-	cmd.Stdout = &stdoutBuf
-	cmd.Stderr = &stderrBuf
+	// Create output handler based on configuration
+	outputHandler, err := NewOutputHandler(opts.Output)
+	if err != nil {
+		return nil, errors.Wrap(err, "M5002", "failed to create output handler").
+			WithDetail("command", commandStr)
+	}
+	defer outputHandler.Close()
+
+	// Set up stdout and stderr writers
+	cmd.Stdout = outputHandler.StdoutWriter()
+	cmd.Stderr = outputHandler.StderrWriter()
 
 	// Execute the command
 	runErr := cmd.Run()
 
 	duration := time.Since(startTime)
 
+	// Get captured output
+	stdout := outputHandler.GetStdout()
+	stderr := outputHandler.GetStderr()
+
 	// Build result
 	result := &Result{
-		Stdout:   strings.TrimSpace(stdoutBuf.String()),
-		Stderr:   strings.TrimSpace(stderrBuf.String()),
+		Stdout:   strings.TrimSpace(stdout),
+		Stderr:   strings.TrimSpace(stderr),
 		ExitCode: 0,
 		Duration: duration,
 		Command:  commandStr,

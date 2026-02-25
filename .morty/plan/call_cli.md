@@ -328,25 +328,26 @@ type ExecutionLog struct {
 - Job 1 完成
 
 **Tasks (Todo 列表)**:
-- [ ] Task 1: 实现 `OutputCapture` 模式（捕获到内存）
-- [ ] Task 2: 实现 `OutputStream` 模式（实时输出）
-- [ ] Task 3: 实现 `OutputCaptureAndStream` 模式
-- [ ] Task 4: 实现 `OutputSilent` 模式
-- [ ] Task 5: 支持输出重定向到文件
-- [ ] Task 6: 实现输出大小限制（防止内存溢出）
-- [ ] Task 7: 编写单元测试 `output_test.go`
+- [x] Task 1: 实现 `OutputCapture` 模式（捕获到内存）
+- [x] Task 2: 实现 `OutputStream` 模式（实时输出）
+- [x] Task 3: 实现 `OutputCaptureAndStream` 模式
+- [x] Task 4: 实现 `OutputSilent` 模式
+- [x] Task 5: 支持输出重定向到文件
+- [x] Task 6: 实现输出大小限制（防止内存溢出）
+- [x] Task 7: 编写单元测试 `output_test.go`
 
 **验证器**:
-- [ ] `OutputCapture` 正确捕获输出
-- [ ] `OutputStream` 实时输出到控制台
-- [ ] `OutputCaptureAndStream` 同时满足两者
-- [ ] `OutputSilent` 不产生任何输出
-- [ ] 输出文件正确保存
-- [ ] 超出大小限制时截断或报错
-- [ ] 所有单元测试通过 (覆盖率 >= 80%)
+- [x] `OutputCapture` 正确捕获输出
+- [x] `OutputStream` 实时输出到控制台
+- [x] `OutputCaptureAndStream` 同时满足两者
+- [x] `OutputSilent` 不产生任何输出
+- [x] 输出文件正确保存
+- [x] 超出大小限制时截断或报错
+- [x] 所有单元测试通过 (覆盖率 >= 80%)
 
 **调试日志**:
-- 待填充
+- debug1: 文件输出为空, 运行 TestOutputToFile 时发现, 猜想: 1)文件未正确创建 2)OutputCapture模式未写入文件, 验证: 检查 StdoutWriter 代码, 修复: 确保所有模式都包含文件写入逻辑, 已修复
+- debug2: MaxCaptureSize 导致 short write 错误, 运行 TestOutputMaxCaptureSize 时发现命令执行失败, 猜想: limitedWriter.Write 返回的 n 值不正确, 验证: 检查 limitedWriter 实现, 修复: 修改 Write 方法返回 len(p) 而不是实际写入字节数, 已修复
 
 ---
 

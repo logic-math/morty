@@ -2,7 +2,6 @@
 package callcli
 
 import (
-	"bytes"
 	"context"
 	"os/exec"
 	"strings"
@@ -54,6 +53,13 @@ func (c *CallerImpl) CallWithCtx(ctx context.Context, name string, args []string
 		cmd.Stdin = strings.NewReader(opts.Stdin)
 	}
 
+	// Create output handler
+	outputHandler, err := NewOutputHandler(opts.Output)
+	if err != nil {
+		return nil, errors.Wrap(err, "M5002", "failed to create output handler").
+			WithDetail("command", commandStr)
+	}
+
 	// Create handler
 	handler := &ctxHandler{
 		cmd:            cmd,
@@ -61,14 +67,16 @@ func (c *CallerImpl) CallWithCtx(ctx context.Context, name string, args []string
 		timeout:        timeout,
 		gracefulPeriod: opts.GracefulPeriod,
 		commandStr:     commandStr,
+		outputHandler:  outputHandler,
 	}
 
-	// Capture stdout and stderr
-	cmd.Stdout = &handler.stdout
-	cmd.Stderr = &handler.stderr
+	// Set up stdout and stderr writers
+	cmd.Stdout = outputHandler.StdoutWriter()
+	cmd.Stderr = outputHandler.StderrWriter()
 
 	// Start the command
 	if err := cmd.Start(); err != nil {
+		outputHandler.Close()
 		return nil, errors.Wrap(err, "M5002", "failed to start command").
 			WithDetail("command", commandStr)
 	}
@@ -95,8 +103,7 @@ type ctxHandler struct {
 	result         *Result
 	err            error
 	done           chan struct{}
-	stdout         bytes.Buffer
-	stderr         bytes.Buffer
+	outputHandler  *OutputHandler
 	timeout        time.Duration
 	gracefulPeriod time.Duration
 	commandStr     string
@@ -140,13 +147,20 @@ func (h *ctxHandler) waitWithContext(ctx context.Context, timeout time.Duration)
 
 	duration := time.Since(startTime)
 
+	// Close output handler
+	h.outputHandler.Close()
+
+	// Get captured output
+	stdout := h.outputHandler.GetStdout()
+	stderr := h.outputHandler.GetStderr()
+
 	// Build result
 	h.mu.Lock()
 	defer h.mu.Unlock()
 
 	result := &Result{
-		Stdout:      strings.TrimSpace(h.stdout.String()),
-		Stderr:      strings.TrimSpace(h.stderr.String()),
+		Stdout:      strings.TrimSpace(stdout),
+		Stderr:      strings.TrimSpace(stderr),
 		ExitCode:    0,
 		Duration:    duration,
 		Command:     h.commandStr,

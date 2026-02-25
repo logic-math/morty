@@ -5,7 +5,22 @@ package callcli
 
 import (
 	"context"
+	"io"
 	"time"
+)
+
+// OutputMode defines how command output should be handled.
+type OutputMode int
+
+const (
+	// OutputCapture captures output to memory (default behavior)
+	OutputCapture OutputMode = iota
+	// OutputStream streams output to stdout/stderr in real-time
+	OutputStream
+	// OutputCaptureAndStream captures output to memory and streams it
+	OutputCaptureAndStream
+	// OutputSilent discards all output
+	OutputSilent
 )
 
 // Result represents the outcome of executing a command.
@@ -26,6 +41,24 @@ type Result struct {
 	Interrupted bool
 }
 
+// OutputConfig configures output handling for command execution.
+type OutputConfig struct {
+	// Mode determines how output is handled
+	Mode OutputMode
+	// OutputFile is the path to write output to (optional)
+	// If set, stdout and stderr will be written to this file
+	OutputFile string
+	// MaxCaptureSize is the maximum size (in bytes) to capture in memory
+	// 0 means no limit. When exceeded, capture is truncated.
+	MaxCaptureSize int64
+	// CustomStdout allows redirecting stdout to a custom writer
+	// If set, this takes precedence over other output settings for stdout
+	CustomStdout io.Writer
+	// CustomStderr allows redirecting stderr to a custom writer
+	// If set, this takes precedence over other output settings for stderr
+	CustomStderr io.Writer
+}
+
 // Options contains configuration options for command execution.
 type Options struct {
 	// WorkingDir sets the working directory for the command
@@ -38,6 +71,8 @@ type Options struct {
 	Stdin string
 	// GracefulPeriod is the time to wait after SIGTERM before sending SIGKILL (0 means no graceful termination)
 	GracefulPeriod time.Duration
+	// Output configures output handling
+	Output OutputConfig
 }
 
 // Caller defines the interface for executing CLI commands.

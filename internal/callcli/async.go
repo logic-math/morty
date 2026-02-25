@@ -2,7 +2,6 @@
 package callcli
 
 import (
-	"bytes"
 	"context"
 	"os/exec"
 	"strings"
@@ -15,17 +14,17 @@ import (
 
 // asyncHandler implements the CallHandler interface for managing async processes.
 type asyncHandler struct {
-	cmd      *exec.Cmd
-	pid      int
-	mu       sync.RWMutex
-	started  bool
-	finished bool
-	result   *Result
-	err      error
-	done     chan struct{}
-	stdout   bytes.Buffer
-	stderr   bytes.Buffer
-	timeout  time.Duration
+	cmd           *exec.Cmd
+	pid           int
+	mu            sync.RWMutex
+	started       bool
+	finished      bool
+	result        *Result
+	err           error
+	done          chan struct{}
+	outputHandler *OutputHandler
+	timeout       time.Duration
+	commandStr    string
 }
 
 // CallAsync executes a command asynchronously and returns a CallHandler.
@@ -73,19 +72,29 @@ func (c *CallerImpl) CallAsyncWithOptions(ctx context.Context, name string, args
 		cmd.Stdin = strings.NewReader(opts.Stdin)
 	}
 
-	// Create handler
-	handler := &asyncHandler{
-		cmd:     cmd,
-		done:    make(chan struct{}),
-		timeout: timeout,
+	// Create output handler
+	outputHandler, err := NewOutputHandler(opts.Output)
+	if err != nil {
+		return nil, errors.Wrap(err, "M5002", "failed to create output handler").
+			WithDetail("command", commandStr)
 	}
 
-	// Capture stdout and stderr
-	cmd.Stdout = &handler.stdout
-	cmd.Stderr = &handler.stderr
+	// Create handler
+	handler := &asyncHandler{
+		cmd:           cmd,
+		done:          make(chan struct{}),
+		timeout:       timeout,
+		outputHandler: outputHandler,
+		commandStr:    commandStr,
+	}
+
+	// Set up stdout and stderr writers
+	cmd.Stdout = outputHandler.StdoutWriter()
+	cmd.Stderr = outputHandler.StderrWriter()
 
 	// Start the command
 	if err := cmd.Start(); err != nil {
+		outputHandler.Close()
 		return nil, errors.Wrap(err, "M5002", "failed to start command").
 			WithDetail("command", commandStr)
 	}
@@ -132,13 +141,20 @@ func (h *asyncHandler) waitForCompletion(commandStr string, timeout time.Duratio
 
 	duration := time.Since(startTime)
 
+	// Close output handler
+	h.outputHandler.Close()
+
+	// Get captured output
+	stdout := h.outputHandler.GetStdout()
+	stderr := h.outputHandler.GetStderr()
+
 	// Build result
 	h.mu.Lock()
 	defer h.mu.Unlock()
 
 	result := &Result{
-		Stdout:   strings.TrimSpace(h.stdout.String()),
-		Stderr:   strings.TrimSpace(h.stderr.String()),
+		Stdout:   strings.TrimSpace(stdout),
+		Stderr:   strings.TrimSpace(stderr),
 		ExitCode: 0,
 		Duration: duration,
 		Command:  commandStr,

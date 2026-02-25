@@ -1,0 +1,51 @@
+所有任务已完成。现在输出执行结果。
+
+## 执行摘要
+
+**call_cli/job_4** 已完成，实现了完整的输出处理系统：
+
+### 实现的功能
+
+1. **OutputCapture** (默认): 捕获输出到内存，通过 `Result.Stdout/Stderr` 返回
+2. **OutputStream**: 实时输出到控制台，支持自定义 writer
+3. **OutputCaptureAndStream**: 同时捕获到内存并实时输出
+4. **OutputSilent**: 丢弃所有输出（除了文件输出）
+5. **文件重定向**: 所有模式都支持将输出同时写入文件
+6. **大小限制**: `MaxCaptureSize` 防止内存溢出，超出部分截断
+
+### 创建的文件
+- `internal/callcli/output.go` - 输出处理核心实现 (280行)
+- `internal/callcli/output_test.go` - 单元测试 (500+行，19个测试函数)
+
+### 修改的文件
+- `internal/callcli/interface.go` - 添加 `OutputMode`, `OutputConfig`
+- `internal/callcli/caller.go` - 集成 OutputHandler
+- `internal/callcli/async.go` - 支持异步输出模式
+- `internal/callcli/timeout.go` - 支持上下文输出模式
+
+### 测试覆盖
+- 整体覆盖率: **87.4%** (超过80%要求)
+- 所有 19 个输出相关测试通过
+- 所有现有回归测试通过
+
+### 调试日志记录
+记录了2个debug条目到 Plan 文件：
+1. 文件输出为空问题 - 已修复
+2. MaxCaptureSize short write 错误 - 已修复
+
+<!-- RALPH_STATUS -->
+```json
+{
+  "module": "call_cli",
+  "job": "job_4",
+  "status": "COMPLETED",
+  "tasks_completed": 7,
+  "tasks_total": 7,
+  "loop_count": 1,
+  "debug_issues": 2,
+  "debug_logs_in_plan": true,
+  "explore_subagent_used": true,
+  "summary": "实现完整的输出处理系统，支持4种输出模式、文件重定向和大小限制。测试覆盖率87.4%，所有验证器通过。记录2个debug问题到Plan文件并已修复。"
+}
+```
+<!-- END_RALPH_STATUS -->
