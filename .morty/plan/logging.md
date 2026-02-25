@@ -149,24 +149,26 @@ type JobLogger struct {
 - Job 1 完成 (Logger 基础)
 
 **Tasks (Todo 列表)**:
-- [ ] Task 1: 创建 `internal/logging/job_logger.go` 文件结构
-- [ ] Task 2: 实现 `JobLogger` 结构体，包含 module 和 job 字段
-- [ ] Task 3: 实现 Job 开始/结束日志自动记录
-- [ ] Task 4: 实现 Task 级别的日志记录
-- [ ] Task 5: 支持从 JobLogger 获取标准 Logger 接口
-- [ ] Task 6: 实现日志文件按 Job 分离 (可选)
-- [ ] Task 7: 编写单元测试 `job_logger_test.go`
+- [x] Task 1: 创建 `internal/logging/job_logger.go` 文件结构
+- [x] Task 2: 实现 `JobLogger` 结构体，包含 module 和 job 字段
+- [x] Task 3: 实现 Job 开始/结束日志自动记录
+- [x] Task 4: 实现 Task 级别的日志记录
+- [x] Task 5: 支持从 JobLogger 获取标准 Logger 接口
+- [x] Task 6: 实现日志文件按 Job 分离 (可选)
+- [x] Task 7: 编写单元测试 `job_logger_test.go`
 
 **验证器**:
-- [ ] JobLogger 正确记录 module 和 job 信息
-- [ ] Job 开始日志包含模块名、Job 名、开始时间
-- [ ] Job 结束日志包含执行结果、耗时
-- [ ] Task 日志包含 Task 编号和描述
-- [ ] 所有日志条目包含一致的 Job 上下文
-- [ ] 所有单元测试通过 (覆盖率 >= 80%)
+- [x] JobLogger 正确记录 module 和 job 信息
+- [x] Job 开始日志包含模块名、Job 名、开始时间
+- [x] Job 结束日志包含执行结果、耗时
+- [x] Task 日志包含 Task 编号和描述
+- [x] 所有日志条目包含一致的 Job 上下文
+- [x] 所有单元测试通过 (覆盖率 >= 80%)
 
 **调试日志**:
-- 待填充
+- explore1: [探索发现] 已有 Logger 接口定义在 logger.go, SlogAdapter 实现了完整接口, 支持 WithJob 添加上下文, 已有 rotator.go 处理日志轮转, 已记录
+- debug1: TestJobLogger_ConcurrentAccess 并发测试失败, 并发调用 LogTaskStart 后 GetTaskCount 返回值小于预期, 猜想: 1)taskCount 更新存在竞争条件 2)使用 mutex 同步不足, 验证: 使用 atomic 操作替代 mutex, 修复: 将 taskCount 改为 int32 并使用 atomic.AddInt32 进行原子递增, 已修复
+- debug2: TestJobLogger_Close 测试失败 (file already closed), LogJobEnd 后调用 Close 时返回错误, 猜想: LogJobEnd 已经关闭 fileWriter, Close 再次关闭导致错误, 验证: 检查 LogJobEnd 和 Close 实现, 修复: LogJobEnd 关闭后将 fileWriter 设为 nil, Close 检查 nil 后再关闭, 已修复
 
 ---
 

@@ -1,0 +1,31 @@
+所有 Tasks 完成，验证通过。输出 RALPH_STATUS。
+
+<!-- RALPH_STATUS -->
+```json
+{
+  "ralph_status": {
+    "module": "logging",
+    "job": "job_3",
+    "status": "COMPLETED",
+    "tasks_completed": 7,
+    "tasks_total": 7,
+    "loop_count": 1,
+    "debug_issues": 2,
+    "debug_logs_in_plan": true,
+    "explore_subagent_used": true,
+    "summary": "JobLogger 实现完成。包含 module/job 字段、自动开始/结束日志记录、Task 级别日志、标准 Logger 接口支持、按 Job 分离日志文件。并发问题已修复，所有 17 个单元测试通过，JobLogger 方法覆盖率 >= 80%"
+  }
+}
+```
+<!-- END_RALPH_STATUS -->
+
+```json
+{
+  "module": "logging",
+  "job": "job_3",
+  "status": "COMPLETED",
+  "tasks_completed": 7,
+  "tasks_total": 7,
+  "summary": "JobLogger 实现完成。包含 module/job 字段、自动开始/结束日志记录、Task 级别日志、标准 Logger 接口支持、按 Job 分离日志文件。并发问题已修复，所有 17 个单元测试通过，JobLogger 方法覆盖率 >= 80%"
+}
+```
