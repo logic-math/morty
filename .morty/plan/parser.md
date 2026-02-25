@@ -336,25 +336,28 @@ func NewFactory() Factory
 - Job 3, Job 4, Job 5 完成
 
 **Tasks (Todo 列表)**:
-- [ ] Task 1: 创建 `internal/parser/plan/parser.go`
-- [ ] Task 2: 定义 `Plan` 结构体
-- [ ] Task 3: 实现 `ParsePlan(content) (*Plan, error)`
-- [ ] Task 4: 提取模块概述（模块职责、依赖）
-- [ ] Task 5: 提取 Jobs 列表（按 Job 分组）
-- [ ] Task 6: 提取每个 Job 的 Tasks
-- [ ] Task 7: 提取验证器定义
-- [ ] Task 8: 编写单元测试 `plan/parser_test.go`
+- [x] Task 1: 创建 `internal/parser/plan/parser.go`
+- [x] Task 2: 定义 `Plan` 结构体
+- [x] Task 3: 实现 `ParsePlan(content) (*Plan, error)`
+- [x] Task 4: 提取模块概述（模块职责、依赖）
+- [x] Task 5: 提取 Jobs 列表（按 Job 分组）
+- [x] Task 6: 提取每个 Job 的 Tasks
+- [x] Task 7: 提取验证器定义
+- [x] Task 8: 编写单元测试 `plan/parser_test.go`
 
 **验证器**:
-- [ ] 正确解析模块名称
-- [ ] 正确解析依赖模块列表
-- [ ] 正确提取所有 Jobs
-- [ ] 正确提取 Job 内的 Tasks
-- [ ] 正确提取验证器描述
-- [ ] 所有单元测试通过 (覆盖率 >= 80%)
+- [x] 正确解析模块名称
+- [x] 正确解析依赖模块列表
+- [x] 正确提取所有 Jobs
+- [x] 正确提取 Job 内的 Tasks
+- [x] 正确提取验证器描述
+- [x] 所有单元测试通过 (覆盖率 >= 80%)
 
 **调试日志**:
-- 待填充
+- debug1: 任务提取正则表达式不匹配, 测试期望3个任务但得到0个, 正则表达式未正确匹配中文冒号, 修改正则表达式支持中英文冒号, 重写extractTasksFromContent使用行解析替代正则匹配, 已修复
+- debug2: 验证器提取失败, 正则表达式范围匹配问题, section内容范围计算, 修改提取逻辑使用section.Content, 使用FindStringIndex定位验证器区块, 已修复
+- debug3: 调试日志提取为空, "无"标记未正确处理, 空白行处理, 添加空内容检查, 优化extractDebugLogs过滤"无"标记, 已修复
+- explore1: [探索发现] 代码库使用标准Go项目结构, markdown解析器已包含section/task/metadata提取, 测试使用表驱动模式, 覆盖率92.4%超过80%要求, 已记录
 
 ---
 

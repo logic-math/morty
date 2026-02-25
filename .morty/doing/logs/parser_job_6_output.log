@@ -1,0 +1,18 @@
+所有任务已完成。以下是执行结果：
+
+<!-- RALPH_STATUS -->
+```json
+{
+  "module": "parser",
+  "job": "job_6",
+  "status": "COMPLETED",
+  "tasks_completed": 8,
+  "tasks_total": 8,
+  "loop_count": 1,
+  "debug_issues": 3,
+  "debug_logs_in_plan": true,
+  "explore_subagent_used": true,
+  "summary": "Plan parser实现完成。创建了internal/parser/plan/parser.go和parser_test.go，实现了完整的Plan解析功能：模块名称提取、依赖解析、Jobs列表提取、Tasks提取、验证器提取和调试日志提取。单元测试覆盖率92.4%，超过80%要求。调试日志已记录到.morty/plan/parser.md的Job 6中。"
+}
+```
+<!-- END_RALPH_STATUS -->
