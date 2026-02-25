@@ -395,23 +395,28 @@ type ExecutionLog struct {
 - Job 3 完成
 
 **Tasks (Todo 列表)**:
-- [ ] Task 1: 实现信号捕获（SIGINT, SIGTERM）
-- [ ] Task 2: 信号触发时优雅终止子进程
-- [ ] Task 3: 实现中断状态保存
-- [ ] Task 4: 支持中断后继续执行
-- [ ] Task 5: 实现子进程信号转发
-- [ ] Task 6: 处理僵尸进程
-- [ ] Task 7: 编写单元测试 `signal_test.go`
+- [x] Task 1: 实现信号捕获（SIGINT, SIGTERM）
+- [x] Task 2: 信号触发时优雅终止子进程
+- [x] Task 3: 实现中断状态保存
+- [x] Task 4: 支持中断后继续执行
+- [x] Task 5: 实现子进程信号转发
+- [x] Task 6: 处理僵尸进程
+- [x] Task 7: 编写单元测试 `signal_test.go`
 
 **验证器**:
-- [ ] Ctrl+C 能正确中断子进程
-- [ ] 中断后子进程不会成为僵尸进程
-- [ ] 中断状态正确记录
-- [ ] 信号能正确转发给子进程
-- [ ] 所有单元测试通过 (覆盖率 >= 80%)
+- [x] Ctrl+C 能正确中断子进程
+- [x] 中断后子进程不会成为僵尸进程
+- [x] 中断状态正确记录
+- [x] 信号能正确转发给子进程
+- [x] 所有单元测试通过 (覆盖率 >= 80%)
 
 **调试日志**:
-- 待填充
+- debug1: 测试文件 signal_test.go 未被 go test 识别, go list 显示 TestGoFiles 缺少 signal_test.go, 猜想: 1)Go 工具使用不同路径 2)文件系统缓存问题, 验证: 检查 go list -f '{{.Dir}}' 发现使用 /home/sankuai/... 而非 /opt/meituan/..., 修复: 将 signal*.go 文件复制到 Go 期望的目录 /home/sankuai/dolphinfs_sunquan20/ai_coding/internal/callcli/, 已修复
+- debug2: TestSignalHandler_Kill 死锁超时, Kill() 方法获取 Lock 后调用 forwardSignalAndWait 再调用 forwardSignal 尝试获取 RLock, 猜想: 同 goroutine 锁升级导致死锁, 验证: 检查堆栈确认 goroutine 16 持有 Lock 等待 RLock, 修复: 重构 Kill() 方法先 Unlock 再调用 forwardSignalAndWait, 已修复
+- debug3: GetInterruptState 空指针 panic, h.signalReceived.String() 在 signalReceived 为 nil 时崩溃, 猜想: 未检查 nil 指针, 验证: 添加 nil 检查, 修复: 添加 if h.signalReceived != nil 判断, 已修复
+- debug4: TestSignalHandler_Timeout 期望 Interrupted 为 true, 超时处理未设置 interrupted 标志, 猜想: waitWithSignal 中超时 case 未设置标志, 验证: 检查代码发现超时和 context 取消均未设置 interrupted, 修复: 在超时和 context 取消 case 中添加 h.interrupted = true, 已修复
+- debug5: handleSignal 死锁, handleSignal 持有 Lock 调用 forwardSignal 尝试获取 RLock, 猜想: 同 goroutine 锁升级, 验证: 堆栈分析确认, 修复: 重构 handleSignal 先 Unlock 再调用 forwardSignal, 已修复
+- debug6: Resume 空指针 panic, h.signalReceived.String() 未检查 nil, 猜想: 与 debug3 类似, 验证: 代码审查, 修复: 添加 nil 检查, 已修复
 
 ---
 

@@ -1,0 +1,33 @@
+所有 Tasks 已完成，验证器全部通过。让我输出最终的 RALPH_STATUS：
+
+```json
+{
+  "module": "call_cli",
+  "job": "job_6",
+  "status": "COMPLETED",
+  "tasks_completed": 7,
+  "tasks_total": 7,
+  "loop_count": 2,
+  "debug_issues": 6,
+  "debug_logs_in_plan": true,
+  "explore_subagent_used": true,
+  "summary": "信号处理 Job 完成。实现了 SIGINT/SIGTERM 信号捕获、优雅终止子进程、中断状态保存与恢复、子进程信号转发、僵尸进程处理。修复了 6 个关键问题：1)文件路径问题导致测试无法识别 2)Kill 方法死锁 3)GetInterruptState 空指针 4)超时未设置 interrupted 标志 5)handleSignal 死锁 6)Resume 空指针。单元测试覆盖率 87.2%，超过 80% 要求，29 个测试全部通过。"
+}
+```
+
+### 完成总结
+
+**已实现的 Tasks:**
+1. ✅ 信号捕获（SIGINT, SIGTERM）- `globalSignalHandler` 全局信号处理器
+2. ✅ 优雅终止子进程 - `terminateProcess` 方法，支持 graceful period
+3. ✅ 中断状态保存 - `InterruptState` 结构体 + `GetInterruptState` 方法
+4. ✅ 中断后继续执行 - `Resume` 方法创建新进程继续执行
+5. ✅ 子进程信号转发 - `forwardSignal` 方法转发到进程组和子进程
+6. ✅ 僵尸进程处理 - `waitForChildren` 方法防止僵尸进程
+7. ✅ 单元测试 - `signal_test.go` 29 个测试，覆盖率 87.2%
+
+**关键修复的问题:**
+- **文件路径问题**: Go 工具使用不同目录，复制文件到正确位置
+- **死锁问题**: Kill() 和 handleSignal() 锁升级导致死锁，重构锁管理
+- **空指针问题**: GetInterruptState 和 Resume 中 signalReceived 可能为 nil
+- **状态设置问题**: 超时和 context 取消时未设置 interrupted 标志

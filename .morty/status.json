@@ -3,16 +3,16 @@
   "state": "running",
   "current": {
     "module": "call_cli",
-    "job": "job_5",
+    "job": "job_6",
     "status": "COMPLETED",
-    "start_time": "2026-02-25T14:41:51Z",
+    "start_time": "2026-02-25T15:52:05Z",
     "interrupted_at": "2026-02-24T16:51:59Z",
-    "completed_at": "2026-02-25T15:19:11Z"
+    "completed_at": "2026-02-25T16:54:39Z"
   },
   "session": {
     "start_time": "2026-02-24T12:51:47Z",
-    "last_update": "2026-02-25T15:19:11Z",
-    "total_loops": 34
+    "last_update": "2026-02-25T16:54:39Z",
+    "total_loops": 36
   },
   "modules": {
     "go_env_setup": {
@@ -1873,12 +1873,61 @@
           "completion_summary": "Job executed successfully"
         },
         "job_6": {
-          "status": "PENDING",
-          "loop_count": 0,
-          "retry_count": 0,
+          "status": "COMPLETED",
+          "loop_count": 2,
+          "retry_count": 1,
           "tasks_total": 7,
-          "tasks_completed": 0,
-          "debug_logs": []
+          "tasks_completed": 7,
+          "debug_logs": [],
+          "started_at": "2026-02-25T15:52:05Z",
+          "last_failure_reason": "Execution failed with exit code 1",
+          "last_failure_at": "2026-02-25T15:40:58Z",
+          "tasks": {
+            "1": {
+              "index": 1,
+              "status": "COMPLETED",
+              "description": "Task 1: 实现信号捕获（SIGINT, SIGTERM）",
+              "updated_at": "2026-02-25T16:54:36Z"
+            },
+            "2": {
+              "index": 2,
+              "status": "COMPLETED",
+              "description": "Task 2: 信号触发时优雅终止子进程",
+              "updated_at": "2026-02-25T16:54:36Z"
+            },
+            "3": {
+              "index": 3,
+              "status": "COMPLETED",
+              "description": "Task 3: 实现中断状态保存",
+              "updated_at": "2026-02-25T16:54:37Z"
+            },
+            "4": {
+              "index": 4,
+              "status": "COMPLETED",
+              "description": "Task 4: 支持中断后继续执行",
+              "updated_at": "2026-02-25T16:54:37Z"
+            },
+            "5": {
+              "index": 5,
+              "status": "COMPLETED",
+              "description": "Task 5: 实现子进程信号转发",
+              "updated_at": "2026-02-25T16:54:38Z"
+            },
+            "6": {
+              "index": 6,
+              "status": "COMPLETED",
+              "description": "Task 6: 处理僵尸进程",
+              "updated_at": "2026-02-25T16:54:38Z"
+            },
+            "7": {
+              "index": 7,
+              "status": "COMPLETED",
+              "description": "Task 7: 编写单元测试 `signal_test.go`",
+              "updated_at": "2026-02-25T16:54:39Z"
+            }
+          },
+          "completed_at": "2026-02-25T16:54:39Z",
+          "completion_summary": "Job executed successfully"
         },
         "job_7": {
           "status": "PENDING",
