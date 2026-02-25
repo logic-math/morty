@@ -1981,7 +1981,7 @@ build_job_prompt() {
     printf '\n---\n\n'
     printf '# 精简上下文\n\n'
     printf '```json\n%s\n```\n\n' "$compact_context"
-    printf '---\n\n'
+    printf -- '---\n\n'
     printf '# 当前 Job 上下文\n\n'
     printf '**模块**: %s\n' "$module"
     printf '**Job**: %s\n' "$job"
