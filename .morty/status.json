@@ -3,16 +3,16 @@
   "state": "running",
   "current": {
     "module": "parser",
-    "job": "job_4",
+    "job": "job_5",
     "status": "COMPLETED",
-    "start_time": "2026-02-24T23:46:53Z",
+    "start_time": "2026-02-25T00:50:28Z",
     "interrupted_at": "2026-02-24T16:51:59Z",
-    "completed_at": "2026-02-25T00:50:26Z"
+    "completed_at": "2026-02-25T01:26:33Z"
   },
   "session": {
     "start_time": "2026-02-24T12:51:47Z",
-    "last_update": "2026-02-25T00:50:26Z",
-    "total_loops": 17
+    "last_update": "2026-02-25T01:26:33Z",
+    "total_loops": 18
   },
   "modules": {
     "go_env_setup": {
@@ -890,12 +890,53 @@
           "completion_summary": "Job executed successfully"
         },
         "job_5": {
-          "status": "PENDING",
-          "loop_count": 0,
+          "status": "COMPLETED",
+          "loop_count": 1,
           "retry_count": 0,
           "tasks_total": 6,
-          "tasks_completed": 0,
-          "debug_logs": []
+          "tasks_completed": 6,
+          "debug_logs": [],
+          "started_at": "2026-02-25T00:50:28Z",
+          "tasks": {
+            "1": {
+              "index": 1,
+              "status": "COMPLETED",
+              "description": "Task 1: 创建 `internal/parser/markdown/metadata.go`",
+              "updated_at": "2026-02-25T01:26:29Z"
+            },
+            "2": {
+              "index": 2,
+              "status": "COMPLETED",
+              "description": "Task 2: 实现 `ExtractMetadata(content) (map[string]string, error)`",
+              "updated_at": "2026-02-25T01:26:30Z"
+            },
+            "3": {
+              "index": 3,
+              "status": "COMPLETED",
+              "description": "Task 3: 支持 YAML frontmatter (`---` 包裹）",
+              "updated_at": "2026-02-25T01:26:30Z"
+            },
+            "4": {
+              "index": 4,
+              "status": "COMPLETED",
+              "description": "Task 4: 支持简单的 key: value 解析",
+              "updated_at": "2026-02-25T01:26:31Z"
+            },
+            "5": {
+              "index": 5,
+              "status": "COMPLETED",
+              "description": "Task 5: 处理 frontmatter 解析错误",
+              "updated_at": "2026-02-25T01:26:32Z"
+            },
+            "6": {
+              "index": 6,
+              "status": "COMPLETED",
+              "description": "Task 6: 编写单元测试 `markdown/metadata_test.go`",
+              "updated_at": "2026-02-25T01:26:32Z"
+            }
+          },
+          "completed_at": "2026-02-25T01:26:33Z",
+          "completion_summary": "Job executed successfully"
         },
         "job_6": {
           "status": "PENDING",

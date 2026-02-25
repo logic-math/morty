@@ -306,22 +306,25 @@ func NewFactory() Factory
 - Job 2 完成
 
 **Tasks (Todo 列表)**:
-- [ ] Task 1: 创建 `internal/parser/markdown/metadata.go`
-- [ ] Task 2: 实现 `ExtractMetadata(content) (map[string]string, error)`
-- [ ] Task 3: 支持 YAML frontmatter (`---` 包裹）
-- [ ] Task 4: 支持简单的 key: value 解析
-- [ ] Task 5: 处理 frontmatter 解析错误
-- [ ] Task 6: 编写单元测试 `markdown/metadata_test.go`
+- [x] Task 1: 创建 `internal/parser/markdown/metadata.go`
+- [x] Task 2: 实现 `ExtractMetadata(content) (map[string]string, error)`
+- [x] Task 3: 支持 YAML frontmatter (`---` 包裹）
+- [x] Task 4: 支持简单的 key: value 解析
+- [x] Task 5: 处理 frontmatter 解析错误
+- [x] Task 6: 编写单元测试 `markdown/metadata_test.go`
 
 **验证器**:
-- [ ] 正确解析 YAML frontmatter
-- [ ] 正确提取键值对
-- [ ] 无 frontmatter 时返回空 map
-- [ ] 格式错误时返回错误
-- [ ] 所有单元测试通过 (覆盖率 >= 80%)
+- [x] 正确解析 YAML frontmatter
+- [x] 正确提取键值对
+- [x] 无 frontmatter 时返回空 map
+- [x] 格式错误时返回错误
+- [x] 所有单元测试通过 (覆盖率 >= 80%)
 
 **调试日志**:
-- 待填充
+- explore1: [探索发现] 项目使用标准 Go 项目结构, markdown parser 已包含 section.go 和 task.go, Node 结构在不同目录版本略有差异(无 ItemIndents 字段), 测试使用标准 Go testing 模式, 已记录
+- debug1: 文件路径问题, 现象: 文件写入 /opt/meituan/.../Coding/morty/ 但 Go 模块在 /home/sankuai/.../internal/parser/, 复现: go test 找不到新创建的 metadata.go, 猜想: 1)存在两个独立工作目录 2)symlink 导致路径混淆, 验证: 检查两个目录内容发现差异, 修复: 复制文件到正确的 /home/sankuai/.../internal/parser/markdown/ 目录, 已修复
+- debug2: Node 结构差异导致编译错误, 现象: metadata.go 编译报错 "node.ItemIndents undefined", 复现: 当前目录的 parser.go Node 结构没有 ItemIndents 字段, 猜想: 1)不同目录版本不一致 2)task.go 使用了不同的 Node 结构, 验证: 比较两个目录的 parser.go 发现差异, 修复: 修改 nodeToRawContent 函数移除 ItemIndents 引用, 已修复
+- debug3: 空 frontmatter 匹配失败, 现象: TestHasFrontmatter 失败 "---\n---" 未匹配, 复现: frontmatterRegex 要求换行符, 猜想: 正则表达式过于严格, 验证: 修改正则为 `(?s)^\s*---\s*\n(.*?)\n?---\s*(?:\n|$)`, 修复: 使中间换行符可选, 已修复
 
 ---
 
