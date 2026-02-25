@@ -121,25 +121,28 @@ type JobState struct {
 - Config 模块完成
 
 **Tasks (Todo 列表)**:
-- [ ] Task 1: 创建 `internal/state/state.go` 定义 Status 类型和常量
-- [ ] Task 2: 定义 StatusJSON, ModuleState, JobState 结构体
-- [ ] Task 3: 创建 `internal/state/status_json.go` 实现文件操作
-- [ ] Task 4: 实现 `Load() error` 从文件加载状态
-- [ ] Task 5: 实现 `Save() error` 保存状态到文件
-- [ ] Task 6: 处理文件不存在时初始化默认状态
-- [ ] Task 7: 实现状态文件备份机制
-- [ ] Task 8: 编写单元测试 `status_json_test.go`
+- [x] Task 1: 创建 `internal/state/state.go` 定义 Status 类型和常量
+- [x] Task 2: 定义 StatusJSON, ModuleState, JobState 结构体
+- [x] Task 3: 创建 `internal/state/status_json.go` 实现文件操作
+- [x] Task 4: 实现 `Load() error` 从文件加载状态
+- [x] Task 5: 实现 `Save() error` 保存状态到文件
+- [x] Task 6: 处理文件不存在时初始化默认状态
+- [x] Task 7: 实现状态文件备份机制
+- [x] Task 8: 编写单元测试 `status_json_test.go`
 
 **验证器**:
-- [ ] Status 常量定义正确 (PENDING, RUNNING, COMPLETED, FAILED, BLOCKED)
-- [ ] 加载存在的 status.json 返回正确结构
-- [ ] 加载不存在的文件创建默认状态结构
-- [ ] Save 后文件内容正确且格式美观
-- [ ] 状态文件损坏时返回错误
-- [ ] 所有单元测试通过 (覆盖率 >= 80%)
+- [x] Status 常量定义正确 (PENDING, RUNNING, COMPLETED, FAILED, BLOCKED)
+- [x] 加载存在的 status.json 返回正确结构
+- [x] 加载不存在的文件创建默认状态结构
+- [x] Save 后文件内容正确且格式美观
+- [x] 状态文件损坏时返回错误
+- [x] 所有单元测试通过 (覆盖率 >= 80%)
 
 **调试日志**:
-- 待填充
+- explore1: [探索发现] 项目使用 Go modules 结构，模块名为 github.com/morty/morty，已记录
+- debug1: 初始导入路径错误使用 morty/pkg/errors，猜想: go.mod 模块名不匹配，验证: 检查 go.mod 确认模块名，修复: 改为 github.com/morty/morty/pkg/errors，已修复
+- debug2: state.go 中未使用的 imports 导致编译失败，猜想: imports 仅在 status_json.go 使用，验证: 移除 state.go 中未使用的 imports，修复: 清理 imports，已修复
+- debug3: TestListBackups 测试失败，备份文件数量不正确，猜想: 相同时间戳导致备份文件名冲突，验证: 添加时间戳检查，修复: Backup 函数添加序号处理文件名冲突，已修复
 
 ---
 
