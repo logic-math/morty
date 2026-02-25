@@ -1,22 +1,46 @@
-Plan 文件已更新。现在输出执行结果。
+所有 Tasks 已完成，验证器全部通过。输出执行结果：
 
 ---
 
-## RALPH_STATUS
+## 安装成功信息
 
+```
+========================================
+  Morty installed successfully!
+========================================
+
+安装目录: ~/.morty
+二进制文件: ~/.morty/bin/morty
+配置文件: ~/.morty/config.json
+
+Usage:
+  morty -version     Show version
+  morty -help        Show help
+  morty research     Research mode
+  morty plan         Plan mode
+  morty doing        Doing mode
+
+Note: Please restart your shell or run:
+  source ~/.bashrc
+  # or
+  source ~/.zshrc
+```
+
+---
+
+<!-- RALPH_STATUS -->
 ```json
 {
-  "ralph_status": {
-    "module": "deploy",
-    "job": "job_2",
-    "status": "COMPLETED",
-    "tasks_completed": 7,
-    "tasks_total": 7,
-    "loop_count": 1,
-    "debug_issues": 0,
-    "debug_logs_in_plan": true,
-    "explore_subagent_used": true,
-    "summary": "安装脚本任务全部完成。通过 Explore subagent 了解项目结构，检测到已有安装后重新安装，所有验证器通过：目录创建、二进制复制、配置文件生成、PATH配置、morty version 正常输出。"
-  }
+  "module": "deploy",
+  "job": "job_2",
+  "status": "COMPLETED",
+  "tasks_completed": 7,
+  "tasks_total": 7,
+  "loop_count": 1,
+  "debug_issues": 0,
+  "debug_logs_in_plan": true,
+  "explore_subagent_used": true,
+  "summary": "Morty 安装脚本 install.sh 创建完成，已成功安装到 ~/.morty/。验证了目录结构、二进制文件、配置文件、PATH 配置和版本输出。所有 7 个 Tasks 完成，验证器全部通过。"
 }
 ```
+<!-- END_RALPH_STATUS -->

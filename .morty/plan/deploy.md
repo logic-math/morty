@@ -93,21 +93,21 @@
 - 已编译的二进制文件 或 源码（可现场编译）
 
 **Tasks (Todo 列表)**:
-- [ ] Task 1: 检查是否已安装（存在 `~/.morty/bin/morty`）
-- [ ] Task 2: 创建 `~/.morty/` 目录结构
-- [ ] Task 3: 复制/编译二进制文件到 `~/.morty/bin/morty`
-- [ ] Task 4: 创建默认配置文件 `~/.morty/config.json`
-- [ ] Task 5: 检测并配置 PATH（`~/.bashrc`, `~/.zshrc`）
-- [ ] Task 6: 验证安装（`morty version` 能执行）
-- [ ] Task 7: 输出安装成功信息和使用说明
+- [x] Task 1: 检查是否已安装（存在 `~/.morty/bin/morty`）
+- [x] Task 2: 创建 `~/.morty/` 目录结构
+- [x] Task 3: 复制/编译二进制文件到 `~/.morty/bin/morty`
+- [x] Task 4: 创建默认配置文件 `~/.morty/config.json`
+- [x] Task 5: 检测并配置 PATH（`~/.bashrc`, `~/.zshrc`）
+- [x] Task 6: 验证安装（`morty version` 能执行）
+- [x] Task 7: 输出安装成功信息和使用说明
 
 **验证器**:
-- [ ] `~/.morty/` 目录创建成功
-- [ ] `~/.morty/bin/morty` 可执行文件存在且可运行
-- [ ] `~/.morty/config.json` 配置文件创建
-- [ ] PATH 配置正确（当前 shell 或下次登录生效）
-- [ ] `morty version` 能正常输出c
-- [ ] git 提交中必须包含insall.sh的安装脚本
+- [x] `~/.morty/` 目录创建成功
+- [x] `~/.morty/bin/morty` 可执行文件存在且可运行
+- [x] `~/.morty/config.json` 配置文件创建
+- [x] PATH 配置正确（当前 shell 或下次登录生效）
+- [x] `morty version` 能正常输出
+- [x] git 提交中必须包含 install.sh 的安装脚本
 
 **使用示例**:
 ```bash
@@ -117,7 +117,8 @@
 ```
 
 **调试日志**:
-- 待填充
+- explore1: [探索发现] 项目使用 Go 1.21.6, 预编译二进制在 bin/morty (2.3MB), 安装目标为 ~/.morty/, 已记录
+- debug1: install.sh 脚本创建完成, 支持 --force, --from-dist, --prefix 参数, 支持 .bashrc/.zshrc 自动配置, 已修复
 
 ---
 
