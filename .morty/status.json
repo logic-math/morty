@@ -2,17 +2,17 @@
   "version": "2.0",
   "state": "running",
   "current": {
-    "module": "logging",
-    "job": "job_4",
+    "module": "call_cli",
+    "job": "job_1",
     "status": "COMPLETED",
-    "start_time": "2026-02-25T13:15:00Z",
+    "start_time": "2026-02-25T13:35:51Z",
     "interrupted_at": "2026-02-24T16:51:59Z",
-    "completed_at": "2026-02-25T13:35:49Z"
+    "completed_at": "2026-02-25T13:56:46Z"
   },
   "session": {
     "start_time": "2026-02-24T12:51:47Z",
-    "last_update": "2026-02-25T13:35:49Z",
-    "total_loops": 29
+    "last_update": "2026-02-25T13:56:46Z",
+    "total_loops": 30
   },
   "modules": {
     "go_env_setup": {
@@ -1592,12 +1592,59 @@
       "status": "pending",
       "jobs": {
         "job_1": {
-          "status": "PENDING",
-          "loop_count": 0,
+          "status": "COMPLETED",
+          "loop_count": 1,
           "retry_count": 0,
           "tasks_total": 7,
-          "tasks_completed": 0,
-          "debug_logs": []
+          "tasks_completed": 7,
+          "debug_logs": [],
+          "started_at": "2026-02-25T13:35:51Z",
+          "tasks": {
+            "1": {
+              "index": 1,
+              "status": "COMPLETED",
+              "description": "Task 1: 创建 `internal/callcli/interface.go` 定义核心接口",
+              "updated_at": "2026-02-25T13:56:43Z"
+            },
+            "2": {
+              "index": 2,
+              "status": "COMPLETED",
+              "description": "Task 2: 创建 `internal/callcli/caller.go` 实现 Caller 结构体",
+              "updated_at": "2026-02-25T13:56:43Z"
+            },
+            "3": {
+              "index": 3,
+              "status": "COMPLETED",
+              "description": "Task 3: 实现 `Call()` 同步执行方法",
+              "updated_at": "2026-02-25T13:56:44Z"
+            },
+            "4": {
+              "index": 4,
+              "status": "COMPLETED",
+              "description": "Task 4: 实现命令构建和参数处理",
+              "updated_at": "2026-02-25T13:56:44Z"
+            },
+            "5": {
+              "index": 5,
+              "status": "COMPLETED",
+              "description": "Task 5: 实现工作目录和环境变量设置",
+              "updated_at": "2026-02-25T13:56:45Z"
+            },
+            "6": {
+              "index": 6,
+              "status": "COMPLETED",
+              "description": "Task 6: 实现基本错误处理",
+              "updated_at": "2026-02-25T13:56:46Z"
+            },
+            "7": {
+              "index": 7,
+              "status": "COMPLETED",
+              "description": "Task 7: 编写单元测试 `caller_test.go`",
+              "updated_at": "2026-02-25T13:56:46Z"
+            }
+          },
+          "completed_at": "2026-02-25T13:56:47Z",
+          "completion_summary": "Job executed successfully"
         },
         "job_2": {
           "status": "PENDING",

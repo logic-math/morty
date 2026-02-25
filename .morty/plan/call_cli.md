@@ -239,24 +239,25 @@ type ExecutionLog struct {
 - Logging 模块完成
 
 **Tasks (Todo 列表)**:
-- [ ] Task 1: 创建 `internal/callcli/interface.go` 定义核心接口
-- [ ] Task 2: 创建 `internal/callcli/caller.go` 实现 Caller 结构体
-- [ ] Task 3: 实现 `Call()` 同步执行方法
-- [ ] Task 4: 实现命令构建和参数处理
-- [ ] Task 5: 实现工作目录和环境变量设置
-- [ ] Task 6: 实现基本错误处理
-- [ ] Task 7: 编写单元测试 `caller_test.go`
+- [x] Task 1: 创建 `internal/callcli/interface.go` 定义核心接口
+- [x] Task 2: 创建 `internal/callcli/caller.go` 实现 Caller 结构体
+- [x] Task 3: 实现 `Call()` 同步执行方法
+- [x] Task 4: 实现命令构建和参数处理
+- [x] Task 5: 实现工作目录和环境变量设置
+- [x] Task 6: 实现基本错误处理
+- [x] Task 7: 编写单元测试 `caller_test.go`
 
 **验证器**:
-- [ ] 能正确执行简单命令（如 `echo hello`）
-- [ ] 能捕获 stdout 和 stderr
-- [ ] 能正确获取退出码
-- [ ] 能设置工作目录
-- [ ] 能设置环境变量
-- [ ] 所有单元测试通过 (覆盖率 >= 80%)
+- [x] 能正确执行简单命令（如 `echo hello`）
+- [x] 能捕获 stdout 和 stderr
+- [x] 能正确获取退出码
+- [x] 能设置工作目录
+- [x] 能设置环境变量
+- [x] 所有单元测试通过 (覆盖率 >= 80%)
 
 **调试日志**:
-- 待填充
+- explore1: [探索发现] 项目使用 `github.com/morty/morty` 模块路径, internal/ 用于内部包, pkg/ 用于公共包, 已使用 `github.com/morty/morty/pkg/errors` 错误码系统, 已记录
+- debug1: 初始超时处理返回错误码 M5004 而非 M5003, 超时测试时进程被杀信号终止, 猜想: 1)context.DeadlineExceeded 检测顺序问题, 验证: 调整错误检查顺序, 先检查 ctx.Err() 再检查 exitError, 修复: 优先检查 ctx.Err() == context.DeadlineExceeded, 已修复
 
 ---
 
