@@ -12,7 +12,7 @@ set -o pipefail
 # ============================================================================
 
 VERSION="2.0.0"
-MORTY_HOME="${MORTY_HOME:-$HOME/.morty}"
+MORTY_HOME="${MORTY_HOME:-$HOME/.morty_sh}"
 export MORTY_HOME
 MORTY_PROJECT_ROOT="${MORTY_PROJECT_ROOT:-}"
 
