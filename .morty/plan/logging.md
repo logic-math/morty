@@ -120,24 +120,24 @@ type JobLogger struct {
 - Job 1 完成 (Logger 基础)
 
 **Tasks (Todo 列表)**:
-- [ ] Task 1: 创建 `internal/logging/rotator.go` 文件结构
-- [ ] Task 2: 实现 `ShouldRotate(logFile string) bool` 检查文件大小
-- [ ] Task 3: 实现 `Rotate(logFile string) error` 执行轮转
-- [ ] Task 4: 实现标准轮转模式 (morty.log → morty.log.1 → ...)
-- [ ] Task 5: 实现旧日志 gzip 压缩 (保留最近 5 个)
-- [ ] Task 6: 实现清理过期日志文件
-- [ ] Task 7: 编写单元测试 `rotator_test.go`
+- [x] Task 1: 创建 `internal/logging/rotator.go` 文件结构
+- [x] Task 2: 实现 `ShouldRotate(logFile string) bool` 检查文件大小
+- [x] Task 3: 实现 `Rotate(logFile string) error` 执行轮转
+- [x] Task 4: 实现标准轮转模式 (morty.log → morty.log.1 → ...)
+- [x] Task 5: 实现旧日志 gzip 压缩 (保留最近 5 个)
+- [x] Task 6: 实现清理过期日志文件
+- [x] Task 7: 编写单元测试 `rotator_test.go`
 
 **验证器**:
-- [ ] 小文件 (50 bytes < max 100 bytes) 不触发轮转
-- [ ] 大文件 (101 bytes > max 100 bytes) 触发轮转
-- [ ] 轮转后原文件清空，.1 文件包含原内容
-- [ ] 多次轮转后 .2+ 文件被 gzip 压缩
-- [ ] 超过最大保留数的旧日志被删除
-- [ ] 所有单元测试通过 (覆盖率 >= 80%)
+- [x] 小文件 (50 bytes < max 100 bytes) 不触发轮转
+- [x] 大文件 (101 bytes > max 100 bytes) 触发轮转
+- [x] 轮转后原文件清空，.1 文件包含原内容
+- [x] 多次轮转后 .2+ 文件被 gzip 压缩
+- [x] 超过最大保留数的旧日志被删除
+- [x] 所有单元测试通过 (覆盖率 >= 80%)
 
 **调试日志**:
-- 待填充
+- debug1: 测试失败 TestShouldRotate 期望 101 字节触发轮转但实际没有, 测试字符串 "this is a larger content..." 实际长度不足 101 字节, 猜想: 字符串字面量长度计算不准确, 验证: 使用 len() 检查实际长度, 修复: 改用 make([]byte, 101) 创建精确大小的内容, 已修复
 
 ---
 
