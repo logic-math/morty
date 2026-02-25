@@ -342,23 +342,24 @@ if errors.Is(err, errors.ErrTimeout) {
 **前置条件**: 无
 
 **Tasks (Todo 列表)**:
-- [ ] Task 1: 定义 MortyError 结构体
-- [ ] Task 2: 定义所有错误码常量
-- [ ] Task 3: 实现 Error() 和 Unwrap() 方法
-- [ ] Task 4: 实现 New() 和 Wrap() 构造器
-- [ ] Task 5: 实现 WithDetail() 和 Is() 方法
-- [ ] Task 6: 实现错误链支持
-- [ ] Task 7: 编写单元测试
+- [x] Task 1: 定义 MortyError 结构体
+- [x] Task 2: 定义所有错误码常量
+- [x] Task 3: 实现 Error() 和 Unwrap() 方法
+- [x] Task 4: 实现 New() 和 Wrap() 构造器
+- [x] Task 5: 实现 WithDetail() 和 Is() 方法
+- [x] Task 6: 实现错误链支持
+- [x] Task 7: 编写单元测试
 
 **验证器**:
-- [ ] 所有错误码定义完整
-- [ ] 错误信息格式正确
-- [ ] 错误链支持正常工作
-- [ ] Is() 方法正确判断错误类型
-- [ ] 所有单元测试通过
+- [x] 所有错误码定义完整 (59个错误码覆盖10个模块)
+- [x] 错误信息格式正确 ([Code] Message: Cause)
+- [x] 错误链支持正常工作 (支持 errors.Is 和 errors.As)
+- [x] Is() 方法正确判断错误类型 (遍历整个错误链匹配 Code)
+- [x] 所有单元测试通过 (13个测试用例，全部通过)
 
 **调试日志**:
-- 待填充
+- debug1: Is() 方法初始实现无法匹配错误链中的内层错误, 使用 Wrap 包装后 Is(wrapped, ErrNotFound) 返回 false, 猜想: 1) errors.As 只返回最外层 MortyError 2) 需要手动遍历错误链, 验证: 查看 test case 期望 Is() 能匹配链中任何 MortyError 的 Code, 修复: 修改 Is() 为手动遍历错误链检查每个 MortyError 的 Code, 已修复
+- explore1: [探索发现] 项目使用 /pkg/errors/ 标准位置, 核心代码在 /internal/, 测试使用标准 go test, 已记录
 
 ---
 

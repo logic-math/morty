@@ -2,17 +2,17 @@
   "version": "2.0",
   "state": "running",
   "current": {
-    "module": "deploy",
-    "job": "job_4",
+    "module": "errors",
+    "job": "job_1",
     "status": "COMPLETED",
-    "start_time": "2026-02-25T11:14:34Z",
+    "start_time": "2026-02-25T11:40:21Z",
     "interrupted_at": "2026-02-24T16:51:59Z",
-    "completed_at": "2026-02-25T11:40:19Z"
+    "completed_at": "2026-02-25T12:05:39Z"
   },
   "session": {
     "start_time": "2026-02-24T12:51:47Z",
-    "last_update": "2026-02-25T11:40:19Z",
-    "total_loops": 24
+    "last_update": "2026-02-25T12:05:39Z",
+    "total_loops": 25
   },
   "modules": {
     "go_env_setup": {
@@ -1297,12 +1297,59 @@
       "status": "pending",
       "jobs": {
         "job_1": {
-          "status": "PENDING",
-          "loop_count": 0,
+          "status": "COMPLETED",
+          "loop_count": 1,
           "retry_count": 0,
           "tasks_total": 7,
-          "tasks_completed": 0,
-          "debug_logs": []
+          "tasks_completed": 7,
+          "debug_logs": [],
+          "started_at": "2026-02-25T11:40:21Z",
+          "tasks": {
+            "1": {
+              "index": 1,
+              "status": "COMPLETED",
+              "description": "Task 1: 定义 MortyError 结构体",
+              "updated_at": "2026-02-25T12:05:35Z"
+            },
+            "2": {
+              "index": 2,
+              "status": "COMPLETED",
+              "description": "Task 2: 定义所有错误码常量",
+              "updated_at": "2026-02-25T12:05:36Z"
+            },
+            "3": {
+              "index": 3,
+              "status": "COMPLETED",
+              "description": "Task 3: 实现 Error() 和 Unwrap() 方法",
+              "updated_at": "2026-02-25T12:05:37Z"
+            },
+            "4": {
+              "index": 4,
+              "status": "COMPLETED",
+              "description": "Task 4: 实现 New() 和 Wrap() 构造器",
+              "updated_at": "2026-02-25T12:05:37Z"
+            },
+            "5": {
+              "index": 5,
+              "status": "COMPLETED",
+              "description": "Task 5: 实现 WithDetail() 和 Is() 方法",
+              "updated_at": "2026-02-25T12:05:38Z"
+            },
+            "6": {
+              "index": 6,
+              "status": "COMPLETED",
+              "description": "Task 6: 实现错误链支持",
+              "updated_at": "2026-02-25T12:05:38Z"
+            },
+            "7": {
+              "index": 7,
+              "status": "COMPLETED",
+              "description": "Task 7: 编写单元测试",
+              "updated_at": "2026-02-25T12:05:39Z"
+            }
+          },
+          "completed_at": "2026-02-25T12:05:40Z",
+          "completion_summary": "Job executed successfully"
         }
       }
     },
