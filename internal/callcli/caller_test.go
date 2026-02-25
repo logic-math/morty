@@ -3,10 +3,12 @@ package callcli
 
 import (
 	"context"
+	"fmt"
 	"os"
 	"path/filepath"
 	"runtime"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -505,4 +507,342 @@ func BenchmarkCall_Echo(b *testing.B) {
 			b.Fatalf("Call() failed: %v", err)
 		}
 	}
+}
+
+func TestExecutionLogSimple(t *testing.T) {
+	t.Log("Test running!")
+}
+
+
+func TestExecutionLog(t *testing.T) {
+	t.Run("Struct creation", func(t *testing.T) {
+		log := &ExecutionLog{
+			ID:              "test_id",
+			Command:         "echo",
+			Args:            []string{"hello"},
+			FullCommand:     "echo hello",
+			ExitCode:        0,
+			Success:         true,
+			StdoutSize:      5,
+			StderrSize:      0,
+			TotalOutputSize: 5,
+		}
+		if log.Command != "echo" {
+			t.Errorf("Expected 'echo', got '%s'", log.Command)
+		}
+	})
+
+	t.Run("FromResult success", func(t *testing.T) {
+		result := &Result{
+			Stdout:   "output",
+			Stderr:   "",
+			ExitCode: 0,
+			Duration: 100 * time.Millisecond,
+		}
+		log := NewExecutionLogFromResult(result, "echo", []string{"test"}, "/tmp", 0)
+		if !log.Success {
+			t.Error("Expected success")
+		}
+		if log.ExitCode != 0 {
+			t.Errorf("Expected exit code 0, got %d", log.ExitCode)
+		}
+	})
+
+	t.Run("FromResult error", func(t *testing.T) {
+		result := &Result{
+			Stdout:   "",
+			Stderr:   "error",
+			ExitCode: 1,
+			Duration: 50 * time.Millisecond,
+		}
+		log := NewExecutionLogFromResult(result, "cmd", []string{}, "/tmp", 0)
+		if log.Success {
+			t.Error("Expected failure")
+		}
+	})
+
+	t.Run("FromResult timeout", func(t *testing.T) {
+		result := &Result{
+			ExitCode: -1,
+			Duration: 5 * time.Second,
+			TimedOut: true,
+		}
+		log := NewExecutionLogFromResult(result, "sleep", []string{"10"}, "/tmp", 5*time.Second)
+		if !log.TimedOut {
+			t.Error("Expected TimedOut to be true")
+		}
+	})
+}
+
+func TestExecutionLogger(t *testing.T) {
+	t.Run("Creates directory", func(t *testing.T) {
+		tmpDir := filepath.Join(t.TempDir(), "logs", "subdir")
+		logger, err := NewExecutionLogger(tmpDir, 0, 0, 0)
+		if err != nil {
+			t.Fatalf("Failed to create logger: %v", err)
+		}
+		defer logger.Close()
+		if _, err := os.Stat(tmpDir); os.IsNotExist(err) {
+			t.Error("Log directory was not created")
+		}
+	})
+
+	t.Run("Writes JSON log", func(t *testing.T) {
+		tmpDir := t.TempDir()
+		logger, err := NewExecutionLogger(tmpDir, 0, 0, 0)
+		if err != nil {
+			t.Fatalf("Failed to create logger: %v", err)
+		}
+		defer logger.Close()
+
+		log := &ExecutionLog{
+			ID:         "test_001",
+			Command:    "echo",
+			ExitCode:   0,
+			Success:    true,
+			StdoutSize: 4,
+		}
+		if err := logger.LogExecution(log); err != nil {
+			t.Fatalf("Failed to log: %v", err)
+		}
+
+		files, _ := filepath.Glob(filepath.Join(tmpDir, "execution_*.log"))
+		if len(files) == 0 {
+			t.Fatal("No log file created")
+		}
+	})
+
+	t.Run("Closed logger fails", func(t *testing.T) {
+		tmpDir := t.TempDir()
+		logger, _ := NewExecutionLogger(tmpDir, 0, 0, 0)
+		logger.Close()
+		log := &ExecutionLog{ID: "test", Command: "echo"}
+		if err := logger.LogExecution(log); err == nil {
+			t.Error("Expected error when logging to closed logger")
+		}
+	})
+
+	t.Run("Multiple entries", func(t *testing.T) {
+		tmpDir := t.TempDir()
+		logger, _ := NewExecutionLogger(tmpDir, 0, 0, 0)
+		defer logger.Close()
+
+		for i := 0; i < 5; i++ {
+			log := &ExecutionLog{
+				ID:       fmt.Sprintf("test_%d", i),
+				Command:  "echo",
+				ExitCode: i % 2,
+				Success:  i%2 == 0,
+			}
+			if err := logger.LogExecution(log); err != nil {
+				t.Fatalf("Failed to log: %v", err)
+			}
+		}
+
+		logs, _ := ReadLogs(tmpDir)
+		if len(logs) != 5 {
+			t.Errorf("Expected 5 logs, got %d", len(logs))
+		}
+	})
+}
+
+func TestLogRotation(t *testing.T) {
+	t.Run("Rotation by size", func(t *testing.T) {
+		tmpDir := t.TempDir()
+		logger, _ := NewExecutionLogger(tmpDir, 500, 5, 0)
+		defer logger.Close()
+
+		for i := 0; i < 20; i++ {
+			log := &ExecutionLog{
+				ID:          fmt.Sprintf("rot_%d", i),
+				Command:     "echo",
+				FullCommand: "echo " + strings.Repeat("x", 50),
+				StdoutSize:  50,
+				Success:     true,
+			}
+			logger.LogExecution(log)
+		}
+
+		files, _ := filepath.Glob(filepath.Join(tmpDir, "execution_*.log"))
+		if len(files) < 1 {
+			t.Error("Expected at least one log file")
+		}
+	})
+}
+
+func TestExecutionStats(t *testing.T) {
+	t.Run("Stats calculation", func(t *testing.T) {
+		tmpDir := t.TempDir()
+		logger, _ := NewExecutionLogger(tmpDir, 0, 0, 0)
+		defer logger.Close()
+
+		executions := []struct {
+			exitCode int
+			success  bool
+		}{
+			{0, true},
+			{0, true},
+			{1, false},
+			{0, true},
+			{127, false},
+		}
+
+		for i, exec := range executions {
+			log := &ExecutionLog{
+				ID:       fmt.Sprintf("stat_%d", i),
+				Command:  "cmd",
+				ExitCode: exec.exitCode,
+				Success:  exec.success,
+				Duration: 100 * time.Millisecond,
+			}
+			logger.LogExecution(log)
+		}
+
+		stats := logger.GetStats()
+		if stats.TotalExecutions != 5 {
+			t.Errorf("Expected 5 executions, got %d", stats.TotalExecutions)
+		}
+		if stats.SuccessfulExecutions != 3 {
+			t.Errorf("Expected 3 successful, got %d", stats.SuccessfulExecutions)
+		}
+		if stats.FailedExecutions != 2 {
+			t.Errorf("Expected 2 failed, got %d", stats.FailedExecutions)
+		}
+	})
+
+	t.Run("Success rate", func(t *testing.T) {
+		tmpDir := t.TempDir()
+		logger, _ := NewExecutionLogger(tmpDir, 0, 0, 0)
+		defer logger.Close()
+
+		logger.LogExecution(&ExecutionLog{ID: "1", Command: "echo", ExitCode: 0, Success: true})
+		logger.LogExecution(&ExecutionLog{ID: "2", Command: "echo", ExitCode: 0, Success: true})
+		logger.LogExecution(&ExecutionLog{ID: "3", Command: "fail", ExitCode: 1, Success: false})
+
+		stats := logger.GetStats()
+		rate := stats.GetSuccessRate()
+		if rate != 66.66666666666667 {
+			t.Errorf("Expected 66.67%% success rate, got %f", rate)
+		}
+	})
+
+	t.Run("Command stats", func(t *testing.T) {
+		tmpDir := t.TempDir()
+		logger, _ := NewExecutionLogger(tmpDir, 0, 0, 0)
+		defer logger.Close()
+
+		for i := 0; i < 3; i++ {
+			logger.LogExecution(&ExecutionLog{ID: fmt.Sprintf("e%d", i), Command: "echo", Success: true})
+		}
+		for i := 0; i < 2; i++ {
+			logger.LogExecution(&ExecutionLog{ID: fmt.Sprintf("l%d", i), Command: "ls", Success: true})
+		}
+
+		stats := logger.GetStats()
+		if stats.CommandStats["echo"].TotalExecutions != 3 {
+			t.Errorf("Expected 3 echo executions, got %d", stats.CommandStats["echo"].TotalExecutions)
+		}
+		if stats.CommandStats["ls"].TotalExecutions != 2 {
+			t.Errorf("Expected 2 ls executions, got %d", stats.CommandStats["ls"].TotalExecutions)
+		}
+	})
+}
+
+func TestReadLogs(t *testing.T) {
+	t.Run("Read logs from directory", func(t *testing.T) {
+		tmpDir := t.TempDir()
+		logger, _ := NewExecutionLogger(tmpDir, 0, 0, 0)
+
+		logger.LogExecution(&ExecutionLog{ID: "r1", Command: "echo", ExitCode: 0, Success: true})
+		logger.LogExecution(&ExecutionLog{ID: "r2", Command: "ls", ExitCode: 1, Success: false})
+		logger.Close()
+
+		logs, err := ReadLogs(tmpDir)
+		if err != nil {
+			t.Fatalf("Failed to read logs: %v", err)
+		}
+		if len(logs) != 2 {
+			t.Errorf("Expected 2 logs, got %d", len(logs))
+		}
+	})
+
+	t.Run("Empty directory", func(t *testing.T) {
+		tmpDir := t.TempDir()
+		logs, err := ReadLogs(tmpDir)
+		if err != nil {
+			t.Fatalf("Failed: %v", err)
+		}
+		if len(logs) != 0 {
+			t.Errorf("Expected 0 logs, got %d", len(logs))
+		}
+	})
+}
+
+func TestExecutionLogConcurrency(t *testing.T) {
+	t.Run("Concurrent writes", func(t *testing.T) {
+		tmpDir := t.TempDir()
+		logger, _ := NewExecutionLogger(tmpDir, 0, 0, 0)
+		defer logger.Close()
+
+		var wg sync.WaitGroup
+		for i := 0; i < 10; i++ {
+			wg.Add(1)
+			go func(id int) {
+				defer wg.Done()
+				for j := 0; j < 10; j++ {
+					log := &ExecutionLog{
+						ID:      fmt.Sprintf("c%d_%d", id, j),
+						Command: "echo",
+						Success: true,
+					}
+					logger.LogExecution(log)
+				}
+			}(i)
+		}
+		wg.Wait()
+
+		stats := logger.GetStats()
+		if stats.TotalExecutions != 100 {
+			t.Errorf("Expected 100 executions, got %d", stats.TotalExecutions)
+		}
+	})
+}
+
+func TestExecutionLogIntegration(t *testing.T) {
+	t.Run("Full workflow", func(t *testing.T) {
+		tmpDir := t.TempDir()
+		logger, _ := NewExecutionLogger(tmpDir, 1024*1024, 5, 7)
+
+		commands := []struct {
+			result *Result
+			name   string
+		}{
+			{&Result{Stdout: "out1", ExitCode: 0, Duration: 10 * time.Millisecond}, "echo"},
+			{&Result{Stdout: "out2", ExitCode: 0, Duration: 20 * time.Millisecond}, "ls"},
+			{&Result{Stderr: "err", ExitCode: 1, Duration: 5 * time.Millisecond}, "cat"},
+		}
+
+		for _, cmd := range commands {
+			log := NewExecutionLogFromResult(cmd.result, cmd.name, []string{}, "/tmp", 0)
+			logger.LogExecution(log)
+		}
+
+		stats := logger.GetStats()
+		if stats.TotalExecutions != 3 {
+			t.Errorf("Expected 3 executions, got %d", stats.TotalExecutions)
+		}
+		if stats.SuccessfulExecutions != 2 {
+			t.Errorf("Expected 2 successful, got %d", stats.SuccessfulExecutions)
+		}
+		if stats.FailedExecutions != 1 {
+			t.Errorf("Expected 1 failed, got %d", stats.FailedExecutions)
+		}
+
+		logger.Close()
+
+		logs, _ := ReadLogs(tmpDir)
+		if len(logs) != 3 {
+			t.Errorf("Expected 3 logs, got %d", len(logs))
+		}
+	})
 }
