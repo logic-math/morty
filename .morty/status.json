@@ -3,16 +3,16 @@
   "state": "running",
   "current": {
     "module": "call_cli",
-    "job": "job_4",
+    "job": "job_5",
     "status": "COMPLETED",
-    "start_time": "2026-02-25T14:21:41Z",
+    "start_time": "2026-02-25T14:41:51Z",
     "interrupted_at": "2026-02-24T16:51:59Z",
-    "completed_at": "2026-02-25T14:41:49Z"
+    "completed_at": "2026-02-25T15:19:11Z"
   },
   "session": {
     "start_time": "2026-02-24T12:51:47Z",
-    "last_update": "2026-02-25T14:41:49Z",
-    "total_loops": 33
+    "last_update": "2026-02-25T15:19:11Z",
+    "total_loops": 34
   },
   "modules": {
     "go_env_setup": {
@@ -1812,12 +1812,65 @@
           "completion_summary": "Job executed successfully"
         },
         "job_5": {
-          "status": "PENDING",
-          "loop_count": 0,
+          "status": "COMPLETED",
+          "loop_count": 1,
           "retry_count": 0,
           "tasks_total": 8,
-          "tasks_completed": 0,
-          "debug_logs": []
+          "tasks_completed": 8,
+          "debug_logs": [],
+          "started_at": "2026-02-25T14:41:51Z",
+          "tasks": {
+            "1": {
+              "index": 1,
+              "status": "COMPLETED",
+              "description": "Task 1: 创建 `internal/callcli/ai_caller.go`",
+              "updated_at": "2026-02-25T15:19:07Z"
+            },
+            "2": {
+              "index": 2,
+              "status": "COMPLETED",
+              "description": "Task 2: 实现 `AICliCaller` 接口",
+              "updated_at": "2026-02-25T15:19:07Z"
+            },
+            "3": {
+              "index": 3,
+              "status": "COMPLETED",
+              "description": "Task 3: 实现 `CallWithPrompt()` 方法",
+              "updated_at": "2026-02-25T15:19:08Z"
+            },
+            "4": {
+              "index": 4,
+              "status": "COMPLETED",
+              "description": "Task 4: 实现 `CallWithPromptContent()` 方法",
+              "updated_at": "2026-02-25T15:19:08Z"
+            },
+            "5": {
+              "index": 5,
+              "status": "COMPLETED",
+              "description": "Task 5: 实现 AI CLI 参数构建（--verbose, --debug 等）",
+              "updated_at": "2026-02-25T15:19:09Z"
+            },
+            "6": {
+              "index": 6,
+              "status": "COMPLETED",
+              "description": "Task 6: 实现 AI CLI 配置读取",
+              "updated_at": "2026-02-25T15:19:10Z"
+            },
+            "7": {
+              "index": 7,
+              "status": "COMPLETED",
+              "description": "Task 7: 支持从环境变量读取 CLI 路径（`CLAUDE_CODE_CLI`）",
+              "updated_at": "2026-02-25T15:19:10Z"
+            },
+            "8": {
+              "index": 8,
+              "status": "COMPLETED",
+              "description": "Task 8: 编写单元测试 `ai_caller_test.go`",
+              "updated_at": "2026-02-25T15:19:11Z"
+            }
+          },
+          "completed_at": "2026-02-25T15:19:11Z",
+          "completion_summary": "Job executed successfully"
         },
         "job_6": {
           "status": "PENDING",

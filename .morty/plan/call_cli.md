@@ -360,26 +360,29 @@ type ExecutionLog struct {
 - Job 4 完成
 
 **Tasks (Todo 列表)**:
-- [ ] Task 1: 创建 `internal/callcli/ai_caller.go`
-- [ ] Task 2: 实现 `AICliCaller` 接口
-- [ ] Task 3: 实现 `CallWithPrompt()` 方法
-- [ ] Task 4: 实现 `CallWithPromptContent()` 方法
-- [ ] Task 5: 实现 AI CLI 参数构建（--verbose, --debug 等）
-- [ ] Task 6: 实现 AI CLI 配置读取
-- [ ] Task 7: 支持从环境变量读取 CLI 路径（`CLAUDE_CODE_CLI`）
-- [ ] Task 8: 编写单元测试 `ai_caller_test.go`
+- [x] Task 1: 创建 `internal/callcli/ai_caller.go`
+- [x] Task 2: 实现 `AICliCaller` 接口
+- [x] Task 3: 实现 `CallWithPrompt()` 方法
+- [x] Task 4: 实现 `CallWithPromptContent()` 方法
+- [x] Task 5: 实现 AI CLI 参数构建（--verbose, --debug 等）
+- [x] Task 6: 实现 AI CLI 配置读取
+- [x] Task 7: 支持从环境变量读取 CLI 路径（`CLAUDE_CODE_CLI`）
+- [x] Task 8: 编写单元测试 `ai_caller_test.go`
 
 **验证器**:
-- [ ] 能从环境变量读取 CLI 路径
-- [ ] 正确构建 AI CLI 参数
-- [ ] `CallWithPrompt()` 正确传递提示词文件
-- [ ] `CallWithPromptContent()` 通过 stdin 传递内容
-- [ ] 支持 `--output-format json`
-- [ ] 支持 `--dangerously-skip-permissions`
-- [ ] 所有单元测试通过 (覆盖率 >= 80%)
+- [x] 能从环境变量读取 CLI 路径
+- [x] 正确构建 AI CLI 参数
+- [x] `CallWithPrompt()` 正确传递提示词文件
+- [x] `CallWithPromptContent()` 通过 stdin 传递内容
+- [x] 支持 `--output-format json`
+- [x] 支持 `--dangerously-skip-permissions`
+- [x] 所有单元测试通过 (覆盖率 >= 80%)
 
 **调试日志**:
-- 待填充
+- explore1: [探索发现] 项目使用 `github.com/morty/morty` 模块路径, internal/callcli 已存在 Caller 接口和实现, config.Manager 接口使用点号表示法访问配置, GetString/GetBool 返回单个值而非 (value, error), 已记录
+- debug1: 编译错误 GetString 返回单个值, ai_caller.go 中使用了 (val, err) 模式, 猜想: 1)Manager 接口定义不同, 验证: 检查 manager.go 确认返回单个值, 修复: 修改 NewAICliCallerWithLoader 中直接使用返回值, 已修复
+- debug2: 未使用的 fmt 导入, 移除错误处理代码后遗留, 验证: 编译错误提示, 修复: 移除 fmt 导入, 已修复
+- debug3: 工作目录问题导致测试无法运行, 文件写入 /opt/meituan/... 但 shell 在 /home/sankuai/..., 猜想: 路径解析不同, 验证: 检查两个路径的 realpath, 修复: 复制文件到当前工作目录, 已修复
 
 ---
 
