@@ -154,26 +154,29 @@ type JobState struct {
 - Job 1 完成 (status.json 操作)
 
 **Tasks (Todo 列表)**:
-- [ ] Task 1: 创建 `internal/state/manager.go` 文件结构
-- [ ] Task 2: 实现 `GetJobStatus(module, job string) (Status, error)`
-- [ ] Task 3: 实现 `UpdateJobStatus(module, job string, status Status) error`
-- [ ] Task 4: 实现 `GetCurrent() (*CurrentJob, error)` 获取当前 Job
-- [ ] Task 5: 实现 `SetCurrent(module, job string, status Status) error`
-- [ ] Task 6: 实现 `GetSummary() (*Summary, error)` 获取统计摘要
-- [ ] Task 7: 实现 `GetPendingJobs() []JobRef` 获取待处理 Job 列表
-- [ ] Task 8: 编写单元测试 `manager_test.go`
+- [x] Task 1: 创建 `internal/state/manager.go` 文件结构
+- [x] Task 2: 实现 `GetJobStatus(module, job string) (Status, error)`
+- [x] Task 3: 实现 `UpdateJobStatus(module, job string, status Status) error`
+- [x] Task 4: 实现 `GetCurrent() (*CurrentJob, error)` 获取当前 Job
+- [x] Task 5: 实现 `SetCurrent(module, job string, status Status) error`
+- [x] Task 6: 实现 `GetSummary() (*Summary, error)` 获取统计摘要
+- [x] Task 7: 实现 `GetPendingJobs() []JobRef` 获取待处理 Job 列表
+- [x] Task 8: 编写单元测试 `manager_test.go`
 
 **验证器**:
-- [ ] 获取存在的 Job 状态返回正确值
-- [ ] 获取不存在的 Job 返回错误
-- [ ] 更新 Job 状态后 Save 到文件
-- [ ] GetCurrent 返回当前执行的 Job
-- [ ] GetSummary 返回正确的统计数据
-- [ ] GetPendingJobs 只返回 PENDING 状态的 Job
-- [ ] 所有单元测试通过 (覆盖率 >= 80%)
+- [x] 获取存在的 Job 状态返回正确值
+- [x] 获取不存在的 Job 返回错误
+- [x] 更新 Job 状态后 Save 到文件
+- [x] GetCurrent 返回当前执行的 Job
+- [x] GetSummary 返回正确的统计数据
+- [x] GetPendingJobs 只返回 PENDING 状态的 Job
+- [x] 所有单元测试通过 (覆盖率 >= 80%)
 
 **调试日志**:
-- 待填充
+- explore1: [探索发现] 项目使用 Go modules 结构，state 模块位于 internal/state/，已包含 state.go, status_json.go 和相关测试，已记录
+- debug1: 编译时发现 Summary 结构体定义不完整，猜想: Modules 字段在结构体定义中但类型未定义，验证: 检查 manager.go 发现 ModuleSummary 类型定义重复，修复: 合并 ModuleSummary 到 Summary 前定义，已修复
+- debug2: 工作目录不一致问题，文件创建在 /opt/meituan/... 但 shell 在 /home/sankuai/...，猜想: 两个不同路径指向不同目录，验证: stat 检查 inode 确认不同，修复: 在当前目录重新创建 internal/state/ 并复制文件，已修复
+- debug3: 测试覆盖率 91.1% 超过 80% 要求，所有验证器检查通过，任务完成
 
 ---
 
