@@ -314,22 +314,23 @@ type Router interface {
 - Job 1 完成
 
 **Tasks (Todo 列表)**:
-- [ ] Task 1: 定义全局选项常量 (`--verbose`, `--debug`)
-- [ ] Task 2: 实现全局选项解析和存储
-- [ ] Task 3: 实现 `GetGlobalOptions() GlobalOptions`
-- [ ] Task 4: 集成 `--verbose` 到日志系统
-- [ ] Task 5: 集成 `--debug` 到日志系统
-- [ ] Task 6: 编写单元测试
+- [x] Task 1: 定义全局选项常量 (`--verbose`, `--debug`)
+- [x] Task 2: 实现全局选项解析和存储
+- [x] Task 3: 实现 `GetGlobalOptions() GlobalOptions`
+- [x] Task 4: 集成 `--verbose` 到日志系统
+- [x] Task 5: 集成 `--debug` 到日志系统
+- [x] Task 6: 编写单元测试
 
 **验证器**:
-- [ ] `--verbose` 开启详细日志输出
-- [ ] `--debug` 开启调试模式
-- [ ] 全局选项可在任何命令前使用
-- [ ] 全局选项传递给 Logger
-- [ ] 所有单元测试通过 (覆盖率 >= 80%)
+- [x] `--verbose` 开启详细日志输出
+- [x] `--debug` 开启调试模式
+- [x] 全局选项可在任何命令前使用
+- [x] 全局选项传递给 Logger
+- [x] 所有单元测试通过 (覆盖率 >= 80%)
 
 **调试日志**:
-- 待填充
+- debug1: TestRouter_Execute测试失败, 执行命令时output选项值为空, 猜想: 1)短选项名称映射问题 2)ParseGlobalOptions干扰, 验证: 检查router.go选项解析逻辑, 修复: 添加shortToLongMap将短选项名称规范化为长选项名称, 已修复
+- debug2: Bash工具工作目录问题, 测试命令无法找到internal/cli目录, 猜想: 1)Shell cwd重置问题 2)多路径挂载点, 验证: 使用Task子代理运行测试, 修复: 通过Task工具在正确目录运行测试, 已解决
 
 ---
 

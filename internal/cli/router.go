@@ -83,9 +83,14 @@ func (r *Router) Execute(ctx context.Context, args []string) error {
 	}
 
 	// Parse the remaining arguments
-	// Build known options from command's Options
+	// Build known options from command's Options and global options
 	cmd, _ := r.getCommand(cmdName)
-	knownOptions := make(map[string]OptionType)
+	knownOptions := GetKnownGlobalOptions()
+
+	// Create a mapping from short option names to long option names
+	shortToLongMap := make(map[string]string)
+
+	// Merge command-specific options
 	for _, opt := range cmd.Options {
 		if opt.HasValue {
 			knownOptions[opt.Name] = OptionTypeString
@@ -100,6 +105,8 @@ func (r *Router) Execute(ctx context.Context, args []string) error {
 			} else {
 				knownOptions[shortName] = OptionTypeBool
 			}
+			// Map short name to long name for option normalization
+			shortToLongMap[shortName] = opt.Name
 		}
 	}
 
@@ -108,6 +115,17 @@ func (r *Router) Execute(ctx context.Context, args []string) error {
 	if err != nil {
 		return fmt.Errorf("parsing error: %w", err)
 	}
+
+	// Normalize short option names to long option names in the parse result
+	for shortName, longName := range shortToLongMap {
+		if val, exists := parseResult.Options[shortName]; exists {
+			parseResult.Options[longName] = val
+			delete(parseResult.Options, shortName)
+		}
+	}
+
+	// Parse global options from the result
+	ParseGlobalOptions(parseResult)
 
 	// Execute the handler
 	return handler(ctx, parseResult.PositionalArgs, *parseResult)

@@ -3,16 +3,16 @@
   "state": "running",
   "current": {
     "module": "cli",
-    "job": "job_2",
+    "job": "job_3",
     "status": "COMPLETED",
-    "start_time": "2026-02-25T20:25:28Z",
+    "start_time": "2026-02-25T21:38:59Z",
     "interrupted_at": "2026-02-24T16:51:59Z",
-    "completed_at": "2026-02-25T21:38:57Z"
+    "completed_at": "2026-02-25T23:29:45Z"
   },
   "session": {
     "start_time": "2026-02-24T12:51:47Z",
-    "last_update": "2026-02-25T21:38:57Z",
-    "total_loops": 42
+    "last_update": "2026-02-25T23:29:45Z",
+    "total_loops": 43
   },
   "modules": {
     "go_env_setup": {
@@ -2306,12 +2306,53 @@
           "completion_summary": "Job executed successfully"
         },
         "job_3": {
-          "status": "PENDING",
-          "loop_count": 0,
+          "status": "COMPLETED",
+          "loop_count": 1,
           "retry_count": 0,
           "tasks_total": 6,
-          "tasks_completed": 0,
-          "debug_logs": []
+          "tasks_completed": 6,
+          "debug_logs": [],
+          "started_at": "2026-02-25T21:38:59Z",
+          "tasks": {
+            "1": {
+              "index": 1,
+              "status": "COMPLETED",
+              "description": "Task 1: 定义全局选项常量 (`--verbose`, `--debug`)",
+              "updated_at": "2026-02-25T23:29:42Z"
+            },
+            "2": {
+              "index": 2,
+              "status": "COMPLETED",
+              "description": "Task 2: 实现全局选项解析和存储",
+              "updated_at": "2026-02-25T23:29:43Z"
+            },
+            "3": {
+              "index": 3,
+              "status": "COMPLETED",
+              "description": "Task 3: 实现 `GetGlobalOptions() GlobalOptions`",
+              "updated_at": "2026-02-25T23:29:43Z"
+            },
+            "4": {
+              "index": 4,
+              "status": "COMPLETED",
+              "description": "Task 4: 集成 `--verbose` 到日志系统",
+              "updated_at": "2026-02-25T23:29:44Z"
+            },
+            "5": {
+              "index": 5,
+              "status": "COMPLETED",
+              "description": "Task 5: 集成 `--debug` 到日志系统",
+              "updated_at": "2026-02-25T23:29:44Z"
+            },
+            "6": {
+              "index": 6,
+              "status": "COMPLETED",
+              "description": "Task 6: 编写单元测试",
+              "updated_at": "2026-02-25T23:29:45Z"
+            }
+          },
+          "completed_at": "2026-02-25T23:29:45Z",
+          "completion_summary": "Job executed successfully"
         }
       }
     },
