@@ -369,23 +369,24 @@ func NewFactory() Factory
 - Job 5 完成
 
 **Tasks (Todo 列表)**:
-- [ ] Task 1: 创建 `internal/parser/prompt/parser.go`
-- [ ] Task 2: 定义 `Prompt` 结构体
-- [ ] Task 3: 实现 `ParsePrompt(filepath) (*Prompt, error)`
-- [ ] Task 4: 解析 frontmatter 元数据
-- [ ] Task 5: 提取模板变量（如 `{{variable}}`）
-- [ ] Task 6: 实现变量替换功能
-- [ ] Task 7: 编写单元测试 `prompt/parser_test.go`
+- [x] Task 1: 创建 `internal/parser/prompt/parser.go`
+- [x] Task 2: 定义 `Prompt` 结构体
+- [x] Task 3: 实现 `ParsePrompt(filepath) (*Prompt, error)`
+- [x] Task 4: 解析 frontmatter 元数据
+- [x] Task 5: 提取模板变量（如 `{{variable}}`）
+- [x] Task 6: 实现变量替换功能
+- [x] Task 7: 编写单元测试 `prompt/parser_test.go`
 
 **验证器**:
-- [ ] 正确解析 prompt 文件
-- [ ] 正确提取 frontmatter
-- [ ] 正确识别模板变量
-- [ ] 变量替换功能正常
-- [ ] 所有单元测试通过 (覆盖率 >= 80%)
+- [x] 正确解析 prompt 文件
+- [x] 正确提取 frontmatter
+- [x] 正确识别模板变量
+- [x] 变量替换功能正常
+- [x] 所有单元测试通过 (覆盖率 >= 80%)
 
 **调试日志**:
-- 待填充
+- explore1: [探索发现] 代码库使用标准Go项目结构, markdown/metadata.go已包含frontmatter提取功能可作为参考, parser模块包含factory/interface/plan/markdown子目录, 测试使用标准Go testing模式, 已记录
+- debug1: 空frontmatter测试失败, 现象: TestExtractFrontmatter/empty_frontmatter失败,期望"Content after"但得到"---\n---\n\nContent after", 复现: 输入"---\n---\n\nContent after"时正则未匹配, 猜想: 1)正则表达式过于严格 2)空frontmatter没有内容导致不匹配, 验证: 修改正则为`(?s)^\s*---\s*\n(.*?)\n?---\s*(?:\n|$)`使中间换行符可选, 修复: 更新frontmatterRegex支持空frontmatter情况, 已修复
 
 ---
 
