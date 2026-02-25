@@ -88,25 +88,27 @@ type JobLogger struct {
 - Config 模块完成 (获取日志配置)
 
 **Tasks (Todo 列表)**:
-- [ ] Task 1: 创建 `internal/logging/logger.go` 定义 Logger 接口
-- [ ] Task 2: 创建 `internal/logging/slog_adapter.go` 实现 slog 适配器
-- [ ] Task 3: 实现所有日志级别方法 (Debug, Info, Warn, Error, Success, Loop)
-- [ ] Task 4: 支持结构化属性 (attrs)
-- [ ] Task 5: 实现 `WithContext` 添加上下文信息
-- [ ] Task 6: 实现 `WithJob` 添加 Job 上下文
-- [ ] Task 7: 实现 `SetLevel` 和 `GetLevel`
-- [ ] Task 8: 编写单元测试 `slog_adapter_test.go`
+- [x] Task 1: 创建 `internal/logging/logger.go` 定义 Logger 接口
+- [x] Task 2: 创建 `internal/logging/slog_adapter.go` 实现 slog 适配器
+- [x] Task 3: 实现所有日志级别方法 (Debug, Info, Warn, Error, Success, Loop)
+- [x] Task 4: 支持结构化属性 (attrs)
+- [x] Task 5: 实现 `WithContext` 添加上下文信息
+- [x] Task 6: 实现 `WithJob` 添加 Job 上下文
+- [x] Task 7: 实现 `SetLevel` 和 `GetLevel`
+- [x] Task 8: 编写单元测试 `slog_adapter_test.go`
 
 **验证器**:
-- [ ] 各日志级别输出正确 (DEBUG, INFO, WARN, ERROR, SUCCESS, LOOP)
-- [ ] 结构化属性正确输出为 JSON
-- [ ] `WithContext` 返回的 Logger 包含上下文信息
-- [ ] `WithJob` 返回的 Logger 包含 Job 信息
-- [ ] 设置日志级别后低于该级别的日志不输出
-- [ ] 所有单元测试通过 (覆盖率 >= 80%)
+- [x] 各日志级别输出正确 (DEBUG, INFO, WARN, ERROR, SUCCESS, LOOP)
+- [x] 结构化属性正确输出为 JSON
+- [x] `WithContext` 返回的 Logger 包含上下文信息
+- [x] `WithJob` 返回的 Logger 包含 Job 信息
+- [x] 设置日志级别后低于该级别的日志不输出
+- [x] 所有单元测试通过 (覆盖率 >= 80%)
 
 **调试日志**:
-- 待填充
+- explore1: [探索发现] 项目使用标准 Go 结构, internal/ 包含核心模块, config 包已定义 LoggingConfig 结构, 使用 slog (Go 1.21+) 作为日志后端, 已记录
+- debug1: slog.Logger 方法参数类型不匹配, 测试编译失败, 猜想: 1)slog.Logger.Debug 接受 ...any 而不是 ...slog.Attr, 验证: 查看 Go 文档确认 LogAttrs 方法, 修复: 使用 LogAttrs 方法替代 Debug/Info 等方法, 已修复
+- debug2: TestAttrHelpers 中 map 类型不可比较导致 panic, 运行 TestAttrHelpers/Any 时崩溃, 猜想: Go map 是不可比较类型, 验证: 移除测试中的 map 比较, 修复: 使用简单值替代 map 进行测试, 已修复
 
 ---
 
