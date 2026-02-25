@@ -603,7 +603,7 @@ bootstrap_check_install_env() {
 
     # Check if Morty is already installed (only fail for fresh install, not reinstall)
     if [[ "$BOOTSTRAP_COMMAND" != "reinstall" ]]; then
-        if [[ -d "$BOOTSTRAP_PREFIX" ]] && [[ -f "$BOOTSTRAP_PREFIX/bin/morty" ]]; then
+        if [[ -d "$BOOTSTRAP_PREFIX" ]] && [[ -f "$BOOTSTRAP_PREFIX/bin/morty_sh" ]]; then
             log_error "Morty is already installed at: $BOOTSTRAP_PREFIX"
             bootstrap_show_fix_suggestion "existing" "$BOOTSTRAP_PREFIX"
             all_passed=false
@@ -743,19 +743,19 @@ bootstrap_show_fix_suggestion() {
             echo "Installation verification failed."
             echo ""
             echo "Possible causes:"
-            echo "  - The morty script may be corrupted"
+            echo "  - The morty_sh script may be corrupted"
             echo "  - Required dependencies may be missing"
             echo "  - File permissions may be incorrect"
             echo ""
             echo "Suggested actions:"
-            echo "  1. Check that morty exists:"
-            echo "     ls -la $BOOTSTRAP_PREFIX/bin/morty"
+            echo "  1. Check that morty_sh exists:"
+            echo "     ls -la $BOOTSTRAP_PREFIX/bin/morty_sh"
             echo ""
             echo "  2. Make it executable:"
-            echo "     chmod +x $BOOTSTRAP_PREFIX/bin/morty"
+            echo "     chmod +x $BOOTSTRAP_PREFIX/bin/morty_sh"
             echo ""
-            echo "  3. Try running morty directly:"
-            echo "     $BOOTSTRAP_PREFIX/bin/morty --help"
+            echo "  3. Try running morty_sh directly:"
+            echo "     $BOOTSTRAP_PREFIX/bin/morty_sh --help"
             echo ""
             echo "  4. Uninstall and try again:"
             echo "     ./bootstrap.sh uninstall"
@@ -781,7 +781,7 @@ bootstrap_cmd_install() {
     log_info "Starting Morty installation..."
 
     # Check if already installed
-    if [[ -d "$BOOTSTRAP_PREFIX" ]] && [[ -f "$BOOTSTRAP_PREFIX/bin/morty" ]]; then
+    if [[ -d "$BOOTSTRAP_PREFIX" ]] && [[ -f "$BOOTSTRAP_PREFIX/bin/morty_sh" ]]; then
         log_error "Morty is already installed at: $BOOTSTRAP_PREFIX"
         log_info "Use 'reinstall' to overwrite or 'upgrade' to update"
         bootstrap_show_fix_suggestion "existing" "$BOOTSTRAP_PREFIX"
@@ -1086,9 +1086,19 @@ bootstrap_copy_files() {
     mkdir -p "$target_dir/lib"
     mkdir -p "$target_dir/prompts"
 
-    # Copy main morty script
+    # Copy main morty script (renamed to morty_sh)
+    log_debug "Looking for morty script in: $source_dir"
     if [[ -f "$source_dir/morty" ]]; then
-        cp "$source_dir/morty" "$target_dir/bin/"
+        log_debug "Found morty script, copying to $target_dir/bin/morty_sh"
+        if cp "$source_dir/morty" "$target_dir/bin/morty_sh"; then
+            log_debug "Successfully copied morty to morty_sh"
+        else
+            log_error "Failed to copy morty to morty_sh"
+            return 1
+        fi
+    else
+        log_error "morty script not found in source: $source_dir"
+        return 1
     fi
 
     # Copy morty_*.sh scripts
@@ -1146,8 +1156,11 @@ bootstrap_create_symlink() {
         mkdir -p "$bin_dir"
     fi
 
-    local target="$install_dir/bin/morty"
-    local link_name="$bin_dir/morty"
+    local target="$install_dir/bin/morty_sh"
+    local link_name="$bin_dir/morty_sh"
+
+    log_debug "Creating symlink: $link_name -> $target"
+    log_debug "Target exists? $( [[ -f "$target" ]] && echo "yes" || echo "no" )"
 
     # Remove existing link if it exists
     if [[ -L "$link_name" ]]; then
@@ -1159,6 +1172,7 @@ bootstrap_create_symlink() {
         log_error "Failed to create symbolic link: $link_name -> $target"
         return 1
     fi
+    log_debug "Symlink created successfully"
 
     log_debug "Created symlink: $link_name -> $target"
     return 0
@@ -1172,11 +1186,11 @@ bootstrap_set_permissions() {
 
     # Make all scripts executable
     find "$install_dir/bin" -type f -name "*.sh" -exec chmod +x {} \; 2>/dev/null || true
-    find "$install_dir/bin" -type f -name "morty" -exec chmod +x {} \; 2>/dev/null || true
+    find "$install_dir/bin" -name "morty_sh" -exec chmod +x {} \; 2>/dev/null || true
 
     # Ensure morty scripts are executable
-    if [[ -f "$install_dir/bin/morty" ]]; then
-        chmod +x "$install_dir/bin/morty"
+    if [[ -f "$install_dir/bin/morty_sh" ]]; then
+        chmod +x "$install_dir/bin/morty_sh"
     fi
 
     return 0
@@ -1186,8 +1200,8 @@ bootstrap_set_permissions() {
 # Usage: bootstrap_verify_install
 # Returns: 0 on success, 1 on failure
 bootstrap_verify_install() {
-    local morty_bin="$BOOTSTRAP_PREFIX/bin/morty"
-    local morty_link="$BOOTSTRAP_BIN_DIR/morty"
+    local morty_bin="$BOOTSTRAP_PREFIX/bin/morty_sh"
+    local morty_link="$BOOTSTRAP_BIN_DIR/morty_sh"
 
     # Check if main morty script exists
     if [[ ! -f "$morty_bin" ]]; then
@@ -1215,13 +1229,13 @@ bootstrap_verify_install() {
         return 1
     fi
 
-    # Try to run morty version
+    # Try to run morty_sh version
     local version_output
     if version_output=$("$morty_bin" version 2>/dev/null); then
         log_success "Morty installation verified"
         log_info "Installed version: $version_output"
     else
-        log_warn "Could not verify version (morty version command failed)"
+        log_warn "Could not verify version (morty_sh version command failed)"
         # Don't fail if version command doesn't work in development mode
     fi
 
@@ -1240,7 +1254,7 @@ bootstrap_show_install_complete() {
     echo "  $BOOTSTRAP_PREFIX"
     echo ""
     echo "Symbolic link created at:"
-    echo "  $BOOTSTRAP_BIN_DIR/morty"
+    echo "  $BOOTSTRAP_BIN_DIR/morty_sh"
     echo ""
 
     # Check if bin_dir is in PATH
@@ -1254,7 +1268,7 @@ bootstrap_show_install_complete() {
     fi
 
     echo "Get started with:"
-    echo "  morty --help"
+    echo "  morty_sh --help"
     echo ""
 }
 
@@ -1367,7 +1381,7 @@ bootstrap_cmd_reinstall() {
     log_info "Starting Morty reinstallation..."
 
     # Check if Morty is actually installed
-    if [[ ! -d "$BOOTSTRAP_PREFIX" ]] || [[ ! -f "$BOOTSTRAP_PREFIX/bin/morty" ]]; then
+    if [[ ! -d "$BOOTSTRAP_PREFIX" ]] || [[ ! -f "$BOOTSTRAP_PREFIX/bin/morty_sh" ]]; then
         log_warn "No existing Morty installation found at: $BOOTSTRAP_PREFIX"
         log_info "Running standard install instead..."
         bootstrap_cmd_install
@@ -1401,8 +1415,8 @@ bootstrap_cmd_reinstall() {
     log_info "Removing existing installation..."
     if [[ -d "$BOOTSTRAP_PREFIX" ]]; then
         # Remove symlink first
-        if [[ -L "$BOOTSTRAP_BIN_DIR/morty" ]]; then
-            rm -f "$BOOTSTRAP_BIN_DIR/morty"
+        if [[ -L "$BOOTSTRAP_BIN_DIR/morty_sh" ]]; then
+            rm -f "$BOOTSTRAP_BIN_DIR/morty_sh"
             log_debug "Removed existing symlink"
         fi
 
@@ -1652,7 +1666,7 @@ bootstrap_cmd_upgrade() {
     log_info "Starting Morty upgrade..."
 
     # Check if Morty is installed
-    if [[ ! -d "$BOOTSTRAP_PREFIX" ]] || [[ ! -f "$BOOTSTRAP_PREFIX/bin/morty" ]]; then
+    if [[ ! -d "$BOOTSTRAP_PREFIX" ]] || [[ ! -f "$BOOTSTRAP_PREFIX/bin/morty_sh" ]]; then
         log_error "Morty is not installed at: $BOOTSTRAP_PREFIX"
         log_info "Use 'install' command to install Morty"
         return 1
@@ -1729,8 +1743,8 @@ bootstrap_cmd_upgrade() {
     local upgrade_failed=false
 
     # Remove symlink before upgrade (will be recreated)
-    if [[ -L "$BOOTSTRAP_BIN_DIR/morty" ]]; then
-        rm -f "$BOOTSTRAP_BIN_DIR/morty"
+    if [[ -L "$BOOTSTRAP_BIN_DIR/morty_sh" ]]; then
+        rm -f "$BOOTSTRAP_BIN_DIR/morty_sh"
         log_debug "Removed existing symlink"
     fi
 
@@ -1993,7 +2007,7 @@ bootstrap_show_uninstall_preview() {
     # Symlink
     echo ""
     echo "  Symbolic link:"
-    echo "    $BOOTSTRAP_BIN_DIR/morty -> $install_dir/bin/morty"
+    echo "    $BOOTSTRAP_BIN_DIR/morty_sh -> $install_dir/bin/morty_sh"
 
     # Files to be removed
     echo ""
@@ -2087,7 +2101,7 @@ bootstrap_cmd_uninstall() {
     log_info "Starting Morty uninstall..."
 
     # Check if Morty is installed
-    if [[ ! -d "$BOOTSTRAP_PREFIX" ]] || [[ ! -f "$BOOTSTRAP_PREFIX/bin/morty" ]]; then
+    if [[ ! -d "$BOOTSTRAP_PREFIX" ]] || [[ ! -f "$BOOTSTRAP_PREFIX/bin/morty_sh" ]]; then
         log_warn "No Morty installation found at: $BOOTSTRAP_PREFIX"
         echo ""
         echo "Morty does not appear to be installed."
@@ -2121,7 +2135,7 @@ bootstrap_cmd_uninstall() {
 
     # Remove symbolic link first
     log_info "Removing symbolic link..."
-    if ! bootstrap_remove_symlink "$BOOTSTRAP_BIN_DIR/morty"; then
+    if ! bootstrap_remove_symlink "$BOOTSTRAP_BIN_DIR/morty_sh"; then
         log_warn "Failed to remove symbolic link"
     fi
 
@@ -2135,17 +2149,17 @@ bootstrap_cmd_uninstall() {
     # Cleanup empty directories
     bootstrap_cleanup_empty_dirs "$BOOTSTRAP_BIN_DIR"
 
-    # Verify uninstall (check if morty command is still available)
+    # Verify uninstall (check if morty_sh command is still available)
     log_info "Verifying uninstall..."
-    if command -v morty &> /dev/null; then
-        # Check if it's our morty or something else
+    if command -v morty_sh &> /dev/null; then
+        # Check if it's our morty_sh or something else
         local morty_path
-        morty_path=$(command -v morty)
-        if [[ "$morty_path" == "$BOOTSTRAP_BIN_DIR/morty" ]] || \
-           [[ "$morty_path" == "$BOOTSTRAP_PREFIX/bin/morty" ]]; then
+        morty_path=$(command -v morty_sh)
+        if [[ "$morty_path" == "$BOOTSTRAP_BIN_DIR/morty_sh" ]] || \
+           [[ "$morty_path" == "$BOOTSTRAP_PREFIX/bin/morty_sh" ]]; then
             log_warn "Morty command is still available at: $morty_path"
         else
-            log_info "Note: Another 'morty' command exists at: $morty_path"
+            log_info "Note: Another 'morty_sh' command exists at: $morty_path"
         fi
     else
         log_success "Morty command has been removed from PATH"

@@ -87,26 +87,27 @@
 
 ### Job 2: install.sh - 安装脚本
 
-**目标**: 安装 Morty 到 `~/.morty/` 目录并配置环境
+**目标**:实现 安装 Morty 到 `~/.morty/` 目录并配置环境的install.sh的脚本
 
 **前置条件**:
 - 已编译的二进制文件 或 源码（可现场编译）
 
 **Tasks (Todo 列表)**:
-- [x] Task 1: 检查是否已安装（存在 `~/.morty/bin/morty`）
-- [x] Task 2: 创建 `~/.morty/` 目录结构
-- [x] Task 3: 复制/编译二进制文件到 `~/.morty/bin/morty`
-- [x] Task 4: 创建默认配置文件 `~/.morty/config.json`
-- [x] Task 5: 检测并配置 PATH（`~/.bashrc`, `~/.zshrc`）
-- [x] Task 6: 验证安装（`morty version` 能执行）
-- [x] Task 7: 输出安装成功信息和使用说明
+- [ ] Task 1: 检查是否已安装（存在 `~/.morty/bin/morty`）
+- [ ] Task 2: 创建 `~/.morty/` 目录结构
+- [ ] Task 3: 复制/编译二进制文件到 `~/.morty/bin/morty`
+- [ ] Task 4: 创建默认配置文件 `~/.morty/config.json`
+- [ ] Task 5: 检测并配置 PATH（`~/.bashrc`, `~/.zshrc`）
+- [ ] Task 6: 验证安装（`morty version` 能执行）
+- [ ] Task 7: 输出安装成功信息和使用说明
 
 **验证器**:
-- [x] `~/.morty/` 目录创建成功
-- [x] `~/.morty/bin/morty` 可执行文件存在且可运行
-- [x] `~/.morty/config.json` 配置文件创建
-- [x] PATH 配置正确（当前 shell 或下次登录生效）
-- [x] `morty version` 能正常输出
+- [ ] `~/.morty/` 目录创建成功
+- [ ] `~/.morty/bin/morty` 可执行文件存在且可运行
+- [ ] `~/.morty/config.json` 配置文件创建
+- [ ] PATH 配置正确（当前 shell 或下次登录生效）
+- [ ] `morty version` 能正常输出c
+- [ ] git 提交中必须包含insall.sh的安装脚本
 
 **使用示例**:
 ```bash
@@ -116,14 +117,13 @@
 ```
 
 **调试日志**:
-- explore1: [探索发现] 项目使用 Go 1.21.6, 二进制在 ./bin/, 使用 configs/settings.json 作为配置模板, 安装目标 ~/.morty/, 已记录
-- debug1: 无重大问题, 安装流程执行顺利, 所有 Tasks 完成, 验证器全部通过, 已修复
+- 待填充
 
 ---
 
 ### Job 3: uninstall.sh - 卸载脚本
 
-**目标**: 从系统中卸载 Morty，清理安装目录和环境配置
+**目标**: 实现 从系统中卸载 Morty，清理安装目录和环境配置的 uninstall.sh脚本
 
 **前置条件**:
 - 无（即使未安装也能安全执行）
@@ -136,12 +136,13 @@
 - [ ] Task 5: 清理 shell 配置文件中的 Morty 相关配置
 - [ ] Task 6: 验证卸载（`morty` 命令不再可用）
 - [ ] Task 7: 输出卸载完成信息
-
+- [ ] Task 8: 重新运行 `install.sh` 将 morty 安装回来不要破坏现有环境
 **验证器**:
 - [ ] `~/.morty/` 目录已删除
 - [ ] shell 配置文件中 PATH 已清理
 - [ ] `morty` 命令不再可用
 - [ ] 用户项目目录 `.morty/` 保留（询问是否删除）
+- [ ] `morty version` 能正常输出,说明卸载后安装也是成功的
 
 **使用示例**:
 ```bash
@@ -157,7 +158,7 @@
 
 ### Job 4: upgrade.sh - 升级脚本
 
-**目标**: 检查版本更新并升级到最新版本
+**目标**: 实现 检查版本更新并升级到最新版本的  upgrade.sh - 升级脚本
 
 **前置条件**:
 - 已安装 Morty
