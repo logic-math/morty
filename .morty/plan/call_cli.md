@@ -299,24 +299,24 @@ type ExecutionLog struct {
 - Job 2 完成
 
 **Tasks (Todo 列表)**:
-- [ ] Task 1: 实现 `CallWithCtx()` 支持 context
-- [ ] Task 2: 实现超时检测机制
-- [ ] Task 3: 超时后自动终止进程
-- [ ] Task 4: 支持 context 取消信号
-- [ ] Task 5: 实现优雅终止（发送 SIGTERM 后等待）
-- [ ] Task 6: 实现强制终止（SIGTERM 后发送 SIGKILL）
-- [ ] Task 7: 编写单元测试 `timeout_test.go`
+- [x] Task 1: 实现 `CallWithCtx()` 支持 context
+- [x] Task 2: 实现超时检测机制
+- [x] Task 3: 超时后自动终止进程
+- [x] Task 4: 支持 context 取消信号
+- [x] Task 5: 实现优雅终止（发送 SIGTERM 后等待）
+- [x] Task 6: 实现强制终止（SIGTERM 后发送 SIGKILL）
+- [x] Task 7: 编写单元测试 `timeout_test.go`
 
 **验证器**:
-- [ ] 超时后返回 `TimedOut=true`
-- [ ] 超时后能正确终止进程
-- [ ] context 取消后能终止进程
-- [ ] 优雅终止给予进程清理时间
-- [ ] 强制终止能立即结束进程
-- [ ] 所有单元测试通过 (覆盖率 >= 80%)
+- [x] 超时后返回 `TimedOut=true`
+- [x] 超时后能正确终止进程
+- [x] context 取消后能终止进程
+- [x] 优雅终止给予进程清理时间
+- [x] 强制终止能立即结束进程
+- [x] 所有单元测试通过 (覆盖率 >= 80%)
 
 **调试日志**:
-- 待填充
+- 无问题，所有功能正常实现
 
 ---
 

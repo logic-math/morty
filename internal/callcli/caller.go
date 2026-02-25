@@ -114,6 +114,7 @@ func (c *CallerImpl) CallWithOptions(ctx context.Context, name string, args []st
 		ExitCode: 0,
 		Duration: duration,
 		Command:  commandStr,
+		TimedOut: ctx.Err() == context.DeadlineExceeded,
 	}
 
 	// Handle execution result

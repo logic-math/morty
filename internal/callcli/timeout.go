@@ -13,28 +13,9 @@ import (
 	"github.com/morty/morty/pkg/errors"
 )
 
-// asyncHandler implements the CallHandler interface for managing async processes.
-type asyncHandler struct {
-	cmd      *exec.Cmd
-	pid      int
-	mu       sync.RWMutex
-	started  bool
-	finished bool
-	result   *Result
-	err      error
-	done     chan struct{}
-	stdout   bytes.Buffer
-	stderr   bytes.Buffer
-	timeout  time.Duration
-}
-
-// CallAsync executes a command asynchronously and returns a CallHandler.
-func (c *CallerImpl) CallAsync(ctx context.Context, name string, args ...string) (CallHandler, error) {
-	return c.CallAsyncWithOptions(ctx, name, args, Options{})
-}
-
-// CallAsyncWithOptions executes a command asynchronously with additional options.
-func (c *CallerImpl) CallAsyncWithOptions(ctx context.Context, name string, args []string, opts Options) (CallHandler, error) {
+// CallWithCtx executes a command with context control and returns a CallHandler
+// for managing the running process with timeout and cancellation support.
+func (c *CallerImpl) CallWithCtx(ctx context.Context, name string, args []string, opts Options) (CallHandler, error) {
 	// Build the full command string for debugging
 	commandStr := buildCommandString(name, args)
 
@@ -57,7 +38,7 @@ func (c *CallerImpl) CallAsyncWithOptions(ctx context.Context, name string, args
 		timeout = c.defaultTimeout
 	}
 
-	// Create command without context (we'll handle cancellation manually for async)
+	// Create command
 	cmd := exec.Command(execPath, args...)
 
 	// Set working directory if specified
@@ -74,10 +55,12 @@ func (c *CallerImpl) CallAsyncWithOptions(ctx context.Context, name string, args
 	}
 
 	// Create handler
-	handler := &asyncHandler{
-		cmd:     cmd,
-		done:    make(chan struct{}),
-		timeout: timeout,
+	handler := &ctxHandler{
+		cmd:            cmd,
+		done:           make(chan struct{}),
+		timeout:        timeout,
+		gracefulPeriod: opts.GracefulPeriod,
+		commandStr:     commandStr,
 	}
 
 	// Capture stdout and stderr
@@ -96,17 +79,34 @@ func (c *CallerImpl) CallAsyncWithOptions(ctx context.Context, name string, args
 	handler.started = true
 	handler.mu.Unlock()
 
-	// Start goroutine to wait for completion
-	go handler.waitForCompletion(commandStr, timeout)
+	// Start goroutine to wait for completion with context and timeout support
+	go handler.waitWithContext(ctx, timeout)
 
 	return handler, nil
 }
 
-// waitForCompletion waits for the command to finish and records the result.
-func (h *asyncHandler) waitForCompletion(commandStr string, timeout time.Duration) {
+// ctxHandler implements the CallHandler interface for context-controlled processes.
+type ctxHandler struct {
+	cmd            *exec.Cmd
+	pid            int
+	mu             sync.RWMutex
+	started        bool
+	finished       bool
+	result         *Result
+	err            error
+	done           chan struct{}
+	stdout         bytes.Buffer
+	stderr         bytes.Buffer
+	timeout        time.Duration
+	gracefulPeriod time.Duration
+	commandStr     string
+}
+
+// waitWithContext waits for the command to finish with context and timeout support.
+func (h *ctxHandler) waitWithContext(ctx context.Context, timeout time.Duration) {
 	startTime := time.Now()
 
-	// Create a channel to signal completion
+	// Create channels for completion and context cancellation
 	done := make(chan error, 1)
 	go func() {
 		done <- h.cmd.Wait()
@@ -114,19 +114,27 @@ func (h *asyncHandler) waitForCompletion(commandStr string, timeout time.Duratio
 
 	var waitErr error
 	var timedOut bool
+	var cancelled bool
 
-	// Wait for completion or timeout
+	// Determine which context to use for timeout
+	var timeoutChan <-chan time.Time
 	if timeout > 0 {
-		select {
-		case waitErr = <-done:
-			// Command finished normally
-		case <-time.After(timeout):
-			// Timeout occurred
-			timedOut = true
-			h.cmd.Process.Kill()
-			waitErr = <-done
-		}
-	} else {
+		timeoutChan = time.After(timeout)
+	}
+
+	// Wait for completion, timeout, or context cancellation
+	select {
+	case waitErr = <-done:
+		// Command finished normally
+	case <-timeoutChan:
+		// Timeout occurred
+		timedOut = true
+		h.terminateProcess()
+		waitErr = <-done
+	case <-ctx.Done():
+		// Context cancelled
+		cancelled = true
+		h.terminateProcess()
 		waitErr = <-done
 	}
 
@@ -137,12 +145,13 @@ func (h *asyncHandler) waitForCompletion(commandStr string, timeout time.Duratio
 	defer h.mu.Unlock()
 
 	result := &Result{
-		Stdout:   strings.TrimSpace(h.stdout.String()),
-		Stderr:   strings.TrimSpace(h.stderr.String()),
-		ExitCode: 0,
-		Duration: duration,
-		Command:  commandStr,
-		TimedOut: timedOut,
+		Stdout:      strings.TrimSpace(h.stdout.String()),
+		Stderr:      strings.TrimSpace(h.stderr.String()),
+		ExitCode:    0,
+		Duration:    duration,
+		Command:     h.commandStr,
+		TimedOut:    timedOut,
+		Interrupted: timedOut || cancelled,
 	}
 
 	// Handle execution result
@@ -150,8 +159,12 @@ func (h *asyncHandler) waitForCompletion(commandStr string, timeout time.Duratio
 		if timedOut {
 			result.ExitCode = -1
 			h.err = errors.Wrap(waitErr, "M5003", "execution timeout").
-				WithDetail("command", commandStr).
+				WithDetail("command", h.commandStr).
 				WithDetail("timeout", timeout.String())
+		} else if cancelled {
+			result.ExitCode = -1
+			h.err = errors.Wrap(waitErr, "M5007", "context cancelled during execution").
+				WithDetail("command", h.commandStr)
 		} else if exitError, ok := waitErr.(*exec.ExitError); ok {
 			// Get exit code from the process state
 			if status, ok := exitError.Sys().(syscall.WaitStatus); ok {
@@ -159,7 +172,7 @@ func (h *asyncHandler) waitForCompletion(commandStr string, timeout time.Duratio
 				// Check if it was killed by a signal
 				if status.Signaled() {
 					h.err = errors.Wrap(waitErr, "M5004", "process killed by signal").
-						WithDetail("command", commandStr).
+						WithDetail("command", h.commandStr).
 						WithDetail("signal", status.Signal().String())
 				}
 			} else {
@@ -172,7 +185,7 @@ func (h *asyncHandler) waitForCompletion(commandStr string, timeout time.Duratio
 		// If not already set an error, set a generic one
 		if h.err == nil {
 			h.err = errors.Wrap(waitErr, "M5002", "execution failed").
-				WithDetail("command", commandStr).
+				WithDetail("command", h.commandStr).
 				WithDetail("exit_code", result.ExitCode).
 				WithDetail("stderr", result.Stderr)
 		}
@@ -183,8 +196,43 @@ func (h *asyncHandler) waitForCompletion(commandStr string, timeout time.Duratio
 	close(h.done)
 }
 
+// terminateProcess performs graceful termination (SIGTERM -> wait -> SIGKILL).
+func (h *ctxHandler) terminateProcess() {
+	if h.cmd == nil || h.cmd.Process == nil {
+		return
+	}
+
+	// Send SIGTERM first for graceful termination
+	if err := h.cmd.Process.Signal(syscall.SIGTERM); err != nil {
+		// If SIGTERM fails, try SIGKILL immediately
+		h.cmd.Process.Kill()
+		return
+	}
+
+	// If graceful period is set, wait for it before sending SIGKILL
+	if h.gracefulPeriod > 0 {
+		done := make(chan struct{})
+		go func() {
+			h.cmd.Wait()
+			close(done)
+		}()
+
+		select {
+		case <-done:
+			// Process exited gracefully
+			return
+		case <-time.After(h.gracefulPeriod):
+			// Grace period expired, send SIGKILL
+			h.cmd.Process.Kill()
+		}
+	} else {
+		// No graceful period, send SIGKILL immediately
+		h.cmd.Process.Kill()
+	}
+}
+
 // Wait blocks until the command finishes executing and returns the result.
-func (h *asyncHandler) Wait() (*Result, error) {
+func (h *ctxHandler) Wait() (*Result, error) {
 	<-h.done
 	h.mu.RLock()
 	defer h.mu.RUnlock()
@@ -192,7 +240,7 @@ func (h *asyncHandler) Wait() (*Result, error) {
 }
 
 // Kill terminates the running process.
-func (h *asyncHandler) Kill() error {
+func (h *ctxHandler) Kill() error {
 	h.mu.Lock()
 	defer h.mu.Unlock()
 
@@ -208,14 +256,14 @@ func (h *asyncHandler) Kill() error {
 }
 
 // PID returns the process ID of the running command.
-func (h *asyncHandler) PID() int {
+func (h *ctxHandler) PID() int {
 	h.mu.RLock()
 	defer h.mu.RUnlock()
 	return h.pid
 }
 
 // Running returns true if the process is still running.
-func (h *asyncHandler) Running() bool {
+func (h *ctxHandler) Running() bool {
 	h.mu.RLock()
 	defer h.mu.RUnlock()
 
@@ -233,5 +281,5 @@ func (h *asyncHandler) Running() bool {
 	return false
 }
 
-// Ensure asyncHandler implements CallHandler interface
-var _ CallHandler = (*asyncHandler)(nil)
+// Ensure ctxHandler implements CallHandler interface
+var _ CallHandler = (*ctxHandler)(nil)

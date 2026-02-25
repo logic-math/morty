@@ -1,0 +1,45 @@
+所有 Tasks 完成。输出执行结果：
+
+---
+
+## 执行摘要
+
+**call_cli/job_3** 已完成，共执行 7 个 Tasks：
+
+| Task | 描述 | 状态 |
+|------|------|------|
+| Task 1 | 实现 `CallWithCtx()` 支持 context | ✅ 完成 |
+| Task 2 | 实现超时检测机制 | ✅ 完成 |
+| Task 3 | 超时后自动终止进程 | ✅ 完成 |
+| Task 4 | 支持 context 取消信号 | ✅ 完成 |
+| Task 5 | 实现优雅终止（SIGTERM 后等待） | ✅ 完成 |
+| Task 6 | 实现强制终止（SIGTERM 后发送 SIGKILL） | ✅ 完成 |
+| Task 7 | 编写单元测试 `timeout_test.go` | ✅ 完成 |
+
+**修改的文件：**
+1. `internal/callcli/interface.go` - 添加 `CallWithCtx` 接口、`TimedOut`/`Interrupted` 字段、`GracefulPeriod` 选项
+2. `internal/callcli/timeout.go` - 新建，实现超时控制和优雅终止
+3. `internal/callcli/caller.go` - 更新设置 `TimedOut` 字段
+4. `internal/callcli/async.go` - 更新设置 `TimedOut` 字段
+5. `internal/callcli/timeout_test.go` - 新建，13 个测试用例
+
+**验证结果：**
+- 所有 13 个 `TestCallWithCtx_*` 测试通过
+- 整个模块测试覆盖率 90.2% (>= 80%)
+
+<!-- RALPH_STATUS -->
+```json
+{
+  "module": "call_cli",
+  "job": "job_3",
+  "status": "COMPLETED",
+  "tasks_completed": 7,
+  "tasks_total": 7,
+  "loop_count": 1,
+  "debug_issues": 0,
+  "debug_logs_in_plan": true,
+  "explore_subagent_used": true,
+  "summary": "成功实现 CallWithCtx() 支持 context、超时检测、优雅终止(SIGTERM)和强制终止(SIGKILL)。所有13个测试通过，覆盖率90.2%"
+}
+```
+<!-- END_RALPH_STATUS -->

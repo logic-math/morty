@@ -20,6 +20,10 @@ type Result struct {
 	Duration time.Duration
 	// Command is the executed command with arguments (for debugging)
 	Command string
+	// TimedOut is true if the command was terminated due to timeout
+	TimedOut bool
+	// Interrupted is true if the command was interrupted by a signal
+	Interrupted bool
 }
 
 // Options contains configuration options for command execution.
@@ -32,6 +36,8 @@ type Options struct {
 	Timeout time.Duration
 	// Stdin is the input to provide to the command
 	Stdin string
+	// GracefulPeriod is the time to wait after SIGTERM before sending SIGKILL (0 means no graceful termination)
+	GracefulPeriod time.Duration
 }
 
 // Caller defines the interface for executing CLI commands.
@@ -46,6 +52,10 @@ type Caller interface {
 	// CallWithOptions executes a command with additional options like
 	// working directory, environment variables, and timeout.
 	CallWithOptions(ctx context.Context, name string, args []string, opts Options) (*Result, error)
+
+	// CallWithCtx executes a command with context control and returns a CallHandler
+	// for managing the running process with timeout and cancellation support.
+	CallWithCtx(ctx context.Context, name string, args []string, opts Options) (CallHandler, error)
 
 	// CallAsync executes a command asynchronously and returns a CallHandler
 	// for managing the running process.
