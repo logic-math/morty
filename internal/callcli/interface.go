@@ -47,11 +47,35 @@ type Caller interface {
 	// working directory, environment variables, and timeout.
 	CallWithOptions(ctx context.Context, name string, args []string, opts Options) (*Result, error)
 
+	// CallAsync executes a command asynchronously and returns a CallHandler
+	// for managing the running process.
+	CallAsync(ctx context.Context, name string, args ...string) (CallHandler, error)
+
+	// CallAsyncWithOptions executes a command asynchronously with additional options.
+	CallAsyncWithOptions(ctx context.Context, name string, args []string, opts Options) (CallHandler, error)
+
 	// SetDefaultTimeout sets the default timeout for all calls.
 	SetDefaultTimeout(timeout time.Duration)
 
 	// GetDefaultTimeout returns the current default timeout.
 	GetDefaultTimeout() time.Duration
+}
+
+// CallHandler provides control over an asynchronously running command.
+// It allows waiting for completion, checking status, and terminating the process.
+type CallHandler interface {
+	// Wait blocks until the command finishes executing and returns the result.
+	Wait() (*Result, error)
+
+	// Kill terminates the running process.
+	Kill() error
+
+	// PID returns the process ID of the running command.
+	// Returns -1 if the process hasn't started or has already finished.
+	PID() int
+
+	// Running returns true if the process is still running.
+	Running() bool
 }
 
 // Ensure CallerImpl implements Caller interface

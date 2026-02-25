@@ -1,0 +1,38 @@
+所有任务完成。让我输出最终的 RALPH_STATUS：
+
+```json
+<!-- RALPH_STATUS -->
+{
+  "module": "call_cli",
+  "job": "job_2",
+  "status": "COMPLETED",
+  "tasks_completed": 7,
+  "tasks_total": 7,
+  "loop_count": 1,
+  "debug_issues": 2,
+  "debug_logs_in_plan": true,
+  "explore_subagent_used": true,
+  "summary": "异步调用和进程管理功能实现完成。添加了 CallAsync() 和 CallAsyncWithOptions() 方法，实现了 CallHandler 接口包含 Wait()/Kill()/PID()/Running() 方法。创建了 async_test.go 包含 17 个测试用例，测试覆盖率 92.4%。修复了两个调试问题：1) Windows 平台信号检测差异 2) 错误类型名称修正"
+}
+<!-- END_RALPH_STATUS -->
+```
+
+**完成总结**:
+
+| Task | 内容 | 状态 |
+|------|------|------|
+| 1 | `CallAsync()` 异步执行方法 | ✅ 完成 |
+| 2 | `CallHandler` 接口定义 | ✅ 完成 |
+| 3 | `Wait()` 等待方法 | ✅ 完成 |
+| 4 | `Kill()` 终止进程方法 | ✅ 完成 |
+| 5 | `Running()` 状态检查 | ✅ 完成 |
+| 6 | 进程 PID 获取 | ✅ 完成 |
+| 7 | 单元测试 `async_test.go` | ✅ 完成 (17 个测试) |
+
+**验证器检查结果**:
+- ✅ 异步调用能立即返回 Handler
+- ✅ `Wait()` 能正确等待进程结束  
+- ✅ `Kill()` 能正确终止进程
+- ✅ `Running()` 能正确反映进程状态
+- ✅ 能获取正确的 PID
+- ✅ 所有单元测试通过 (覆盖率 92.4% > 80%)

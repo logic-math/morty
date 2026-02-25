@@ -3,16 +3,16 @@
   "state": "running",
   "current": {
     "module": "call_cli",
-    "job": "job_1",
+    "job": "job_2",
     "status": "COMPLETED",
-    "start_time": "2026-02-25T13:35:51Z",
+    "start_time": "2026-02-25T13:56:48Z",
     "interrupted_at": "2026-02-24T16:51:59Z",
-    "completed_at": "2026-02-25T13:56:46Z"
+    "completed_at": "2026-02-25T14:08:21Z"
   },
   "session": {
     "start_time": "2026-02-24T12:51:47Z",
-    "last_update": "2026-02-25T13:56:46Z",
-    "total_loops": 30
+    "last_update": "2026-02-25T14:08:21Z",
+    "total_loops": 31
   },
   "modules": {
     "go_env_setup": {
@@ -1647,12 +1647,59 @@
           "completion_summary": "Job executed successfully"
         },
         "job_2": {
-          "status": "PENDING",
-          "loop_count": 0,
+          "status": "COMPLETED",
+          "loop_count": 1,
           "retry_count": 0,
           "tasks_total": 7,
-          "tasks_completed": 0,
-          "debug_logs": []
+          "tasks_completed": 7,
+          "debug_logs": [],
+          "started_at": "2026-02-25T13:56:48Z",
+          "tasks": {
+            "1": {
+              "index": 1,
+              "status": "COMPLETED",
+              "description": "Task 1: 实现 `CallAsync()` 异步执行方法",
+              "updated_at": "2026-02-25T14:08:17Z"
+            },
+            "2": {
+              "index": 2,
+              "status": "COMPLETED",
+              "description": "Task 2: 实现 `CallHandler` 接口",
+              "updated_at": "2026-02-25T14:08:18Z"
+            },
+            "3": {
+              "index": 3,
+              "status": "COMPLETED",
+              "description": "Task 3: 实现 `Wait()` 等待方法",
+              "updated_at": "2026-02-25T14:08:18Z"
+            },
+            "4": {
+              "index": 4,
+              "status": "COMPLETED",
+              "description": "Task 4: 实现 `Kill()` 终止进程方法",
+              "updated_at": "2026-02-25T14:08:19Z"
+            },
+            "5": {
+              "index": 5,
+              "status": "COMPLETED",
+              "description": "Task 5: 实现 `Running()` 状态检查",
+              "updated_at": "2026-02-25T14:08:19Z"
+            },
+            "6": {
+              "index": 6,
+              "status": "COMPLETED",
+              "description": "Task 6: 实现进程 PID 获取",
+              "updated_at": "2026-02-25T14:08:20Z"
+            },
+            "7": {
+              "index": 7,
+              "status": "COMPLETED",
+              "description": "Task 7: 编写单元测试 `async_test.go`",
+              "updated_at": "2026-02-25T14:08:20Z"
+            }
+          },
+          "completed_at": "2026-02-25T14:08:21Z",
+          "completion_summary": "Job executed successfully"
         },
         "job_3": {
           "status": "PENDING",
