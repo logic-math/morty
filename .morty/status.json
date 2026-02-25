@@ -3,16 +3,16 @@
   "state": "running",
   "current": {
     "module": "deploy",
-    "job": "job_2",
+    "job": "job_3",
     "status": "COMPLETED",
-    "start_time": "2026-02-25T08:14:13Z",
+    "start_time": "2026-02-25T10:58:14Z",
     "interrupted_at": "2026-02-24T16:51:59Z",
-    "completed_at": "2026-02-25T08:27:53Z"
+    "completed_at": "2026-02-25T11:14:32Z"
   },
   "session": {
     "start_time": "2026-02-24T12:51:47Z",
-    "last_update": "2026-02-25T08:27:53Z",
-    "total_loops": 22
+    "last_update": "2026-02-25T11:14:32Z",
+    "total_loops": 23
   },
   "modules": {
     "go_env_setup": {
@@ -1170,12 +1170,65 @@
           "completion_summary": "Job executed successfully"
         },
         "job_3": {
-          "status": "PENDING",
-          "loop_count": 0,
+          "status": "COMPLETED",
+          "loop_count": 1,
           "retry_count": 0,
           "tasks_total": 7,
-          "tasks_completed": 0,
-          "debug_logs": []
+          "tasks_completed": 8,
+          "debug_logs": [],
+          "started_at": "2026-02-25T10:58:14Z",
+          "tasks": {
+            "1": {
+              "index": 1,
+              "status": "COMPLETED",
+              "description": "Task 1: 检查安装状态（`~/.morty/` 是否存在）",
+              "updated_at": "2026-02-25T11:14:28Z"
+            },
+            "2": {
+              "index": 2,
+              "status": "COMPLETED",
+              "description": "Task 2: 可选备份配置（询问用户）",
+              "updated_at": "2026-02-25T11:14:28Z"
+            },
+            "3": {
+              "index": 3,
+              "status": "COMPLETED",
+              "description": "Task 3: 从 PATH 中移除 `~/.morty/bin`",
+              "updated_at": "2026-02-25T11:14:29Z"
+            },
+            "4": {
+              "index": 4,
+              "status": "COMPLETED",
+              "description": "Task 4: 删除 `~/.morty/` 目录",
+              "updated_at": "2026-02-25T11:14:29Z"
+            },
+            "5": {
+              "index": 5,
+              "status": "COMPLETED",
+              "description": "Task 5: 清理 shell 配置文件中的 Morty 相关配置",
+              "updated_at": "2026-02-25T11:14:30Z"
+            },
+            "6": {
+              "index": 6,
+              "status": "COMPLETED",
+              "description": "Task 6: 验证卸载（`morty` 命令不再可用）",
+              "updated_at": "2026-02-25T11:14:30Z"
+            },
+            "7": {
+              "index": 7,
+              "status": "COMPLETED",
+              "description": "Task 7: 输出卸载完成信息",
+              "updated_at": "2026-02-25T11:14:31Z"
+            },
+            "8": {
+              "index": 8,
+              "status": "COMPLETED",
+              "description": "Task 8: 重新运行 `install.sh` 将 morty 安装回来不要破坏现有环境",
+              "updated_at": "2026-02-25T11:14:32Z"
+            }
+          },
+          "completed_at": "2026-02-25T11:14:32Z",
+          "completion_summary": "Job executed successfully"
         },
         "job_4": {
           "status": "PENDING",

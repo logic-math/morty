@@ -32,7 +32,7 @@
         "Task 3: 实现日志格式切换"
       ],
       "dependencies": ["logging/job_2"],
-      "validator": "彰�配置 log_format: json 时，日志输出应为有效的 JSON 格式"
+      "validator": "当配置 log_format: json 时，日志输出应为有效的 JSON 格式"
     }
   }
 }
@@ -122,7 +122,7 @@ loop:[验证器]
 
 5. **问题记录**: 遇到问题时记录到 Plan 文件的调试日志中
 
-## 探索子仰�理使用规范
+## 探索子代理使用规范
 
 **触发条件**:
 - 需要对不熟悉的代码库进行调研时
@@ -161,7 +161,7 @@ Task工具参数:
 
 **验证器**: ...
 
-**调诰�日志**:
+**调试日志**:
 - debug1: [现象], [复现], [猜想], [验证], [修复], [进展]
 - debug2: [现象], [复现], [猜想], [验证], [修复], [进展]
 ```
@@ -175,7 +175,7 @@ Task工具参数:
 | 现象 | 遇到的问题描述 | 日志轮转时丢失消息 |
 | 复现 | 如何复现该问题 | 高频写入时触发轮转 |
 | 猜想 | 可能的原因（按置信度排序）| 1)文件句柄未同步 2)并发竞争 |
-| 验诰� | 验证猜想的待办事项 | 添加文件锁测试 |
+| 验证 | 验证猜想的待办事项 | 添加文件锁测试 |
 | 修复 | 修复方法 | 使用 flock 同步 |
 | 进展 | 修复进展 | 待修复/已修复 |
 
@@ -378,7 +378,7 @@ Task工具参数:
     "current_job": {
       "name": "job_3",
       "description": "Job execution",
-      "tasks": ["Task 1: 检查安装状态（`~/.morty/` 是否存在）","Task 2: 可选备份配置（询问用户）","Task 3: 从 PATH 中移除 `~/.morty/bin`","Task 4: 删除 `~/.morty/` 目录","Task 5: 清理 shell 配置文件中的 Morty 相关配置","Task 6: 验证卸载（`morty` 命令不再可用）","Task 7: 输出卸载完成信息"],
+      "tasks": ["Task 1: 检查安装状态（`~/.morty/` 是否存在）","Task 2: 可选备份配置（询问用户）","Task 3: 从 PATH 中移除 `~/.morty/bin`","Task 4: 删除 `~/.morty/` 目录","Task 5: 清理 shell 配置文件中的 Morty 相关配置","Task 6: 验证卸载（`morty` 命令不再可用）","Task 7: 输出卸载完成信息","Task 8: 重新运行 `install.sh` 将 morty 安装回来不要破坏现有环境"],
       "dependencies": [],
       "validator": "[ ] `~/.morty/` 目录已删除"
     }
@@ -392,7 +392,7 @@ Task工具参数:
 
 **模块**: deploy
 **Job**: job_3
-**总 Tasks**: 7
+**总 Tasks**: 8
 
 ## 任务列表
 
@@ -405,6 +405,7 @@ Task工具参数:
 - [ ] Task 5: 清理 shell 配置文件中的 Morty 相关配置
 - [ ] Task 6: 验证卸载（`morty` 命令不再可用）
 - [ ] Task 7: 输出卸载完成信息
+- [ ] Task 8: 重新运行 `install.sh` 将 morty 安装回来不要破坏现有环境
 
 
 ## 验证器
@@ -413,6 +414,8 @@ Task工具参数:
 - [ ] shell 配置文件中 PATH 已清理
 - [ ] `morty` 命令不再可用
 - [ ] 用户项目目录 `.morty/` 保留（询问是否删除）
+- [ ] `morty version` 能正常输出,说明卸载后安装也是成功的
+- [ ] git 提交中必须包含 `uninstall.sh`脚本
 - 待填充
 
 
@@ -434,8 +437,8 @@ Task工具参数:
   "module": "deploy",
   "job": "job_3",
   "status": "COMPLETED",
-  "tasks_completed": 7,
-  "tasks_total": 7,
+  "tasks_completed": 8,
+  "tasks_total": 8,
   "summary": "执行摘要"
 }
 ```
