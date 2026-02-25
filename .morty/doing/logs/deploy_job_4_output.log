@@ -1,0 +1,52 @@
+所有验证器通过。现在输出 RALPH_STATUS。
+
+## 执行完成摘要
+
+### 完成的任务
+
+| Task | 描述 | 状态 |
+|------|------|------|
+| Task 1 | 检测当前版本（`morty version`） | ✅ 完成 |
+| Task 2 | 获取最新版本信息（本地检查或远程查询） | ✅ 完成 |
+| Task 3 | 版本对比，判断是否需要升级 | ✅ 完成 |
+| Task 4 | 备份当前版本二进制和配置 | ✅ 完成 |
+| Task 5 | 下载/编译新版本 | ✅ 完成 |
+| Task 6 | 安装新版本（调用 install.sh 逻辑） | ✅ 完成 |
+| Task 7 | 验证升级成功 | ✅ 完成 |
+| Task 8 | 支持回滚（升级失败时恢复旧版本） | ✅ 完成 |
+
+### 验证器结果
+
+| 验证器 | 状态 |
+|--------|------|
+| 正确检测当前版本 | ✅ PASS |
+| 正确判断是否需要升级 | ✅ PASS |
+| 升级前备份旧版本 | ✅ PASS |
+| 新版本安装成功 | ✅ PASS |
+| 升级失败能回滚到旧版本 | ✅ PASS |
+| 升级后配置保留 | ✅ PASS |
+| git提交中包含 `upgrade.sh` 脚本 | ✅ PASS |
+
+### 创建的文件
+- `scripts/upgrade.sh` - 升级脚本（162+ 行，支持所有要求的参数）
+
+### Git 提交
+- Commit: `24af985`
+- 包含 `scripts/upgrade.sh` 和更新后的 `.morty/plan/deploy.md`
+
+<!-- RALPH_STATUS -->
+```json
+{
+  "module": "deploy",
+  "job": "job_4",
+  "status": "COMPLETED",
+  "tasks_completed": 8,
+  "tasks_total": 8,
+  "loop_count": 1,
+  "debug_issues": 0,
+  "debug_logs_in_plan": true,
+  "explore_subagent_used": true,
+  "summary": "成功实现 upgrade.sh 升级脚本，支持版本检测、备份、升级、验证和回滚功能。所有 8 个 Tasks 完成，所有验证器通过，已提交到 git。"
+}
+```
+<!-- END_RALPH_STATUS -->
