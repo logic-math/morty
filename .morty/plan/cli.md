@@ -249,26 +249,28 @@ type Router interface {
 - Logging 模块完成
 
 **Tasks (Todo 列表)**:
-- [ ] Task 1: 创建 `internal/cli/parser.go` 文件
-- [ ] Task 2: 实现 `Parse(args []string) (*ParseResult, error)` 方法
-- [ ] Task 3: 支持长选项 (`--option`) 和短选项 (`-o`)
-- [ ] Task 4: 支持带值的选项 (`--option value` 或 `--option=value`)
-- [ ] Task 5: 支持布尔标志 (`--flag`)
-- [ ] Task 6: 支持位置参数
-- [ ] Task 7: 处理 `--` 终止选项解析
-- [ ] Task 8: 编写单元测试 `parser_test.go`
+- [x] Task 1: 创建 `internal/cli/parser.go` 文件
+- [x] Task 2: 实现 `Parse(args []string) (*ParseResult, error)` 方法
+- [x] Task 3: 支持长选项 (`--option`) 和短选项 (`-o`)
+- [x] Task 4: 支持带值的选项 (`--option value` 或 `--option=value`)
+- [x] Task 5: 支持布尔标志 (`--flag`)
+- [x] Task 6: 支持位置参数
+- [x] Task 7: 处理 `--` 终止选项解析
+- [x] Task 8: 编写单元测试 `parser_test.go`
 
 **验证器**:
-- [ ] 正确解析命令名称
-- [ ] 正确解析长选项和短选项
-- [ ] 正确解析带值的选项
-- [ ] 正确解析布尔标志
-- [ ] 正确处理 `--` 后的参数
-- [ ] 错误选项时返回友好错误信息
-- [ ] 所有单元测试通过 (覆盖率 >= 80%)
+- [x] 正确解析命令名称
+- [x] 正确解析长选项和短选项
+- [x] 正确解析带值的选项
+- [x] 正确解析布尔标志
+- [x] 正确处理 `--` 后的参数
+- [x] 错误选项时返回友好错误信息
+- [x] 所有单元测试通过 (覆盖率 >= 80%)
 
 **调试日志**:
-- 待填充
+- debug1: 未知选项类型推断问题, 测试期望不明确选项是bool还是string类型, 猜想: 1)需要KnownOptions配置 2)单字符未知选项默认行为, 验证: 测试显示需要已知选项配置才能正确解析, 修复: 更新测试使用NewParser配置已知选项, 已修复
+- debug2: 组合短选项解析, -vfn期望解析为三个bool标志, 但-ofile.txt期望解析为value, 猜想: 已知选项配置决定行为, 验证: 添加o到KnownOptions为OptionTypeString, 修复: 测试配置中添加o: OptionTypeString, 已修复
+- debug3: 双横线--处理, --后参数应全部视为位置参数, 猜想: --处理逻辑正确, 验证: 测试通过, 修复: 无需修复, 已验证
 
 ---
 
