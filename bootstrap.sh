@@ -17,7 +17,7 @@
 #   uninstall     Uninstall Morty
 #
 # Options:
-#   --prefix <path>      Installation directory (default: ~/.morty)
+#   --prefix <path>      Installation directory (default: ~/.morty_sh)
 #   --bin-dir <path>     Binary directory for symlink (default: ~/.local/bin)
 #   --version <version>  Install specific version
 #   --force              Force operation without confirmation
@@ -36,7 +36,7 @@ readonly BOOTSTRAP_VERSION="2.0.0"
 readonly BOOTSTRAP_NAME="Morty Bootstrap"
 
 # Default paths
-readonly DEFAULT_PREFIX="${HOME}/.morty"
+readonly DEFAULT_PREFIX="${HOME}/.morty_sh"
 readonly DEFAULT_BIN_DIR="${HOME}/.local/bin"
 
 # GitHub repository
@@ -212,7 +212,7 @@ Commands:
   uninstall     Uninstall Morty
 
 Options:
-  --prefix <path>      Installation directory (default: ~/.morty)
+  --prefix <path>      Installation directory (default: ~/.morty_sh)
   --bin-dir <path>     Binary directory for symlink (default: ~/.local/bin)
   --version <version>  Install specific version (default: latest)
   --force              Force operation without confirmation
@@ -224,7 +224,7 @@ Options:
 Examples:
   ./bootstrap.sh                          # Default installation
   ./bootstrap.sh install                  # Same as above
-  ./bootstrap.sh install --prefix /opt/morty
+  ./bootstrap.sh install --prefix /opt/morty_sh
   ./bootstrap.sh reinstall --force
   ./bootstrap.sh upgrade --version 2.1.0
   ./bootstrap.sh uninstall --purge
@@ -716,7 +716,7 @@ bootstrap_show_fix_suggestion() {
             echo ""
             echo "Possible solutions:"
             echo "  1. Change the installation prefix to a directory you own:"
-            echo "     ./bootstrap.sh install --prefix ~/my-morty"
+            echo "     ./bootstrap.sh install --prefix ~/my-morty_sh"
             echo ""
             echo "  2. Create the directory with correct permissions:"
             echo "     mkdir -p $dir"
