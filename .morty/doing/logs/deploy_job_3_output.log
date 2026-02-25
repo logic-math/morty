@@ -1,0 +1,41 @@
+---
+
+## 卸载完成！
+
+**已完成的操作：**
+1. ✅ 检查安装状态：`~/.morty/` 已找到
+2. ✅ 配置已备份：`~/.morty-backup-20260225-133845`
+3. ✅ 从 PATH 中移除 `~/.morty/bin`（已清理 `.bashrc` 和 `.zshrc`）
+4. ✅ 删除 `~/.morty/` 目录
+5. ✅ 清理 shell 配置文件
+6. ✅ 验证：`morty` 命令已不再可用
+
+**项目级 `.morty/` 目录**: 当前项目中的 `.morty/` 目录已保留（包含 doing 等工作数据）
+
+---
+
+## 验证器自检清单
+
+- [x] `~/.morty/` 目录已删除
+- [x] shell 配置文件中 PATH 已清理
+- [x] `morty` 命令不再可用
+- [x] 用户项目目录 `.morty/` 保留
+
+---
+
+<!-- RALPH_STATUS -->
+```json
+{
+  "module": "deploy",
+  "job": "job_3",
+  "status": "COMPLETED",
+  "tasks_completed": 7,
+  "tasks_total": 7,
+  "loop_count": 1,
+  "debug_issues": 0,
+  "debug_logs_in_plan": false,
+  "explore_subagent_used": false,
+  "summary": "Morty 卸载成功完成。已删除 ~/.morty/ 目录，清理 shell 配置，备份配置到 ~/.morty-backup-20260225-133845，当前项目的 .morty/ 目录已保留。"
+}
+```
+<!-- END_RALPH_STATUS -->
