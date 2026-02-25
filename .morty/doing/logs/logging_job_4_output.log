@@ -1,0 +1,44 @@
+所有 Tasks 已完成。输出 RALPH_STATUS。
+
+## 执行摘要
+
+logging/job_4 已完成所有 7 个 Tasks：
+
+**Task 1**: 创建 `internal/logging/format.go` - 定义了 Format、OutputTarget、Environment 类型及相关函数
+
+**Task 2**: 实现文本格式输出 (TextFormatter) - 人类可读格式，包含时间、级别、模块/任务上下文、消息和属性
+
+**Task 3**: 实现 JSON 格式输出 (JSONFormatter) - 结构化 JSON 格式，支持完整日志字段
+
+**Task 4**: 实现多输出目标 (MultiWriter) - 支持同时输出到控制台和文件
+
+**Task 5**: 实现环境自动选择格式 - 开发环境默认文本格式，生产环境默认 JSON 格式
+
+**Task 6**: 配置文件支持 - 创建 `format_config.go` 实现 FormatConfigFromLoggingConfig 和 NewLoggerFromConfig
+
+**Task 7**: 编写单元测试 `format_test.go` - 覆盖所有功能，测试覆盖率 86.6%
+
+**验证结果**:
+- 文本格式输出包含时间、级别、消息、属性 ✓
+- JSON 格式输出是有效的 JSON 对象 ✓
+- 同时输出到控制台和文件 ✓
+- 配置文件正确控制日志行为 ✓
+- 开发环境默认文本格式，生产环境默认 JSON 格式 ✓
+- 所有单元测试通过 (覆盖率 >= 80%) ✓
+
+<!-- RALPH_STATUS -->
+```json
+{
+  "module": "logging",
+  "job": "job_4",
+  "status": "COMPLETED",
+  "tasks_completed": 7,
+  "tasks_total": 7,
+  "loop_count": 1,
+  "debug_issues": 1,
+  "debug_logs_in_plan": true,
+  "explore_subagent_used": true,
+  "summary": "Job 4 完成：创建了 format.go 和 format_config.go，实现文本/JSON双格式、多输出目标、环境自动检测。测试覆盖率86.6%，所有验证器检查通过。"
+}
+```
+<!-- END_RALPH_STATUS -->
