@@ -1,0 +1,22 @@
+Plan 文件已更新。现在输出执行结果。
+
+---
+
+## RALPH_STATUS
+
+```json
+{
+  "ralph_status": {
+    "module": "deploy",
+    "job": "job_2",
+    "status": "COMPLETED",
+    "tasks_completed": 7,
+    "tasks_total": 7,
+    "loop_count": 1,
+    "debug_issues": 0,
+    "debug_logs_in_plan": true,
+    "explore_subagent_used": true,
+    "summary": "安装脚本任务全部完成。通过 Explore subagent 了解项目结构，检测到已有安装后重新安装，所有验证器通过：目录创建、二进制复制、配置文件生成、PATH配置、morty version 正常输出。"
+  }
+}
+```

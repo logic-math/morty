@@ -3,16 +3,16 @@
   "state": "running",
   "current": {
     "module": "deploy",
-    "job": "job_1",
+    "job": "job_2",
     "status": "COMPLETED",
-    "start_time": "2026-02-25T02:23:03Z",
+    "start_time": "2026-02-25T03:23:49Z",
     "interrupted_at": "2026-02-24T16:51:59Z",
-    "completed_at": "2026-02-25T02:40:02Z"
+    "completed_at": "2026-02-25T03:46:24Z"
   },
   "session": {
     "start_time": "2026-02-24T12:51:47Z",
-    "last_update": "2026-02-25T02:40:02Z",
-    "total_loops": 21
+    "last_update": "2026-02-25T03:46:24Z",
+    "total_loops": 22
   },
   "modules": {
     "go_env_setup": {
@@ -1115,12 +1115,61 @@
           "completion_summary": "Job executed successfully"
         },
         "job_2": {
-          "status": "PENDING",
-          "loop_count": 0,
-          "retry_count": 0,
+          "status": "COMPLETED",
+          "loop_count": 1,
+          "retry_count": 1,
           "tasks_total": 7,
-          "tasks_completed": 0,
-          "debug_logs": []
+          "tasks_completed": 7,
+          "debug_logs": [],
+          "last_failure_reason": "Execution failed with exit code 1",
+          "last_failure_at": "2026-02-25T02:48:55Z",
+          "started_at": "2026-02-25T03:23:49Z",
+          "tasks": {
+            "1": {
+              "index": 1,
+              "status": "COMPLETED",
+              "description": "Task 1: 检查是否已安装（存在 `~/.morty/bin/morty`）",
+              "updated_at": "2026-02-25T03:46:12Z"
+            },
+            "2": {
+              "index": 2,
+              "status": "COMPLETED",
+              "description": "Task 2: 创建 `~/.morty/` 目录结构",
+              "updated_at": "2026-02-25T03:46:13Z"
+            },
+            "3": {
+              "index": 3,
+              "status": "COMPLETED",
+              "description": "Task 3: 复制/编译二进制文件到 `~/.morty/bin/morty`",
+              "updated_at": "2026-02-25T03:46:15Z"
+            },
+            "4": {
+              "index": 4,
+              "status": "COMPLETED",
+              "description": "Task 4: 创建默认配置文件 `~/.morty/config.json`",
+              "updated_at": "2026-02-25T03:46:17Z"
+            },
+            "5": {
+              "index": 5,
+              "status": "COMPLETED",
+              "description": "Task 5: 检测并配置 PATH（`~/.bashrc`, `~/.zshrc`）",
+              "updated_at": "2026-02-25T03:46:19Z"
+            },
+            "6": {
+              "index": 6,
+              "status": "COMPLETED",
+              "description": "Task 6: 验证安装（`morty version` 能执行）",
+              "updated_at": "2026-02-25T03:46:20Z"
+            },
+            "7": {
+              "index": 7,
+              "status": "COMPLETED",
+              "description": "Task 7: 输出安装成功信息和使用说明",
+              "updated_at": "2026-02-25T03:46:22Z"
+            }
+          },
+          "completed_at": "2026-02-25T03:46:25Z",
+          "completion_summary": "Job executed successfully"
         },
         "job_3": {
           "status": "PENDING",

@@ -1980,7 +1980,7 @@ build_job_prompt() {
     printf '%s\n' "$system_prompt"
     printf '\n---\n\n'
     printf '# 精简上下文\n\n'
-    printf '\`\`\`json\n%s\n\`\`\`\n\n' "$compact_context"
+    printf '```json\n%s\n```\n\n' "$compact_context"
     printf '---\n\n'
     printf '# 当前 Job 上下文\n\n'
     printf '**模块**: %s\n' "$module"
@@ -1989,35 +1989,41 @@ build_job_prompt() {
     printf '## 任务列表\n\n你需要按顺序完成以下所有 tasks：\n\n%s\n\n' "$task_list"
     printf '## 验证器\n\n%s\n\n' "$validator_list"
     printf '## 执行指令\n\n'
-    printf '请按照 Doing 模式的循环步骤执行：\n'
-    printf '1. 读取精简上下文了解当前状态\n'
-    printf '2. **按顺序执行所有 Tasks**，完成一个后再进行下一个\n'
-    printf '3. 每个 Task 完成后在内部标记进度\n'
-    printf '4. 所有 Tasks 完成后，运行所有验证器检查\n'
-    printf '5. 如有问题，记录 debug_log\n\n'
+    printf '%s\n' '请按照 Doing 模式的循环步骤执行：'
+    printf '%s\n' '1. 读取精简上下文了解当前状态'
+    printf '%s\n' '2. **按顺序执行所有 Tasks**，完成一个后再进行下一个'
+    printf '%s\n' '3. 每个 Task 完成后在内部标记进度'
+    printf '%s\n' '4. 所有 Tasks 完成后，运行所有验证器检查'
+    printf '%s\n' '5. 如有问题，记录 debug_log'
+    printf '\n'
     printf '## 任务完成要求（必须执行）\n\n'
-    printf '**所有 Tasks 执行完毕后**，你必须在输出中返回 JSON 格式的执行结果（RALPH_STATUS）：\n\n'
-    printf '\`\`\`json\n{\n'
+    printf '%s\n' '**所有 Tasks 执行完毕后**，你必须在输出中返回 JSON 格式的执行结果（RALPH_STATUS）：'
+    printf '\n'
+    printf '```json\n{\n'
     printf '  "module": "%s",\n' "$module"
     printf '  "job": "%s",\n' "$job"
-    printf '  "status": "COMPLETED",\n'
+    printf '%s\n' '  "status": "COMPLETED",'
     printf '  "tasks_completed": %s,\n' "$tasks_total"
     printf '  "tasks_total": %s,\n' "$tasks_total"
-    printf '  "summary": "执行摘要"\n'
-    printf '}\n\`\`\`\n\n'
+    printf '%s\n' '  "summary": "执行摘要"'
+    printf '%s\n' '}'
+    printf '```\n\n'
     printf '### 重要规则：\n'
-    printf '- **成功时**: status 必须是 "COMPLETED"（全部大写）\n'
-    printf '- **失败时**: status 可以是 "FAILED"\n'
-    printf '- 系统会检查输出内容中是否包含 "status": "COMPLETED" 来判断任务是否成功\n'
-    printf '- **不需要写入任何文件**，只需要在输出中包含上述 JSON\n\n'
+    printf '%s\n' '- **成功时**: status 必须是 "COMPLETED"（全部大写）'
+    printf '%s\n' '- **失败时**: status 可以是 "FAILED"'
+    printf '%s\n' '- 系统会检查输出内容中是否包含 "status": "COMPLETED" 来判断任务是否成功'
+    printf '%s\n' '- **不需要写入任何文件**，只需要在输出中包含上述 JSON'
+    printf '\n'
     printf '### 验证器自检清单\n'
-    printf '在输出结果前，请确认：\n'
-    printf '- [ ] 我已执行完当前 Job 的所有 Tasks\n'
-    printf '- [ ] 我已运行所有验证器检查\n'
-    printf '- [ ] 验证器全部通过（或在失败情况下明确记录原因）\n'
-    printf '- [ ] 我已输出 RALPH_STATUS JSON 且 status 为 "COMPLETED"\n\n'
-    printf '**注意**: 系统通过检测输出中的 "status": "COMPLETED" 来判断任务成功，未检测到则标记为失败。\n\n'
-    printf '开始执行!\n'
+    printf '%s\n' '在输出结果前，请确认：'
+    printf '%s\n' '- [ ] 我已执行完当前 Job 的所有 Tasks'
+    printf '%s\n' '- [ ] 我已运行所有验证器检查'
+    printf '%s\n' '- [ ] 验证器全部通过（或在失败情况下明确记录原因）'
+    printf '%s\n' '- [ ] 我已输出 RALPH_STATUS JSON 且 status 为 "COMPLETED"'
+    printf '\n'
+    printf '%s\n' '**注意**: 系统通过检测输出中的 "status": "COMPLETED" 来判断任务成功，未检测到则标记为失败。'
+    printf '\n'
+    printf '%s\n' '开始执行!'
 }
 
 # 执行单个 Task (已废弃，保留用于兼容性)
