@@ -144,7 +144,7 @@
 - [ ] `morty` 命令不再可用
 - [ ] 用户项目目录 `.morty/` 保留（询问是否删除）
 - [ ] `morty version` 能正常输出,说明卸载后安装也是成功的
-
+- [ ] git 提交中必须包含 `uninstall.sh`脚本
 **使用示例**:
 ```bash
 ./scripts/uninstall.sh                  # 交互式卸载
@@ -182,7 +182,7 @@
 - [ ] 新版本安装成功
 - [ ] 升级失败能回滚到旧版本
 - [ ] 升级后配置保留
-
+- [ ] git提交中必须包含 `upgrade.sh`脚本
 **使用示例**:
 ```bash
 ./scripts/upgrade.sh                    # 检查并升级
