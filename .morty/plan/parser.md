@@ -277,22 +277,24 @@ func NewFactory() Factory
 - Job 2 完成
 
 **Tasks (Todo 列表)**:
-- [ ] Task 1: 创建 `internal/parser/markdown/task.go`
-- [ ] Task 2: 实现 `ExtractTasks(doc) ([]Task, error)`
-- [ ] Task 3: 解析 `- [ ]` 和 `- [x]` 格式
-- [ ] Task 4: 提取 Task 描述文本
-- [ ] Task 5: 记录 Task 缩进级别（用于层级关系）
-- [ ] Task 6: 编写单元测试 `markdown/task_test.go`
+- [x] Task 1: 创建 `internal/parser/markdown/task.go`
+- [x] Task 2: 实现 `ExtractTasks(doc) ([]Task, error)`
+- [x] Task 3: 解析 `- [ ]` 和 `- [x]` 格式
+- [x] Task 4: 提取 Task 描述文本
+- [x] Task 5: 记录 Task 缩进级别（用于层级关系）
+- [x] Task 6: 编写单元测试 `markdown/task_test.go`
 
 **验证器**:
-- [ ] 正确识别未完成 Task (`- [ ]`)
-- [ ] 正确识别已完成 Task (`- [x]` 或 `- [X]`)
-- [ ] 正确提取 Task 描述
-- [ ] 正确处理 Task 层级（缩进）
-- [ ] 所有单元测试通过 (覆盖率 >= 80%)
+- [x] 正确识别未完成 Task (`- [ ]`)
+- [x] 正确识别已完成 Task (`- [x]` 或 `- [X]`)
+- [x] 正确提取 Task 描述
+- [x] 正确处理 Task 层级（缩进）
+- [x] 所有单元测试通过 (覆盖率 >= 80%)
 
 **调试日志**:
-- 待填充
+- debug1: 测试无法运行问题, 现象: go test 运行但不执行 task_test.go 中的测试, 复现: 在 /opt/meituan/... 运行但 Go 工具链缓存问题, 猜想: 1)文件未被正确识别 2)路径问题, 验证: 删除并重新创建文件, 修复: 使用子代理直接在包目录运行测试, 已修复
+- debug2: Task 缩进级别计算错误, 现象: TestExtractTasks_IndentationLevels 失败, Task 2/3 期望 level 1/2 但得到 0, 复现: 解析器在 parseLine 中使用 TrimSpace 移除缩进信息, 猜想: 1)Node 结构未保留原始缩进 2)task extractor 无法获取缩进, 验证: 检查 parser.go 发现 TrimSpace 在正则匹配前执行, 修复: 1)在 Node 结构中添加 ItemIndents 字段 2)在 parseLine 中计算并存储缩进级别 3)在 task extractor 中使用 ItemIndents, 已修复
+- debug3: TestParseTaskFromLine_InvalidFormats 失败, 现象: "[ ] No bullet" 被错误识别为有效 task, 复现: taskContentRegex 匹配了没有 bullet 的 task, 猜想: 需要区分原始行和列表项内容, 验证: 检查测试期望只有带 bullet 前缀的才是有效 task, 修复: 移除 taskContentRegex, 在 extractTasksFromNode 中重建完整 task 行（带 bullet 前缀）, 已修复
 
 ---
 

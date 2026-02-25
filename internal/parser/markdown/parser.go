@@ -40,14 +40,15 @@ const (
 
 // Node represents a single node in the parsed document.
 type Node struct {
-	Type     NodeType               `json:"type"`
-	Level    int                    `json:"level,omitempty"`     // For headings (1-6)
-	Content  string                 `json:"content,omitempty"`   // For text and paragraphs
-	Language string                 `json:"language,omitempty"`  // For code blocks
-	ListType ListType               `json:"listType,omitempty"`  // For lists
-	Items    []string               `json:"items,omitempty"`     // For list items
-	Children []Node                 `json:"children,omitempty"`  // For nested content
-	Metadata map[string]interface{} `json:"metadata,omitempty"`  // Additional metadata
+	Type        NodeType               `json:"type"`
+	Level       int                    `json:"level,omitempty"`       // For headings (1-6)
+	Content     string                 `json:"content,omitempty"`     // For text and paragraphs
+	Language    string                 `json:"language,omitempty"`    // For code blocks
+	ListType    ListType               `json:"listType,omitempty"`    // For lists
+	Items       []string               `json:"items,omitempty"`       // For list items
+	ItemIndents []int                  `json:"itemIndents,omitempty"` // Indentation level for each list item
+	Children    []Node                 `json:"children,omitempty"`    // For nested content
+	Metadata    map[string]interface{} `json:"metadata,omitempty"`    // Additional metadata
 }
 
 // Document represents a parsed Markdown document.
@@ -193,6 +194,9 @@ func (p *Parser) parseLine(line string) *Node {
 		return nil
 	}
 
+	// Calculate leading indentation before trimming
+	indentLevel := calculateIndentLevelFromLine(line)
+
 	// Heading
 	if matches := headingRegex.FindStringSubmatch(trimmed); matches != nil {
 		level := len(matches[1])
@@ -206,18 +210,20 @@ func (p *Parser) parseLine(line string) *Node {
 	// Unordered list item
 	if matches := unorderedListRegex.FindStringSubmatch(trimmed); matches != nil {
 		return &Node{
-			Type:     NodeTypeList,
-			ListType: ListTypeUnordered,
-			Items:    []string{matches[1]},
+			Type:        NodeTypeList,
+			ListType:    ListTypeUnordered,
+			Items:       []string{matches[1]},
+			ItemIndents: []int{indentLevel},
 		}
 	}
 
 	// Ordered list item
 	if matches := orderedListRegex.FindStringSubmatch(trimmed); matches != nil {
 		return &Node{
-			Type:     NodeTypeList,
-			ListType: ListTypeOrdered,
-			Items:    []string{matches[2]},
+			Type:        NodeTypeList,
+			ListType:    ListTypeOrdered,
+			Items:       []string{matches[2]},
+			ItemIndents: []int{indentLevel},
 			Metadata: map[string]interface{}{
 				"start": matches[1],
 			},
@@ -229,6 +235,23 @@ func (p *Parser) parseLine(line string) *Node {
 		Type:    NodeTypeParagraph,
 		Content: trimmed,
 	}
+}
+
+// calculateIndentLevelFromLine calculates the indentation level from the raw line
+func calculateIndentLevelFromLine(line string) int {
+	// Count leading spaces and tabs
+	indent := 0
+	for _, ch := range line {
+		if ch == ' ' {
+			indent++
+		} else if ch == '\t' {
+			indent += 4 // Treat tab as 4 spaces
+		} else {
+			break
+		}
+	}
+	// Convert to level (2 spaces = 1 level)
+	return indent / 2
 }
 
 // mergeListItems merges consecutive list items of the same type.
@@ -247,6 +270,8 @@ func (p *Parser) mergeListItems(nodes []Node) []Node {
 			if currentList != nil && currentList.ListType == node.ListType {
 				// Merge with current list
 				currentList.Items = append(currentList.Items, node.Items...)
+				// Merge item indents
+				currentList.ItemIndents = append(currentList.ItemIndents, node.ItemIndents...)
 				// Merge metadata if ordered list
 				if node.ListType == ListTypeOrdered && node.Metadata != nil {
 					if currentList.Metadata == nil {
