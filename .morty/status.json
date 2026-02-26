@@ -3,16 +3,16 @@
   "state": "running",
   "current": {
     "module": "plan_cmd",
-    "job": "job_3",
+    "job": "job_4",
     "status": "COMPLETED",
-    "start_time": "2026-02-26T05:51:23Z",
+    "start_time": "2026-02-26T06:55:22Z",
     "interrupted_at": "2026-02-24T16:51:59Z",
-    "completed_at": "2026-02-26T06:19:33Z"
+    "completed_at": "2026-02-26T07:12:32Z"
   },
   "session": {
     "start_time": "2026-02-24T12:51:47Z",
-    "last_update": "2026-02-26T06:19:33Z",
-    "total_loops": 55
+    "last_update": "2026-02-26T07:12:32Z",
+    "total_loops": 56
   },
   "modules": {
     "go_env_setup": {
@@ -3072,12 +3072,65 @@
           "completion_summary": "Job executed successfully"
         },
         "job_4": {
-          "status": "PENDING",
-          "loop_count": 0,
+          "status": "COMPLETED",
+          "loop_count": 1,
           "retry_count": 0,
           "tasks_total": 8,
-          "tasks_completed": 0,
-          "debug_logs": []
+          "tasks_completed": 8,
+          "debug_logs": [],
+          "started_at": "2026-02-26T06:55:22Z",
+          "tasks": {
+            "1": {
+              "index": 1,
+              "status": "COMPLETED",
+              "description": "Task 1: 实现 `validatePlanResult() error`",
+              "updated_at": "2026-02-26T07:12:31Z"
+            },
+            "2": {
+              "index": 2,
+              "status": "COMPLETED",
+              "description": "Task 2: 检查 `README.md` 是否存在",
+              "updated_at": "2026-02-26T07:12:31Z"
+            },
+            "3": {
+              "index": 3,
+              "status": "COMPLETED",
+              "description": "Task 3: 检查至少有一个模块 Plan 文件",
+              "updated_at": "2026-02-26T07:12:31Z"
+            },
+            "4": {
+              "index": 4,
+              "status": "COMPLETED",
+              "description": "Task 4: 使用 Plan Parser 验证文件格式",
+              "updated_at": "2026-02-26T07:12:31Z"
+            },
+            "5": {
+              "index": 5,
+              "status": "COMPLETED",
+              "description": "Task 5: 统计模块数和 Jobs 数",
+              "updated_at": "2026-02-26T07:12:32Z"
+            },
+            "6": {
+              "index": 6,
+              "status": "COMPLETED",
+              "description": "Task 6: 输出 Plan 摘要",
+              "updated_at": "2026-02-26T07:12:32Z"
+            },
+            "7": {
+              "index": 7,
+              "status": "COMPLETED",
+              "description": "Task 7: 提示下一步操作（运行 `morty doing`）",
+              "updated_at": "2026-02-26T07:12:32Z"
+            },
+            "8": {
+              "index": 8,
+              "status": "COMPLETED",
+              "description": "Task 8: 编写单元测试",
+              "updated_at": "2026-02-26T07:12:32Z"
+            }
+          },
+          "completed_at": "2026-02-26T07:12:32Z",
+          "completion_summary": "Job executed successfully"
         }
       }
     },

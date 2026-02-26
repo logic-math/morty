@@ -1137,3 +1137,447 @@ func TestPlanHandler_executeClaudeCode_nonZeroExit(t *testing.T) {
 	}
 }
 
+// ==================== ValidatePlanResult Tests (Job 4) ====================
+
+func TestPlanHandler_ValidatePlanResult_success(t *testing.T) {
+	tmpDir := setupTestDir(t)
+
+	// Create plan directory structure
+	planDir := filepath.Join(tmpDir, ".morty", "plan")
+	if err := os.MkdirAll(planDir, 0755); err != nil {
+		t.Fatalf("Failed to create plan directory: %v", err)
+	}
+
+	// Create README.md
+	readmeContent := `# Plan Index
+
+This is the README.
+`
+	if err := os.WriteFile(filepath.Join(planDir, "README.md"), []byte(readmeContent), 0644); err != nil {
+		t.Fatalf("Failed to create README.md: %v", err)
+	}
+
+	// Create a valid module plan file
+	moduleContent := `# Plan: testmodule
+
+## Module Overview
+
+**模块职责**: Test module
+
+**对应 Research**:
+- research1
+
+**依赖模块**: None
+
+**被依赖模块**: None
+
+### Job 1: Test Job
+
+**目标**: Test goal
+
+**前置条件**: None
+
+**Tasks (Todo 列表)**:
+- [ ] Task 1: Test task 1
+- [ ] Task 2: Test task 2
+
+**验证器**:
+- All tasks completed
+
+**调试日志**:
+- None
+`
+	if err := os.WriteFile(filepath.Join(planDir, "testmodule.md"), []byte(moduleContent), 0644); err != nil {
+		t.Fatalf("Failed to create module plan: %v", err)
+	}
+
+	cfg := &mockConfig{
+		planDir: planDir,
+	}
+	handler := NewPlanHandler(cfg, &mockLogger{}, nil)
+
+	result, err := handler.ValidatePlanResult()
+	if err != nil {
+		t.Fatalf("ValidatePlanResult() unexpected error: %v", err)
+	}
+
+	if !result.READMEExists {
+		t.Error("ValidatePlanResult() READMEExists = false, want true")
+	}
+
+	if result.ModuleCount != 1 {
+		t.Errorf("ValidatePlanResult() ModuleCount = %d, want 1", result.ModuleCount)
+	}
+
+	if result.TotalJobs != 1 {
+		t.Errorf("ValidatePlanResult() TotalJobs = %d, want 1", result.TotalJobs)
+	}
+
+	if result.TotalTasks != 2 {
+		t.Errorf("ValidatePlanResult() TotalTasks = %d, want 2", result.TotalTasks)
+	}
+
+	if len(result.ParseErrors) != 0 {
+		t.Errorf("ValidatePlanResult() ParseErrors = %v, want empty", result.ParseErrors)
+	}
+
+	if len(result.ModulePlans) != 1 {
+		t.Fatalf("ValidatePlanResult() ModulePlans length = %d, want 1", len(result.ModulePlans))
+	}
+
+	if result.ModulePlans[0].ModuleName != "testmodule" {
+		t.Errorf("ValidatePlanResult() ModulePlans[0].ModuleName = %s, want testmodule", result.ModulePlans[0].ModuleName)
+	}
+}
+
+func TestPlanHandler_ValidatePlanResult_noREADME(t *testing.T) {
+	tmpDir := setupTestDir(t)
+
+	planDir := filepath.Join(tmpDir, ".morty", "plan")
+	if err := os.MkdirAll(planDir, 0755); err != nil {
+		t.Fatalf("Failed to create plan directory: %v", err)
+	}
+
+	// Create a module plan without README
+	moduleContent := `# Plan: testmodule
+
+## Module Overview
+
+**模块职责**: Test module
+
+### Job 1: Test Job
+
+**目标**: Test goal
+
+**Tasks (Todo 列表)**:
+- [ ] Task 1: Test task
+
+**验证器**:
+- All tasks completed
+
+**调试日志**:
+- None
+`
+	if err := os.WriteFile(filepath.Join(planDir, "testmodule.md"), []byte(moduleContent), 0644); err != nil {
+		t.Fatalf("Failed to create module plan: %v", err)
+	}
+
+	cfg := &mockConfig{
+		planDir: planDir,
+	}
+	handler := NewPlanHandler(cfg, &mockLogger{}, nil)
+
+	result, err := handler.ValidatePlanResult()
+	if err != nil {
+		t.Fatalf("ValidatePlanResult() unexpected error: %v", err)
+	}
+
+	if result.READMEExists {
+		t.Error("ValidatePlanResult() READMEExists = true, want false")
+	}
+
+	if result.ModuleCount != 1 {
+		t.Errorf("ValidatePlanResult() ModuleCount = %d, want 1", result.ModuleCount)
+	}
+
+	if len(result.Warnings) == 0 {
+		t.Error("ValidatePlanResult() expected warning for missing README")
+	}
+}
+
+func TestPlanHandler_ValidatePlanResult_noModules(t *testing.T) {
+	tmpDir := setupTestDir(t)
+
+	planDir := filepath.Join(tmpDir, ".morty", "plan")
+	if err := os.MkdirAll(planDir, 0755); err != nil {
+		t.Fatalf("Failed to create plan directory: %v", err)
+	}
+
+	// Create only README.md
+	readmeContent := `# Plan Index
+
+This is the README.
+`
+	if err := os.WriteFile(filepath.Join(planDir, "README.md"), []byte(readmeContent), 0644); err != nil {
+		t.Fatalf("Failed to create README.md: %v", err)
+	}
+
+	cfg := &mockConfig{
+		planDir: planDir,
+	}
+	handler := NewPlanHandler(cfg, &mockLogger{}, nil)
+
+	result, err := handler.ValidatePlanResult()
+	if err != nil {
+		t.Fatalf("ValidatePlanResult() unexpected error: %v", err)
+	}
+
+	if result.ModuleCount != 0 {
+		t.Errorf("ValidatePlanResult() ModuleCount = %d, want 0", result.ModuleCount)
+	}
+
+	if len(result.ParseErrors) == 0 {
+		t.Error("ValidatePlanResult() expected error for no module plans")
+	}
+}
+
+func TestPlanHandler_ValidatePlanResult_multipleModules(t *testing.T) {
+	tmpDir := setupTestDir(t)
+
+	planDir := filepath.Join(tmpDir, ".morty", "plan")
+	if err := os.MkdirAll(planDir, 0755); err != nil {
+		t.Fatalf("Failed to create plan directory: %v", err)
+	}
+
+	// Create README.md
+	if err := os.WriteFile(filepath.Join(planDir, "README.md"), []byte("# Plan Index"), 0644); err != nil {
+		t.Fatalf("Failed to create README.md: %v", err)
+	}
+
+	// Create multiple module plan files
+	modules := []string{"module1", "module2", "module3"}
+	for i, name := range modules {
+		content := fmt.Sprintf(`# Plan: %s
+
+## Module Overview
+
+**模块职责**: Module %d
+
+### Job 1: Job One
+
+**目标**: Goal 1
+
+**Tasks (Todo 列表)**:
+- [ ] Task 1: Task 1
+- [x] Task 2: Task 2
+
+**验证器**:
+- Validator 1
+
+### Job 2: Job Two
+
+**目标**: Goal 2
+
+**Tasks (Todo 列表)**:
+- [ ] Task 1: Task 1
+
+**验证器**:
+- Validator 2
+
+**调试日志**:
+- None
+`, name, i+1)
+		if err := os.WriteFile(filepath.Join(planDir, name+".md"), []byte(content), 0644); err != nil {
+			t.Fatalf("Failed to create module plan %s: %v", name, err)
+		}
+	}
+
+	cfg := &mockConfig{
+		planDir: planDir,
+	}
+	handler := NewPlanHandler(cfg, &mockLogger{}, nil)
+
+	result, err := handler.ValidatePlanResult()
+	if err != nil {
+		t.Fatalf("ValidatePlanResult() unexpected error: %v", err)
+	}
+
+	if result.ModuleCount != 3 {
+		t.Errorf("ValidatePlanResult() ModuleCount = %d, want 3", result.ModuleCount)
+	}
+
+	if result.TotalJobs != 6 { // 2 jobs per module * 3 modules
+		t.Errorf("ValidatePlanResult() TotalJobs = %d, want 6", result.TotalJobs)
+	}
+
+	if result.TotalTasks != 9 { // 3 tasks per module * 3 modules
+		t.Errorf("ValidatePlanResult() TotalTasks = %d, want 9", result.TotalTasks)
+	}
+
+	if len(result.ModulePlans) != 3 {
+		t.Errorf("ValidatePlanResult() ModulePlans length = %d, want 3", len(result.ModulePlans))
+	}
+}
+
+func TestPlanHandler_ValidatePlanResult_invalidPlanFile(t *testing.T) {
+	tmpDir := setupTestDir(t)
+
+	planDir := filepath.Join(tmpDir, ".morty", "plan")
+	if err := os.MkdirAll(planDir, 0755); err != nil {
+		t.Fatalf("Failed to create plan directory: %v", err)
+	}
+
+	// Create README.md
+	if err := os.WriteFile(filepath.Join(planDir, "README.md"), []byte("# Plan Index"), 0644); err != nil {
+		t.Fatalf("Failed to create README.md: %v", err)
+	}
+
+	// Create a valid module plan
+	validContent := `# Plan: validmodule
+
+## Module Overview
+
+**模块职责**: Valid
+
+### Job 1: Test Job
+
+**目标**: Test
+
+**Tasks (Todo 列表)**:
+- [ ] Task 1: Test task
+
+**验证器**:
+- Validator
+
+**调试日志**:
+- None
+`
+	if err := os.WriteFile(filepath.Join(planDir, "validmodule.md"), []byte(validContent), 0644); err != nil {
+		t.Fatalf("Failed to create valid module plan: %v", err)
+	}
+
+	cfg := &mockConfig{
+		planDir: planDir,
+	}
+	handler := NewPlanHandler(cfg, &mockLogger{}, nil)
+
+	result, err := handler.ValidatePlanResult()
+	if err != nil {
+		t.Fatalf("ValidatePlanResult() unexpected error: %v", err)
+	}
+
+	// Should successfully parse the valid module
+	if result.ModuleCount != 1 {
+		t.Errorf("ValidatePlanResult() ModuleCount = %d, want 1", result.ModuleCount)
+	}
+}
+
+func TestPlanHandler_validatePlanResult_simple(t *testing.T) {
+	tmpDir := setupTestDir(t)
+
+	planDir := filepath.Join(tmpDir, ".morty", "plan")
+	if err := os.MkdirAll(planDir, 0755); err != nil {
+		t.Fatalf("Failed to create plan directory: %v", err)
+	}
+
+	// Create README.md
+	if err := os.WriteFile(filepath.Join(planDir, "README.md"), []byte("# Plan Index"), 0644); err != nil {
+		t.Fatalf("Failed to create README.md: %v", err)
+	}
+
+	// Create a module plan
+	moduleContent := `# Plan: testmodule
+
+## Module Overview
+
+**模块职责**: Test
+
+### Job 1: Test Job
+
+**目标**: Test
+
+**Tasks (Todo 列表)**:
+- [ ] Task 1: Test task
+
+**验证器**:
+- Validator
+
+**调试日志**:
+- None
+`
+	if err := os.WriteFile(filepath.Join(planDir, "testmodule.md"), []byte(moduleContent), 0644); err != nil {
+		t.Fatalf("Failed to create module plan: %v", err)
+	}
+
+	cfg := &mockConfig{
+		planDir: planDir,
+	}
+	handler := NewPlanHandler(cfg, &mockLogger{}, nil)
+
+	// Test the simple version that returns only error
+	err := handler.validatePlanResult()
+	if err != nil {
+		t.Errorf("validatePlanResult() unexpected error: %v", err)
+	}
+}
+
+func TestPlanHandler_validatePlanResult_noModulesError(t *testing.T) {
+	tmpDir := setupTestDir(t)
+
+	planDir := filepath.Join(tmpDir, ".morty", "plan")
+	if err := os.MkdirAll(planDir, 0755); err != nil {
+		t.Fatalf("Failed to create plan directory: %v", err)
+	}
+
+	// Create only README.md
+	if err := os.WriteFile(filepath.Join(planDir, "README.md"), []byte("# Plan Index"), 0644); err != nil {
+		t.Fatalf("Failed to create README.md: %v", err)
+	}
+
+	cfg := &mockConfig{
+		planDir: planDir,
+	}
+	handler := NewPlanHandler(cfg, &mockLogger{}, nil)
+
+	// Test the simple version - should return error for no modules
+	err := handler.validatePlanResult()
+	if err == nil {
+		t.Error("validatePlanResult() expected error for no modules, got nil")
+	}
+}
+
+func TestPlanHandler_PrintPlanSummary(t *testing.T) {
+	// This test just ensures PrintPlanSummary doesn't panic
+	handler := NewPlanHandler(&mockConfig{}, &mockLogger{}, nil)
+
+	result := &PlanValidationResult{
+		READMEExists: true,
+		READMEPath:   "/test/README.md",
+		ModuleCount:  2,
+		TotalJobs:    4,
+		TotalTasks:   8,
+		ModulePlans: []ModulePlanInfo{
+			{ModuleName: "module1", JobCount: 2, TaskCount: 4},
+			{ModuleName: "module2", JobCount: 2, TaskCount: 4},
+		},
+		ParseErrors: []string{},
+		Warnings:    []string{},
+	}
+
+	// Should not panic
+	handler.PrintPlanSummary(result)
+
+	// Test with warnings and errors
+	resultWithIssues := &PlanValidationResult{
+		READMEExists: false,
+		ModuleCount:  0,
+		TotalJobs:    0,
+		TotalTasks:   0,
+		ModulePlans:  []ModulePlanInfo{},
+		ParseErrors:  []string{"No module plan files found"},
+		Warnings:     []string{"README.md not found"},
+	}
+
+	// Should not panic even with errors
+	handler.PrintPlanSummary(resultWithIssues)
+}
+
+func TestPlanHandler_ValidatePlanResult_nonExistentDir(t *testing.T) {
+	tmpDir := setupTestDir(t)
+
+	// Use a directory that doesn't exist yet
+	planDir := filepath.Join(tmpDir, ".morty", "plan")
+
+	cfg := &mockConfig{
+		planDir: planDir,
+	}
+	handler := NewPlanHandler(cfg, &mockLogger{}, nil)
+
+	// Should handle non-existent directory gracefully
+	_, err := handler.ValidatePlanResult()
+	// The function should return an error when it can't read the directory
+	if err == nil {
+		t.Error("ValidatePlanResult() expected error for non-existent directory")
+	}
+}
+

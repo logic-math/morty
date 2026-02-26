@@ -14,6 +14,7 @@ import (
 	"github.com/morty/morty/internal/callcli"
 	"github.com/morty/morty/internal/config"
 	"github.com/morty/morty/internal/logging"
+	"github.com/morty/morty/internal/parser/plan"
 )
 
 // PlanResult represents the result of a plan operation.
@@ -458,6 +459,213 @@ func (h *PlanHandler) buildClaudeCommand(prompt string, facts []string) []string
 	args = append(args, "-p", fullPrompt.String())
 
 	return args
+}
+
+// PlanValidationResult holds the result of validating all plan files.
+type PlanValidationResult struct {
+	READMEExists    bool
+	READMEPath      string
+	ModuleCount     int
+	TotalJobs       int
+	TotalTasks      int
+	ModulePlans     []ModulePlanInfo
+	ParseErrors     []string
+	Warnings        []string
+}
+
+// ModulePlanInfo holds information about a single module plan file.
+type ModulePlanInfo struct {
+	ModuleName string
+	FilePath   string
+	JobCount   int
+	TaskCount  int
+	Jobs       []string
+}
+
+// ValidatePlanResult validates all plan files in the plan directory.
+// It checks:
+// 1. README.md exists and is valid
+// 2. At least one module plan file exists
+// 3. All plan files can be parsed correctly
+// 4. Statistics about modules and jobs
+// Returns an error if validation fails critically.
+func (h *PlanHandler) ValidatePlanResult() (*PlanValidationResult, error) {
+	result := &PlanValidationResult{
+		ModulePlans: []ModulePlanInfo{},
+		ParseErrors: []string{},
+		Warnings:    []string{},
+	}
+
+	planDir := h.getPlanDir()
+
+	// Task 2: Check if README.md exists
+	readmePath := filepath.Join(planDir, "README.md")
+	if _, err := os.Stat(readmePath); os.IsNotExist(err) {
+		result.Warnings = append(result.Warnings, "README.md not found in plan directory")
+		result.READMEExists = false
+	} else if err != nil {
+		return nil, fmt.Errorf("failed to check README.md: %w", err)
+	} else {
+		result.READMEExists = true
+		result.READMEPath = readmePath
+
+		// Validate README.md is not empty
+		content, err := os.ReadFile(readmePath)
+		if err != nil {
+			result.Warnings = append(result.Warnings, fmt.Sprintf("Failed to read README.md: %v", err))
+		} else if len(strings.TrimSpace(string(content))) == 0 {
+			result.Warnings = append(result.Warnings, "README.md is empty")
+		}
+	}
+
+	// Task 3 & 4: Check for module plan files and validate them
+	entries, err := os.ReadDir(planDir)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read plan directory: %w", err)
+	}
+
+	moduleCount := 0
+	totalJobs := 0
+	totalTasks := 0
+
+	for _, entry := range entries {
+		if entry.IsDir() {
+			continue
+		}
+
+		name := entry.Name()
+		// Skip README.md and non-markdown files
+		if name == "README.md" || !strings.HasSuffix(name, ".md") {
+			continue
+		}
+
+		filePath := filepath.Join(planDir, name)
+		moduleName := strings.TrimSuffix(name, ".md")
+
+		// Read and parse the plan file
+		content, err := os.ReadFile(filePath)
+		if err != nil {
+			result.ParseErrors = append(result.ParseErrors,
+				fmt.Sprintf("Failed to read %s: %v", name, err))
+			continue
+		}
+
+		// Parse the plan file using Plan Parser
+		plan, err := h.parsePlanFile(string(content))
+		if err != nil {
+			result.ParseErrors = append(result.ParseErrors,
+				fmt.Sprintf("Failed to parse %s: %v", name, err))
+			continue
+		}
+
+		moduleCount++
+		jobCount := len(plan.Jobs)
+		taskCount := 0
+		jobNames := make([]string, 0, jobCount)
+
+		for _, job := range plan.Jobs {
+			jobNames = append(jobNames, job.Name)
+			taskCount += len(job.Tasks)
+		}
+
+		totalJobs += jobCount
+		totalTasks += taskCount
+
+		result.ModulePlans = append(result.ModulePlans, ModulePlanInfo{
+			ModuleName: moduleName,
+			FilePath:   filePath,
+			JobCount:   jobCount,
+			TaskCount:  taskCount,
+			Jobs:       jobNames,
+		})
+	}
+
+	result.ModuleCount = moduleCount
+	result.TotalJobs = totalJobs
+	result.TotalTasks = totalTasks
+
+	// Check if at least one module plan exists
+	if moduleCount == 0 {
+		result.ParseErrors = append(result.ParseErrors,
+			"No module plan files found (expected at least one [module].md file)")
+	}
+
+	return result, nil
+}
+
+// parsePlanFile parses a plan file content and returns the parsed plan.
+// This is a helper method that wraps the plan parser.
+func (h *PlanHandler) parsePlanFile(content string) (*plan.Plan, error) {
+	return plan.ParsePlan(content)
+}
+
+// validatePlanResult validates the plan result and returns an error if validation fails.
+// This is the simple version that returns only an error, as specified in Task 1.
+func (h *PlanHandler) validatePlanResult() error {
+	result, err := h.ValidatePlanResult()
+	if err != nil {
+		return err
+	}
+
+	// Check critical errors
+	if len(result.ParseErrors) > 0 {
+		return fmt.Errorf("plan validation failed: %s", strings.Join(result.ParseErrors, "; "))
+	}
+
+	if result.ModuleCount == 0 {
+		return fmt.Errorf("no module plan files found")
+	}
+
+	return nil
+}
+
+// PrintPlanSummary prints a summary of the plan validation result.
+// Task 6: Output Plan summary
+func (h *PlanHandler) PrintPlanSummary(result *PlanValidationResult) {
+	fmt.Println("\n📋 Plan Summary")
+	fmt.Println(strings.Repeat("=", 50))
+
+	if result.READMEExists {
+		fmt.Printf("✓ README.md found\n")
+	} else {
+		fmt.Printf("⚠ README.md not found\n")
+	}
+
+	fmt.Printf("\n📁 Modules: %d\n", result.ModuleCount)
+	fmt.Printf("📊 Total Jobs: %d\n", result.TotalJobs)
+	fmt.Printf("📊 Total Tasks: %d\n", result.TotalTasks)
+
+	if len(result.ModulePlans) > 0 {
+		fmt.Println("\n📄 Module Plans:")
+		for _, info := range result.ModulePlans {
+			fmt.Printf("  • %s: %d jobs, %d tasks\n",
+				info.ModuleName, info.JobCount, info.TaskCount)
+		}
+	}
+
+	if len(result.Warnings) > 0 {
+		fmt.Println("\n⚠ Warnings:")
+		for _, warning := range result.Warnings {
+			fmt.Printf("  • %s\n", warning)
+		}
+	}
+
+	if len(result.ParseErrors) > 0 {
+		fmt.Println("\n❌ Errors:")
+		for _, err := range result.ParseErrors {
+			fmt.Printf("  • %s\n", err)
+		}
+	}
+
+	// Task 7: Prompt next action
+	if result.ModuleCount > 0 && len(result.ParseErrors) == 0 {
+		fmt.Println("\n✅ Plan validation passed!")
+		fmt.Println("\n🚀 Next step: Run `morty doing` to start executing jobs")
+	} else {
+		fmt.Println("\n❌ Plan validation failed. Please fix the errors above.")
+	}
+
+	fmt.Println(strings.Repeat("=", 50))
 }
 
 // executeClaudeCode executes Claude Code with the given prompt and research facts.
