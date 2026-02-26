@@ -281,25 +281,28 @@ type TaskRunner struct {
 - Job 4 完成 (提示词构建器)
 
 **Tasks (Todo 列表)**:
-- [ ] Task 1: 创建 `internal/executor/result_parser.go` 文件结构
-- [ ] Task 2: 实现 `ResultParser` 接口
-- [ ] Task 3: 实现 `Parse(outputFile)` 方法，读取 AI CLI 输出
-- [ ] Task 4: 实现 RALPH_STATUS JSON 解析
-- [ ] Task 5: 支持嵌套和扁平两种 JSON 格式
-- [ ] Task 6: 实现错误输出提取和记录
-- [ ] Task 7: 实现调试日志自动更新（调用 Parser 更新 Plan 文件）
-- [ ] Task 8: 编写单元测试 `result_parser_test.go`
+- [x] Task 1: 创建 `internal/executor/result_parser.go` 文件结构
+- [x] Task 2: 实现 `ResultParser` 接口
+- [x] Task 3: 实现 `Parse(outputFile)` 方法，读取 AI CLI 输出
+- [x] Task 4: 实现 RALPH_STATUS JSON 解析
+- [x] Task 5: 支持嵌套和扁平两种 JSON 格式
+- [x] Task 6: 实现错误输出提取和记录
+- [x] Task 7: 实现调试日志自动更新（调用 Parser 更新 Plan 文件）
+- [x] Task 8: 编写单元测试 `result_parser_test.go`
 
 **验证器**:
-- [ ] 正确解析 RALPH_STATUS JSON 块
-- [ ] 支持嵌套格式 `ralph_status: {...}`
-- [ ] 支持扁平格式 `status, tasks_completed, ...`
-- [ ] 解析失败时返回友好错误
-- [ ] 自动提取错误信息到调试日志
-- [ ] 所有单元测试通过 (覆盖率 >= 80%)
+- [x] 正确解析 RALPH_STATUS JSON 块
+- [x] 支持嵌套格式 `ralph_status: {...}`
+- [x] 支持扁平格式 `status, tasks_completed, ...`
+- [x] 解析失败时返回友好错误
+- [x] 自动提取错误信息到调试日志
+- [x] 所有单元测试通过 (覆盖率 84.5% >= 80%)
 
 **调试日志**:
-- 待填充
+- debug1: ExecutionResult 命名冲突, engine.go 已定义同名结构体, 猜想: 1)使用不同名称 2)合并结构, 验证: 检查 engine.go 定义, 修复: 重命名为 RALPHExecutionResult, 已修复
+- debug2: extractRALPHStatus 提取内容包含结束标记, 解析 JSON 报错 invalid character '<', 猜想: 1)索引计算错误 2)字符串切片问题, 验证: 检查提取逻辑, 修复: 修正 endIdx 计算使用全局索引而非相对索引, 已修复
+- debug3: fmt.Sprintf 格式字符串参数不匹配, 编译错误 format %d reads arg #2 but has 1 arg, 猜想: 1)遗漏参数 2)格式错误, 验证: 检查 rebuildPlanContent 方法, 修复: 简化正则表达式避免重复 %d, 已修复
+- debug4: extractStderr 正则表达式不匹配, 测试失败 stderr_section 子测试, 猜想: 1)正则太严格 2)未处理单行格式, 验证: 测试内容 "Stderr: message", 修复: 优化正则表达式匹配更多格式, 已修复
 
 ---
 
