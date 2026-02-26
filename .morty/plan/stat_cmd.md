@@ -255,22 +255,24 @@ type ProgressInfo struct {
 - Job 2 完成
 
 **Tasks (Todo 列表)**:
-- [ ] Task 1: 实现 `formatJSON()` JSON 格式化
-- [ ] Task 2: 构建 JSON 数据结构
-- [ ] Task 3: 处理时间格式
-- [ ] Task 4: 美化 JSON 输出（缩进）
-- [ ] Task 5: 确保字段完整
-- [ ] Task 6: 编写单元测试
+- [x] Task 1: 实现 `formatJSON()` JSON 格式化
+- [x] Task 2: 构建 JSON 数据结构
+- [x] Task 3: 处理时间格式
+- [x] Task 4: 美化 JSON 输出（缩进）
+- [x] Task 5: 确保字段完整
+- [x] Task 6: 编写单元测试
 
 **验证器**:
-- [ ] 输出有效的 JSON
-- [ ] 包含所有必要字段
-- [ ] 时间格式统一
-- [ ] JSON 可解析
-- [ ] 所有单元测试通过
+- [x] 输出有效的 JSON
+- [x] 包含所有必要字段
+- [x] 时间格式统一
+- [x] JSON 可解析
+- [x] 所有单元测试通过
 
 **调试日志**:
-- 待填充
+- debug1: PreviousJob.Duration类型从time.Duration改为string导致编译错误, 运行测试时发现类型不匹配, 猜想: Duration字段用于JSON输出应为字符串格式, 验证: 检查formatPreviousJobSection和测试代码, 修复: 更新所有使用Duration的地方为string类型并格式化, 已修复
+- debug2: TestStatHandler_findPreviousJob测试期望time.Duration但得到string, 运行测试时发现, 猜想: 测试代码需要同步更新, 验证: 检查测试文件, 修复: 将测试中的15 * time.Minute改为"15:00"字符串, 已修复
+- debug3: 需要确保所有JSON字段完整包括loop_count和description, 检查代码时发现collectStatus未填充这些字段, 猜想: 需要从原始state数据中读取, 验证: 添加代码读取loop_count和description, 修复: 在collectStatus中添加逻辑从status.json读取额外字段, 已修复
 
 ---
 

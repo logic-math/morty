@@ -40,19 +40,20 @@ type StatusInfo struct {
 type CurrentJobInfo struct {
 	Module      string    `json:"module"`
 	Job         string    `json:"job"`
-	Description string    `json:"description"`
+	Description string    `json:"description,omitempty"`
 	Status      string    `json:"status"`
 	LoopCount   int       `json:"loop_count"`
 	StartedAt   time.Time `json:"started_at"`
+	ElapsedTime string    `json:"elapsed_time,omitempty"`
 }
 
 // PreviousJob represents information about the previous completed job.
 type PreviousJob struct {
-	Module      string        `json:"module"`
-	Job         string        `json:"job"`
-	Status      string        `json:"status"`
-	Duration    time.Duration `json:"duration"`
-	CompletedAt time.Time     `json:"completed_at"`
+	Module       string    `json:"module"`
+	Job          string    `json:"job"`
+	Status       string    `json:"status"`
+	Duration     string    `json:"duration"`
+	CompletedAt  time.Time `json:"completed_at"`
 }
 
 // ProgressInfo represents progress information.
@@ -237,6 +238,33 @@ func (h *StatHandler) collectStatus(stateManager *state.Manager) (*StatusInfo, e
 			Status:    string(currentJob.Status),
 			StartedAt: currentJob.StartedAt,
 		}
+
+		// Calculate elapsed time if job has started
+		if !currentJob.StartedAt.IsZero() {
+			elapsed := time.Since(currentJob.StartedAt)
+			info.Current.ElapsedTime = h.formatDuration(elapsed)
+		}
+
+		// Get loop count from raw state data
+		statusFile := h.getStatusFilePath()
+		if data, err := os.ReadFile(statusFile); err == nil {
+			var rawState struct {
+				Modules map[string]struct {
+					Jobs map[string]struct {
+						LoopCount   int    `json:"loop_count"`
+						Description string `json:"description"`
+					} `json:"jobs"`
+				} `json:"modules"`
+			}
+			if err := json.Unmarshal(data, &rawState); err == nil {
+				if module, ok := rawState.Modules[currentJob.Module]; ok {
+					if job, ok := module.Jobs[currentJob.Job]; ok {
+						info.Current.LoopCount = job.LoopCount
+						info.Current.Description = job.Description
+					}
+				}
+			}
+		}
 	}
 
 	// Get summary for progress info
@@ -342,7 +370,8 @@ func (h *StatHandler) findPreviousJob(stateManager *state.Manager, currentModule
 
 					// Calculate duration if we have started_at
 					if !job.StartedAt.IsZero() {
-						mostRecent.Duration = job.CompletedAt.Sub(job.StartedAt)
+						duration := job.CompletedAt.Sub(job.StartedAt)
+					mostRecent.Duration = h.formatDuration(duration)
 					}
 				}
 			}
@@ -410,60 +439,64 @@ func (h *StatHandler) extractDebugIssues(stateManager *state.Manager, currentMod
 	return issues
 }
 
-// outputJSON outputs the result in JSON format.
-func (h *StatHandler) outputJSON(result *StatResult) {
+// JSONOutput represents the complete JSON output structure.
+type JSONOutput struct {
+	Status      string         `json:"status"`
+	Current     CurrentJobInfo `json:"current"`
+	Previous    *PreviousJob   `json:"previous,omitempty"`
+	Progress    ProgressInfo   `json:"progress"`
+	Modules     []ModuleStatus `json:"modules"`
+	DebugIssues []DebugIssue   `json:"debug_issues"`
+	Duration    string         `json:"duration"`
+	Error       string         `json:"error,omitempty"`
+}
+
+// formatJSON formats the result as a JSON string with proper indentation.
+// Returns the formatted JSON string and any error encountered during marshaling.
+func (h *StatHandler) formatJSON(result *StatResult) (string, error) {
+	var output JSONOutput
+
+	// Set status
+	output.Status = h.getStatusString(result)
+	output.Duration = h.formatDuration(result.Duration)
+
 	// Use StatusInfo if available for enhanced output
 	if result.StatusInfo != nil {
-		output := struct {
-			Status     string      `json:"status"`
-			Current    CurrentJobInfo `json:"current"`
-			Previous   *PreviousJob   `json:"previous,omitempty"`
-			Progress   ProgressInfo   `json:"progress"`
-			Modules    []ModuleStatus `json:"modules"`
-			DebugIssues []DebugIssue  `json:"debug_issues"`
-			Duration   string        `json:"duration"`
-			Error      string        `json:"error,omitempty"`
-		}{
-			Status:      h.getStatusString(result),
-			Current:     result.StatusInfo.Current,
-			Previous:    result.StatusInfo.Previous,
-			Progress:    result.StatusInfo.Progress,
-			Modules:     result.StatusInfo.Modules,
-			DebugIssues: result.StatusInfo.DebugIssues,
-			Duration:    result.Duration.String(),
-		}
-
-		if result.Err != nil {
-			output.Error = result.Err.Error()
-		}
-
-		encoder := json.NewEncoder(os.Stdout)
-		encoder.SetIndent("", "  ")
-		encoder.Encode(output)
-		return
+		output.Current = result.StatusInfo.Current
+		output.Previous = result.StatusInfo.Previous
+		output.Progress = result.StatusInfo.Progress
+		output.Modules = result.StatusInfo.Modules
+		output.DebugIssues = result.StatusInfo.DebugIssues
 	}
 
-	// Fallback to basic output
-	output := struct {
-		Status     string             `json:"status"`
-		CurrentJob *state.CurrentJob  `json:"current_job,omitempty"`
-		Summary    *state.Summary     `json:"summary,omitempty"`
-		Duration   string             `json:"duration"`
-		Error      string             `json:"error,omitempty"`
-	}{
-		Status:     h.getStatusString(result),
-		CurrentJob: result.CurrentJob,
-		Summary:    result.Summary,
-		Duration:   result.Duration.String(),
-	}
-
+	// Add error if present
 	if result.Err != nil {
 		output.Error = result.Err.Error()
 	}
 
-	encoder := json.NewEncoder(os.Stdout)
-	encoder.SetIndent("", "  ")
-	encoder.Encode(output)
+	// Marshal to JSON with indentation
+	bytes, err := json.MarshalIndent(output, "", "  ")
+	if err != nil {
+		return "", fmt.Errorf("failed to marshal JSON: %w", err)
+	}
+
+	return string(bytes), nil
+}
+
+// outputJSON outputs the result in JSON format.
+func (h *StatHandler) outputJSON(result *StatResult) {
+	jsonStr, err := h.formatJSON(result)
+	if err != nil {
+		// Fallback to basic error output
+		errorOutput := map[string]string{
+			"status": "error",
+			"error":  err.Error(),
+		}
+		bytes, _ := json.MarshalIndent(errorOutput, "", "  ")
+		fmt.Println(string(bytes))
+		return
+	}
+	fmt.Println(jsonStr)
 }
 
 // outputText outputs the result in human-readable format.
@@ -808,8 +841,8 @@ func (h *StatHandler) formatPreviousJobSection(previous *PreviousJob, f *TableFo
 	}
 
 	line := jobInfo + ": " + statusStr
-	if previous.Duration > 0 {
-		line += " (耗时 " + h.formatDuration(previous.Duration) + ")"
+	if previous.Duration != "" {
+		line += " (耗时 " + previous.Duration + ")"
 	}
 	sb.WriteString(f.formatContentLine(line, 1))
 

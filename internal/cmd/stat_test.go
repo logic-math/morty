@@ -461,6 +461,305 @@ func TestStatHandler_outputJSON(t *testing.T) {
 	}
 }
 
+func TestStatHandler_formatJSON(t *testing.T) {
+	tmpDir := setupTestDir(t)
+	handler := NewStatHandler(&mockConfig{workDir: tmpDir}, &mockLogger{})
+
+	tests := []struct {
+		name         string
+		result       *StatResult
+		wantFields   []string
+		wantValid    bool
+	}{
+		{
+			name: "complete status info",
+			result: &StatResult{
+				ExitCode: 0,
+				Duration: time.Second,
+				StatusInfo: &StatusInfo{
+					Current: CurrentJobInfo{
+						Module:      "test_module",
+						Job:         "job_1",
+						Description: "Test job description",
+						Status:      "RUNNING",
+						LoopCount:   2,
+						StartedAt:   time.Date(2024, 1, 1, 10, 0, 0, 0, time.UTC),
+						ElapsedTime: "00:05:30",
+					},
+					Previous: &PreviousJob{
+						Module:      "test_module",
+						Job:         "job_0",
+						Status:      "COMPLETED",
+						Duration:    "00:15:00",
+						CompletedAt: time.Date(2024, 1, 1, 9, 0, 0, 0, time.UTC),
+					},
+					Progress: ProgressInfo{
+						TotalJobs:     10,
+						CompletedJobs: 5,
+						FailedJobs:    0,
+						PendingJobs:   3,
+						RunningJobs:   2,
+						Percentage:    50,
+					},
+					Modules: []ModuleStatus{
+						{Name: "module1", Status: "completed", TotalJobs: 3, CompletedJobs: 3},
+						{Name: "module2", Status: "in_progress", TotalJobs: 4, CompletedJobs: 2},
+					},
+					DebugIssues: []DebugIssue{
+						{
+							ID:          "debug1",
+							Description: "Test issue",
+							Loop:        2,
+							Hypothesis:  "Missing config",
+							Status:      "待修复",
+							Timestamp:   time.Date(2024, 1, 1, 10, 30, 0, 0, time.UTC),
+						},
+					},
+				},
+			},
+			wantFields: []string{
+				`"status":`,
+				`"current":`,
+				`"module":`,
+				`"job":`,
+				`"description":`,
+				`"loop_count": 2`,
+				`"elapsed_time": "00:05:30"`,
+				`"previous":`,
+				`"duration": "00:15:00"`,
+				`"progress":`,
+				`"total_jobs": 10`,
+				`"completed_jobs": 5`,
+				`"percentage": 50`,
+				`"modules":`,
+				`"debug_issues":`,
+				`"duration": "00:01"`,
+			},
+			wantValid: true,
+		},
+		{
+			name: "error result",
+			result: &StatResult{
+				Err:        fmt.Errorf("test error"),
+				ExitCode:   1,
+				Duration:   time.Second,
+				JSONOutput: true,
+			},
+			wantFields: []string{
+				`"status": "error"`,
+				`"error": "test error"`,
+			},
+			wantValid: true,
+		},
+		{
+			name: "minimal result",
+			result: &StatResult{
+				ExitCode: 0,
+				Duration: 0,
+			},
+			wantFields: []string{
+				`"status":`,
+				`"current":`,
+				`"progress":`,
+			},
+			wantValid: true,
+		},
+		{
+			name: "with current job no status info",
+			result: &StatResult{
+				ExitCode: 0,
+				Duration: time.Second,
+				CurrentJob: &state.CurrentJob{
+					Module:    "test",
+					Job:       "job",
+					Status:    state.StatusRunning,
+					StartedAt: time.Date(2024, 1, 1, 10, 0, 0, 0, time.UTC),
+				},
+			},
+			wantFields: []string{
+				`"status":`,
+				`"current":`,
+				`"progress":`,
+			},
+			wantValid: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			jsonStr, err := handler.formatJSON(tt.result)
+			if err != nil {
+				t.Fatalf("formatJSON() error = %v", err)
+			}
+
+			// Verify it's valid JSON
+			var parsed map[string]interface{}
+			if err := json.Unmarshal([]byte(jsonStr), &parsed); err != nil {
+				t.Errorf("Output is not valid JSON: %v\nOutput: %s", err, jsonStr)
+			}
+
+			// Check for expected fields
+			for _, field := range tt.wantFields {
+				if !strings.Contains(jsonStr, field) {
+					t.Errorf("Expected JSON to contain '%s', got:\n%s", field, jsonStr)
+				}
+			}
+
+			// Verify indentation (should have newlines and spaces)
+			if !strings.Contains(jsonStr, "\n") {
+				t.Error("Expected JSON to be indented with newlines")
+			}
+			if !strings.Contains(jsonStr, "  ") {
+				t.Error("Expected JSON to be indented with spaces")
+			}
+		})
+	}
+}
+
+func TestStatHandler_formatJSON_TimeFormat(t *testing.T) {
+	tmpDir := setupTestDir(t)
+	handler := NewStatHandler(&mockConfig{workDir: tmpDir}, &mockLogger{})
+
+	result := &StatResult{
+		ExitCode: 0,
+		Duration: 2*time.Hour + 30*time.Minute + 15*time.Second,
+		StatusInfo: &StatusInfo{
+			Current: CurrentJobInfo{
+				Module:      "test",
+				Job:         "job",
+				Status:      "RUNNING",
+				StartedAt:   time.Date(2024, 1, 15, 10, 30, 0, 0, time.UTC),
+				ElapsedTime: "01:30:00",
+			},
+			Previous: &PreviousJob{
+				Module:      "test",
+				Job:         "prev_job",
+				Status:      "COMPLETED",
+				Duration:    "00:45:30",
+				CompletedAt: time.Date(2024, 1, 15, 9, 0, 0, 0, time.UTC),
+			},
+		},
+	}
+
+	jsonStr, err := handler.formatJSON(result)
+	if err != nil {
+		t.Fatalf("formatJSON() error = %v", err)
+	}
+
+	// Verify time formats
+	// Duration should be formatted as "02:30:15"
+	if !strings.Contains(jsonStr, `"duration": "02:30:15"`) {
+		t.Errorf("Expected duration format '02:30:15', got:\n%s", jsonStr)
+	}
+
+	// Elapsed time should be preserved
+	if !strings.Contains(jsonStr, `"elapsed_time": "01:30:00"`) {
+		t.Errorf("Expected elapsed_time '01:30:00', got:\n%s", jsonStr)
+	}
+
+	// Previous job duration should be preserved
+	if !strings.Contains(jsonStr, `"duration": "00:45:30"`) {
+		t.Errorf("Expected previous duration '00:45:30', got:\n%s", jsonStr)
+	}
+
+	// Timestamps should be in RFC3339 format
+	if !strings.Contains(jsonStr, "2024-01-15T10:30:00Z") {
+		t.Errorf("Expected RFC3339 timestamp, got:\n%s", jsonStr)
+	}
+}
+
+func TestStatHandler_formatJSON_FieldCompleteness(t *testing.T) {
+	tmpDir := setupTestDir(t)
+	handler := NewStatHandler(&mockConfig{workDir: tmpDir}, &mockLogger{})
+
+	result := &StatResult{
+		ExitCode: 0,
+		Duration: time.Second,
+		StatusInfo: &StatusInfo{
+			Current: CurrentJobInfo{
+				Module:      "test_module",
+				Job:         "job_1",
+				Description: "Test description",
+				Status:      "RUNNING",
+				LoopCount:   3,
+				StartedAt:   time.Now(),
+				ElapsedTime: "00:10:00",
+			},
+			Progress: ProgressInfo{
+				TotalJobs:     5,
+				CompletedJobs: 2,
+				FailedJobs:    1,
+				PendingJobs:   1,
+				RunningJobs:   1,
+				Percentage:    40,
+			},
+			Modules: []ModuleStatus{
+				{Name: "mod1", Status: "completed", TotalJobs: 2, CompletedJobs: 2},
+				{Name: "mod2", Status: "in_progress", TotalJobs: 3, CompletedJobs: 0},
+			},
+			DebugIssues: []DebugIssue{
+				{
+					ID:          "d1",
+					Description: "Issue 1",
+					Loop:        2,
+					Hypothesis:  "Test hypothesis",
+					Status:      "待修复",
+					Timestamp:   time.Now(),
+				},
+			},
+		},
+	}
+
+	jsonStr, err := handler.formatJSON(result)
+	if err != nil {
+		t.Fatalf("formatJSON() error = %v", err)
+	}
+
+	// Parse JSON to verify all fields are present
+	var output JSONOutput
+	if err := json.Unmarshal([]byte(jsonStr), &output); err != nil {
+		t.Fatalf("Failed to parse JSON: %v\nOutput: %s", err, jsonStr)
+	}
+
+	// Verify current job fields
+	if output.Current.Module != "test_module" {
+		t.Errorf("Expected module 'test_module', got '%s'", output.Current.Module)
+	}
+	if output.Current.Job != "job_1" {
+		t.Errorf("Expected job 'job_1', got '%s'", output.Current.Job)
+	}
+	if output.Current.Description != "Test description" {
+		t.Errorf("Expected description 'Test description', got '%s'", output.Current.Description)
+	}
+	if output.Current.LoopCount != 3 {
+		t.Errorf("Expected loop_count 3, got %d", output.Current.LoopCount)
+	}
+	if output.Current.ElapsedTime != "00:10:00" {
+		t.Errorf("Expected elapsed_time '00:10:00', got '%s'", output.Current.ElapsedTime)
+	}
+
+	// Verify progress fields
+	if output.Progress.TotalJobs != 5 {
+		t.Errorf("Expected total_jobs 5, got %d", output.Progress.TotalJobs)
+	}
+	if output.Progress.Percentage != 40 {
+		t.Errorf("Expected percentage 40, got %d", output.Progress.Percentage)
+	}
+
+	// Verify modules
+	if len(output.Modules) != 2 {
+		t.Errorf("Expected 2 modules, got %d", len(output.Modules))
+	}
+
+	// Verify debug issues
+	if len(output.DebugIssues) != 1 {
+		t.Errorf("Expected 1 debug issue, got %d", len(output.DebugIssues))
+	}
+	if output.DebugIssues[0].ID != "d1" {
+		t.Errorf("Expected debug issue ID 'd1', got '%s'", output.DebugIssues[0].ID)
+	}
+}
+
 func TestStatHandler_outputText(t *testing.T) {
 	tmpDir := setupTestDir(t)
 
@@ -826,8 +1125,8 @@ func TestStatHandler_findPreviousJob(t *testing.T) {
 		t.Errorf("Expected status 'COMPLETED', got '%s'", previous.Status)
 	}
 
-	// Duration should be 1 hour
-	expectedDuration := time.Hour
+	// Duration should be 1 hour (formatted as string)
+	expectedDuration := "01:00:00"
 	if previous.Duration != expectedDuration {
 		t.Errorf("Expected duration %v, got %v", expectedDuration, previous.Duration)
 	}
@@ -1002,7 +1301,7 @@ func TestStatHandler_outputEnhancedText(t *testing.T) {
 				Module:      "test_module",
 				Job:         "job_0",
 				Status:      "COMPLETED",
-				Duration:    15 * time.Minute,
+				Duration:    "15:00",
 				CompletedAt: time.Now().Add(-1 * time.Hour),
 			},
 			Progress: ProgressInfo{
@@ -1222,7 +1521,7 @@ func TestStatHandler_formatTable(t *testing.T) {
 			Module:      "test_module",
 			Job:         "job_0",
 			Status:      "COMPLETED",
-			Duration:    15 * time.Minute,
+			Duration:    "15:00",
 			CompletedAt: time.Now().Add(-1 * time.Hour),
 		},
 		Progress: ProgressInfo{
@@ -1307,7 +1606,7 @@ func TestStatHandler_formatPreviousJobSection(t *testing.T) {
 		Module:      "test_module",
 		Job:         "job_0",
 		Status:      "COMPLETED",
-		Duration:    15 * time.Minute,
+		Duration:    "15:00",
 		CompletedAt: time.Now().Add(-1 * time.Hour),
 	}
 
