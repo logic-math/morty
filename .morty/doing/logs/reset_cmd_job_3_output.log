@@ -1,0 +1,60 @@
+All tasks are completed. Let me provide the final summary.
+
+## Summary
+
+I have successfully implemented the `formatHistoryTable()` function for the reset_cmd module (job_3). Here's what was done:
+
+### Implemented Features
+
+1. **`formatHistoryTable()` function** - Main entry point for formatting history entries as a table
+2. **`HistoryTableFormatter` struct** - Handles table formatting with support for:
+   - Unicode box-drawing characters (┌─┬─┐)
+   - Adaptive column width calculation
+   - 7-character short hash for CommitID
+   - Time format: `YYYY-MM-DD HH:MM:SS`
+   - Color-coded statuses (COMPLETED=green, FAILED=red, RUNNING=cyan, PENDING=yellow)
+   - Proper text alignment (left/right/center padding)
+
+### Code Added to `/opt/meituan/dolphinfs_sunquan20/ai_coding/Coding/morty/internal/cmd/reset.go`:
+- `HistoryTableFormatter` struct
+- `formatHistoryTable()` method
+- `calculateColumnWidths()` for adaptive column sizing
+- `formatShortHash()` for 7-char commit hashes
+- `formatTime()` for consistent time formatting
+- `getStatusColor()` / `colorize()` / `formatStatus()` for colored output
+- Table border formatting methods
+- Text padding utilities
+
+### Tests Added to `/opt/meituan/dolphinfs_sunquan20/ai_coding/Coding/morty/internal/cmd/reset_test.go`:
+- `TestFormatHistoryTable` - Main table formatting tests
+- `TestHistoryTableFormatter_calculateColumnWidths`
+- `TestHistoryTableFormatter_formatShortHash`
+- `TestHistoryTableFormatter_formatTime`
+- `TestHistoryTableFormatter_getStatusColor`
+- `TestHistoryTableFormatter_colorize`
+- `TestHistoryTableFormatter_formatStatus`
+- `TestHistoryTableFormatter_tableBorders`
+- `TestHistoryTableFormatter_padRight`
+- `TestHistoryTableFormatter_padCenter`
+- `TestHistoryTableFormatter_formatHeader`
+- `TestHistoryTableFormatter_formatRow`
+- `TestResetHandler_supportsColor`
+
+All 13 new tests pass successfully.
+
+<!-- RALPH_STATUS -->
+```json
+{
+  "module": "reset_cmd",
+  "job": "job_3",
+  "status": "COMPLETED",
+  "tasks_completed": 7,
+  "tasks_total": 7,
+  "loop_count": 1,
+  "debug_issues": 0,
+  "debug_logs_in_plan": true,
+  "explore_subagent_used": true,
+  "summary": "Successfully implemented formatHistoryTable() with adaptive column widths, 7-char short hash, YYYY-MM-DD HH:MM:SS time format, Unicode table borders, and color-coded statuses. All 13 unit tests pass. Plan file updated with debug logs."
+}
+```
+<!-- END_RALPH_STATUS -->

@@ -603,8 +603,8 @@ func TestFormatLoopHistory(t *testing.T) {
 	result := handler.formatLoopHistory(entries)
 
 	// Check that result contains expected elements
-	if !strings.Contains(result, "循环历史") {
-		t.Error("formatLoopHistory() should contain '循环历史'")
+	if !strings.Contains(result, "abc1234") {
+		t.Error("formatLoopHistory() should contain short hash 'abc1234'")
 	}
 
 	if !strings.Contains(result, "COMPLETED") {
@@ -615,7 +615,462 @@ func TestFormatLoopHistory(t *testing.T) {
 		t.Error("formatLoopHistory() should contain 'RUNNING'")
 	}
 
-	if !strings.Contains(result, "abc1234") {
-		t.Error("formatLoopHistory() should contain short hash 'abc1234'")
+	// Check for table border characters
+	if !strings.Contains(result, "┌") {
+		t.Error("formatLoopHistory() should contain top-left border '┌'")
 	}
+	if !strings.Contains(result, "┐") {
+		t.Error("formatLoopHistory() should contain top-right border '┐'")
+	}
+	if !strings.Contains(result, "└") {
+		t.Error("formatLoopHistory() should contain bottom-left border '└'")
+	}
+	if !strings.Contains(result, "┘") {
+		t.Error("formatLoopHistory() should contain bottom-right border '┘'")
+	}
+	if !strings.Contains(result, "│") {
+		t.Error("formatLoopHistory() should contain vertical border '│'")
+	}
+	if !strings.Contains(result, "─") {
+		t.Error("formatLoopHistory() should contain horizontal border '─'")
+	}
+}
+
+// TestFormatHistoryTable tests the formatHistoryTable function.
+func TestFormatHistoryTable(t *testing.T) {
+	handler := NewResetHandler(nil, &mockResetLogger{})
+
+	tests := []struct {
+		name     string
+		entries  []LoopHistoryEntry
+		wantErr  bool
+		contains []string
+	}{
+		{
+			name:     "empty entries",
+			entries:  []LoopHistoryEntry{},
+			wantErr:  false,
+			contains: []string{"未找到 morty 循环提交记录"},
+		},
+		{
+			name: "single entry",
+			entries: []LoopHistoryEntry{
+				{
+					LoopNumber: 1,
+					Status:     "COMPLETED",
+					Module:     "cli",
+					Job:        "job_1",
+					ShortHash:  "abc1234",
+					Author:     "Test User",
+					Timestamp:  time.Date(2024, 1, 15, 10, 30, 0, 0, time.UTC),
+				},
+			},
+			contains: []string{"abc1234", "cli", "job_1", "COMPLETED", "2024-01-15", "10:30:00"},
+		},
+		{
+			name: "multiple entries with different statuses",
+			entries: []LoopHistoryEntry{
+				{
+					LoopNumber: 3,
+					Status:     "COMPLETED",
+					Module:     "config",
+					Job:        "job_3",
+					ShortHash:  "abc1234",
+					Author:     "Test User",
+					Timestamp:  time.Date(2024, 1, 15, 12, 0, 0, 0, time.UTC),
+				},
+				{
+					LoopNumber: 2,
+					Status:     "FAILED",
+					Module:     "logging",
+					Job:        "job_2",
+					ShortHash:  "def5678",
+					Author:     "Test User",
+					Timestamp:  time.Date(2024, 1, 15, 11, 30, 0, 0, time.UTC),
+				},
+				{
+					LoopNumber: 1,
+					Status:     "RUNNING",
+					Module:     "cli",
+					Job:        "job_1",
+					ShortHash:  "ghi9012",
+					Author:     "Test User",
+					Timestamp:  time.Date(2024, 1, 15, 11, 0, 0, 0, time.UTC),
+				},
+			},
+			contains: []string{"abc1234", "def5678", "ghi9012", "COMPLETED", "FAILED", "RUNNING"},
+		},
+		{
+			name: "long module and job names",
+			entries: []LoopHistoryEntry{
+				{
+					LoopNumber: 1,
+					Status:     "PENDING",
+					Module:     "very_long_module_name",
+					Job:        "very_long_job_name_that_might_need_truncation",
+					ShortHash:  "xyz7890",
+					Author:     "Test User",
+					Timestamp:  time.Date(2024, 1, 15, 10, 0, 0, 0, time.UTC),
+				},
+			},
+			contains: []string{"xyz7890", "very_long_module_name", "very_long_job_name"},
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			result := handler.formatHistoryTable(tc.entries)
+
+			for _, want := range tc.contains {
+				if !strings.Contains(result, want) {
+					t.Errorf("formatHistoryTable() should contain %q, got:\n%s", want, result)
+				}
+			}
+		})
+	}
+}
+
+// TestHistoryTableFormatter_calculateColumnWidths tests column width calculation.
+func TestHistoryTableFormatter_calculateColumnWidths(t *testing.T) {
+	formatter := NewHistoryTableFormatter(false)
+
+	entries := []LoopHistoryEntry{
+		{
+			LoopNumber: 1,
+			Status:     "COMPLETED",
+			Module:     "cli",
+			Job:        "job_1",
+			ShortHash:  "abc1234",
+			Timestamp:  time.Date(2024, 1, 15, 10, 30, 0, 0, time.UTC),
+		},
+		{
+			LoopNumber: 2,
+			Status:     "FAILED",
+			Module:     "config",
+			Job:        "job_2",
+			ShortHash:  "def5678",
+			Timestamp:  time.Date(2024, 1, 15, 10, 31, 0, 0, time.UTC),
+		},
+	}
+
+	widths := formatter.calculateColumnWidths(entries)
+
+	// Check minimum widths are respected
+	if widths.CommitID < 7 {
+		t.Errorf("CommitID width should be at least 7, got %d", widths.CommitID)
+	}
+	if widths.Module < 6 {
+		t.Errorf("Module width should be at least 6, got %d", widths.Module)
+	}
+	if widths.Time < 19 {
+		t.Errorf("Time width should be at least 19, got %d", widths.Time)
+	}
+}
+
+// TestHistoryTableFormatter_formatShortHash tests short hash formatting.
+func TestHistoryTableFormatter_formatShortHash(t *testing.T) {
+	formatter := NewHistoryTableFormatter(false)
+
+	tests := []struct {
+		input    string
+		expected string
+	}{
+		{"abc1234567890abcdef", "abc1234"},
+		{"abc1234", "abc1234"},
+		{"abc", "abc"},
+		{"", ""},
+	}
+
+	for _, tc := range tests {
+		result := formatter.formatShortHash(tc.input)
+		if result != tc.expected {
+			t.Errorf("formatShortHash(%q) = %q, want %q", tc.input, result, tc.expected)
+		}
+	}
+}
+
+// TestHistoryTableFormatter_formatTime tests time formatting.
+func TestHistoryTableFormatter_formatTime(t *testing.T) {
+	formatter := NewHistoryTableFormatter(false)
+
+	tests := []struct {
+		input    time.Time
+		expected string
+	}{
+		{
+			time.Date(2024, 1, 15, 10, 30, 0, 0, time.UTC),
+			"2024-01-15 10:30:00",
+		},
+		{
+			time.Date(2024, 12, 31, 23, 59, 59, 0, time.UTC),
+			"2024-12-31 23:59:59",
+		},
+		{
+			time.Date(2024, 6, 1, 0, 0, 0, 0, time.UTC),
+			"2024-06-01 00:00:00",
+		},
+	}
+
+	for _, tc := range tests {
+		result := formatter.formatTime(tc.input)
+		if result != tc.expected {
+			t.Errorf("formatTime(%v) = %q, want %q", tc.input, result, tc.expected)
+		}
+	}
+}
+
+// TestHistoryTableFormatter_getStatusColor tests status color codes.
+func TestHistoryTableFormatter_getStatusColor(t *testing.T) {
+	formatterWithColor := NewHistoryTableFormatter(true)
+	formatterNoColor := NewHistoryTableFormatter(false)
+
+	tests := []struct {
+		status         string
+		expectedColor  string
+	}{
+		{"COMPLETED", "\033[32m"}, // Green
+		{"FAILED", "\033[31m"},    // Red
+		{"RUNNING", "\033[36m"},   // Cyan
+		{"PENDING", "\033[33m"},   // Yellow
+		{"UNKNOWN", "\033[90m"},   // Gray
+	}
+
+	for _, tc := range tests {
+		// With color enabled
+		result := formatterWithColor.getStatusColor(tc.status)
+		if result != tc.expectedColor {
+			t.Errorf("getStatusColor(%q) with color = %q, want %q", tc.status, result, tc.expectedColor)
+		}
+
+		// With color disabled
+		result = formatterNoColor.getStatusColor(tc.status)
+		if result != "" {
+			t.Errorf("getStatusColor(%q) without color = %q, want empty string", tc.status, result)
+		}
+	}
+}
+
+// TestHistoryTableFormatter_colorize tests colorization.
+func TestHistoryTableFormatter_colorize(t *testing.T) {
+	formatterWithColor := NewHistoryTableFormatter(true)
+	formatterNoColor := NewHistoryTableFormatter(false)
+
+	text := "COMPLETED"
+	color := "\033[32m"
+
+	// With color enabled
+	result := formatterWithColor.colorize(text, color)
+	expected := "\033[32mCOMPLETED\033[0m"
+	if result != expected {
+		t.Errorf("colorize(%q, %q) with color = %q, want %q", text, color, result, expected)
+	}
+
+	// With color disabled
+	result = formatterNoColor.colorize(text, color)
+	if result != text {
+		t.Errorf("colorize(%q, %q) without color = %q, want %q", text, color, result, text)
+	}
+}
+
+// TestHistoryTableFormatter_formatStatus tests status formatting with color.
+func TestHistoryTableFormatter_formatStatus(t *testing.T) {
+	formatter := NewHistoryTableFormatter(true)
+
+	tests := []struct {
+		status   string
+		contains string
+	}{
+		{"COMPLETED", "\033[32m"},
+		{"FAILED", "\033[31m"},
+		{"RUNNING", "\033[36m"},
+		{"PENDING", "\033[33m"},
+	}
+
+	for _, tc := range tests {
+		result := formatter.formatStatus(tc.status)
+		if !strings.Contains(result, tc.contains) {
+			t.Errorf("formatStatus(%q) should contain %q, got %q", tc.status, tc.contains, result)
+		}
+		// Check reset code is present
+		if !strings.Contains(result, "\033[0m") {
+			t.Errorf("formatStatus(%q) should contain reset code, got %q", tc.status, result)
+		}
+	}
+}
+
+// TestHistoryTableFormatter_tableBorders tests table border formatting.
+func TestHistoryTableFormatter_tableBorders(t *testing.T) {
+	formatter := NewHistoryTableFormatter(false)
+
+	// Test top border
+	topBorder := formatter.topBorder(50)
+	if !strings.HasPrefix(topBorder, "┌") {
+		t.Errorf("topBorder should start with '┌', got %q", topBorder)
+	}
+	if !strings.HasSuffix(topBorder, "┐") {
+		t.Errorf("topBorder should end with '┐', got %q", topBorder)
+	}
+
+	// Test bottom border
+	bottomBorder := formatter.bottomBorder(50)
+	if !strings.HasPrefix(bottomBorder, "└") {
+		t.Errorf("bottomBorder should start with '└', got %q", bottomBorder)
+	}
+	if !strings.HasSuffix(bottomBorder, "┘") {
+		t.Errorf("bottomBorder should end with '┘', got %q", bottomBorder)
+	}
+
+	// Test separator
+	widths := ColumnWidths{CommitID: 8, Module: 10, Job: 12, Status: 8, Hash: 8, Time: 19}
+	separator := formatter.separator(widths)
+	if !strings.HasPrefix(separator, "├") {
+		t.Errorf("separator should start with '├', got %q", separator)
+	}
+	if !strings.HasSuffix(separator, "┤") {
+		t.Errorf("separator should end with '┤', got %q", separator)
+	}
+	if !strings.Contains(separator, "┼") {
+		t.Errorf("separator should contain '┼', got %q", separator)
+	}
+}
+
+// TestHistoryTableFormatter_padRight tests right padding.
+func TestHistoryTableFormatter_padRight(t *testing.T) {
+	formatter := NewHistoryTableFormatter(false)
+
+	tests := []struct {
+		s        string
+		width    int
+		expected string
+	}{
+		{"hello", 10, "hello     "},
+		{"hello", 5, "hello"},
+		{"hello", 3, "hello"},
+		{"", 5, "     "},
+	}
+
+	for _, tc := range tests {
+		result := formatter.padRight(tc.s, tc.width)
+		if result != tc.expected {
+			t.Errorf("padRight(%q, %d) = %q, want %q", tc.s, tc.width, result, tc.expected)
+		}
+	}
+}
+
+// TestHistoryTableFormatter_padCenter tests center padding.
+func TestHistoryTableFormatter_padCenter(t *testing.T) {
+	formatter := NewHistoryTableFormatter(false)
+
+	tests := []struct {
+		s        string
+		width    int
+		expected string
+	}{
+		{"hi", 6, "  hi  "},
+		{"hi", 5, " hi  "},
+		{"hi", 2, "hi"},
+		{"hello", 3, "hello"},
+	}
+
+	for _, tc := range tests {
+		result := formatter.padCenter(tc.s, tc.width)
+		if result != tc.expected {
+			t.Errorf("padCenter(%q, %d) = %q, want %q", tc.s, tc.width, result, tc.expected)
+		}
+	}
+}
+
+// TestHistoryTableFormatter_formatHeader tests header formatting.
+func TestHistoryTableFormatter_formatHeader(t *testing.T) {
+	formatter := NewHistoryTableFormatter(false)
+	widths := ColumnWidths{CommitID: 8, Module: 10, Job: 12, Status: 8, Hash: 8, Time: 19}
+
+	header := formatter.formatHeader(widths)
+
+	// Check that header contains expected column names
+	if !strings.Contains(header, "CommitID") {
+		t.Errorf("header should contain 'CommitID', got %q", header)
+	}
+	if !strings.Contains(header, "Module") {
+		t.Errorf("header should contain 'Module', got %q", header)
+	}
+	if !strings.Contains(header, "Job") {
+		t.Errorf("header should contain 'Job', got %q", header)
+	}
+	if !strings.Contains(header, "Status") {
+		t.Errorf("header should contain 'Status', got %q", header)
+	}
+	if !strings.Contains(header, "Hash") {
+		t.Errorf("header should contain 'Hash', got %q", header)
+	}
+	if !strings.Contains(header, "Time") {
+		t.Errorf("header should contain 'Time', got %q", header)
+	}
+
+	// Check border characters
+	if !strings.HasPrefix(header, "│") {
+		t.Errorf("header should start with '│', got %q", header)
+	}
+	if !strings.HasSuffix(header, "│") {
+		t.Errorf("header should end with '│', got %q", header)
+	}
+}
+
+// TestHistoryTableFormatter_formatRow tests row formatting.
+func TestHistoryTableFormatter_formatRow(t *testing.T) {
+	formatter := NewHistoryTableFormatter(false)
+	widths := ColumnWidths{CommitID: 8, Module: 10, Job: 12, Status: 8, Hash: 8, Time: 19}
+
+	entry := LoopHistoryEntry{
+		LoopNumber: 1,
+		Status:     "COMPLETED",
+		Module:     "cli",
+		Job:        "job_1",
+		ShortHash:  "abc1234",
+		Timestamp:  time.Date(2024, 1, 15, 10, 30, 0, 0, time.UTC),
+	}
+
+	row := formatter.formatRow(entry, widths)
+
+	// Check border characters
+	if !strings.HasPrefix(row, "│") {
+		t.Errorf("row should start with '│', got %q", row)
+	}
+	if !strings.HasSuffix(row, "│") {
+		t.Errorf("row should end with '│', got %q", row)
+	}
+
+	// Check content is present
+	if !strings.Contains(row, "abc1234") {
+		t.Errorf("row should contain 'abc1234', got %q", row)
+	}
+	if !strings.Contains(row, "cli") {
+		t.Errorf("row should contain 'cli', got %q", row)
+	}
+	if !strings.Contains(row, "job_1") {
+		t.Errorf("row should contain 'job_1', got %q", row)
+	}
+	if !strings.Contains(row, "COMPLETED") {
+		t.Errorf("row should contain 'COMPLETED', got %q", row)
+	}
+}
+
+// TestResetHandler_supportsColor tests color support detection.
+func TestResetHandler_supportsColor(t *testing.T) {
+	handler := NewResetHandler(nil, &mockResetLogger{})
+
+	// Save original NO_COLOR value
+	originalNoColor := os.Getenv("NO_COLOR")
+	defer os.Setenv("NO_COLOR", originalNoColor)
+
+	// Test with NO_COLOR set
+	os.Setenv("NO_COLOR", "1")
+	if handler.supportsColor() {
+		t.Error("supportsColor() should return false when NO_COLOR is set")
+	}
+
+	// Test with NO_COLOR unset
+	os.Unsetenv("NO_COLOR")
+	// Result depends on whether stdout is a terminal, so we just check it doesn't panic
+	_ = handler.supportsColor()
 }

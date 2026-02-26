@@ -334,36 +334,10 @@ func (h *ResetHandler) parseCommitMessageForModuleJob(message string) (module, j
 }
 
 // formatLoopHistory formats the loop history entries for display.
+// This is a legacy method kept for backward compatibility.
+// Use formatHistoryTable() for new code.
 func (h *ResetHandler) formatLoopHistory(entries []LoopHistoryEntry) string {
-	if len(entries) == 0 {
-		return "未找到 morty 循环提交记录。"
-	}
-
-	var sb strings.Builder
-
-	// Header
-	sb.WriteString("循环历史 (Loop History):\n")
-	sb.WriteString(strings.Repeat("-", 70) + "\n")
-	sb.WriteString(fmt.Sprintf("%-6s %-12s %-12s %-20s %-8s %s\n", "LOOP", "MODULE", "JOB", "STATUS", "HASH", "TIME"))
-	sb.WriteString(strings.Repeat("-", 70) + "\n")
-
-	// Entries
-	for _, entry := range entries {
-		timeStr := entry.Timestamp.Format("01-02 15:04")
-		module := truncateString(entry.Module, 12)
-		job := truncateString(entry.Job, 20)
-		sb.WriteString(fmt.Sprintf("%-6d %-12s %-20s %-8s %-8s %s\n",
-			entry.LoopNumber,
-			module,
-			job,
-			entry.Status,
-			entry.ShortHash,
-			timeStr,
-		))
-	}
-
-	sb.WriteString(strings.Repeat("-", 70))
-	return sb.String()
+	return h.formatHistoryTable(entries)
 }
 
 // truncateString truncates a string to the specified length.
@@ -375,4 +349,276 @@ func truncateString(s string, maxLen int) string {
 		return s[:maxLen]
 	}
 	return s[:maxLen-3] + "..."
+}
+
+// HistoryTableFormatter handles history table formatting with box-drawing characters
+type HistoryTableFormatter struct {
+	useColor bool
+}
+
+// NewHistoryTableFormatter creates a new HistoryTableFormatter
+func NewHistoryTableFormatter(useColor bool) *HistoryTableFormatter {
+	return &HistoryTableFormatter{
+		useColor: useColor,
+	}
+}
+
+// formatHistoryTable formats the loop history entries as a table with adaptive column widths.
+// This is the main entry point for table formatting.
+func (h *ResetHandler) formatHistoryTable(entries []LoopHistoryEntry) string {
+	if len(entries) == 0 {
+		return "未找到 morty 循环提交记录。"
+	}
+
+	formatter := NewHistoryTableFormatter(h.supportsColor())
+	return formatter.formatTable(entries)
+}
+
+// supportsColor checks if the terminal supports ANSI colors
+func (h *ResetHandler) supportsColor() bool {
+	// Check if NO_COLOR is set
+	if os.Getenv("NO_COLOR") != "" {
+		return false
+	}
+	// Check if stdout is a terminal
+	if fi, err := os.Stdout.Stat(); err == nil {
+		return (fi.Mode() & os.ModeCharDevice) != 0
+	}
+	return false
+}
+
+// formatTable formats the history entries as a table
+func (f *HistoryTableFormatter) formatTable(entries []LoopHistoryEntry) string {
+	var sb strings.Builder
+
+	// Calculate column widths based on content
+	colWidths := f.calculateColumnWidths(entries)
+
+	// Build table
+	totalWidth := colWidths.CommitID + colWidths.Module + colWidths.Job + colWidths.Status + colWidths.Hash + colWidths.Time + 25 // borders and spacing
+
+	// Top border
+	sb.WriteString(f.topBorder(totalWidth))
+	sb.WriteString("\n")
+
+	// Header row
+	sb.WriteString(f.formatHeader(colWidths))
+	sb.WriteString("\n")
+
+	// Separator
+	sb.WriteString(f.separator(colWidths))
+	sb.WriteString("\n")
+
+	// Data rows
+	for i, entry := range entries {
+		sb.WriteString(f.formatRow(entry, colWidths))
+		if i < len(entries)-1 {
+			sb.WriteString("\n")
+		}
+	}
+
+	// Bottom border
+	sb.WriteString("\n")
+	sb.WriteString(f.bottomBorder(totalWidth))
+
+	return sb.String()
+}
+
+// ColumnWidths holds the calculated widths for each column
+type ColumnWidths struct {
+	CommitID int
+	Module   int
+	Job      int
+	Status   int
+	Hash     int
+	Time     int
+}
+
+// calculateColumnWidths calculates adaptive column widths based on content
+func (f *HistoryTableFormatter) calculateColumnWidths(entries []LoopHistoryEntry) ColumnWidths {
+	// Minimum widths for headers
+	widths := ColumnWidths{
+		CommitID: 8,  // "CommitID"
+		Module:   6,  // "Module"
+		Job:      3,  // "Job"
+		Status:   6,  // "Status"
+		Hash:     8,  // "Hash"
+		Time:     19, // "Time" (YYYY-MM-DD HH:MM:SS)
+	}
+
+	// Calculate maximum widths based on content
+	for _, entry := range entries {
+		// Short hash is always 7 chars + padding
+		if len(entry.ShortHash) > widths.CommitID {
+			widths.CommitID = len(entry.ShortHash)
+		}
+
+		// Module name
+		if len(entry.Module) > widths.Module {
+			widths.Module = len(entry.Module)
+		}
+
+		// Job name
+		if len(entry.Job) > widths.Job {
+			widths.Job = len(entry.Job)
+		}
+
+		// Status
+		if len(entry.Status) > widths.Status {
+			widths.Status = len(entry.Status)
+		}
+
+		// Hash (same as CommitID)
+		if len(entry.ShortHash) > widths.Hash {
+			widths.Hash = len(entry.ShortHash)
+		}
+	}
+
+	// Ensure minimum practical widths
+	if widths.Module < 10 {
+		widths.Module = 10
+	}
+	if widths.Job < 12 {
+		widths.Job = 12
+	}
+	if widths.Status < 8 {
+		widths.Status = 8
+	}
+
+	return widths
+}
+
+// formatShortHash formats a commit hash as a 7-character short hash
+func (f *HistoryTableFormatter) formatShortHash(hash string) string {
+	if len(hash) <= 7 {
+		return hash
+	}
+	return hash[:7]
+}
+
+// formatTime formats the timestamp as YYYY-MM-DD HH:MM:SS
+func (f *HistoryTableFormatter) formatTime(t time.Time) string {
+	return t.Format("2006-01-02 15:04:05")
+}
+
+// colorize applies color to text if color support is enabled
+func (f *HistoryTableFormatter) colorize(text string, colorCode string) string {
+	if !f.useColor {
+		return text
+	}
+	return colorCode + text + "\033[0m"
+}
+
+// getStatusColor returns the color code for a status
+func (f *HistoryTableFormatter) getStatusColor(status string) string {
+	if !f.useColor {
+		return ""
+	}
+	switch status {
+	case "COMPLETED":
+		return "\033[32m" // Green
+	case "FAILED":
+		return "\033[31m" // Red
+	case "RUNNING":
+		return "\033[36m" // Cyan
+	case "PENDING":
+		return "\033[33m" // Yellow
+	default:
+		return "\033[90m" // Gray
+	}
+}
+
+// formatStatus formats the status with color
+func (f *HistoryTableFormatter) formatStatus(status string) string {
+	colorCode := f.getStatusColor(status)
+	return f.colorize(status, colorCode)
+}
+
+// topBorder returns the top border of the table
+func (f *HistoryTableFormatter) topBorder(width int) string {
+	return "┌" + strings.Repeat("─", width-2) + "┐"
+}
+
+// bottomBorder returns the bottom border of the table
+func (f *HistoryTableFormatter) bottomBorder(width int) string {
+	return "└" + strings.Repeat("─", width-2) + "┘"
+}
+
+// separator returns the separator line between header and data
+func (f *HistoryTableFormatter) separator(widths ColumnWidths) string {
+	var parts []string
+	parts = append(parts, strings.Repeat("─", widths.CommitID+2))
+	parts = append(parts, strings.Repeat("─", widths.Module+2))
+	parts = append(parts, strings.Repeat("─", widths.Job+2))
+	parts = append(parts, strings.Repeat("─", widths.Status+2))
+	parts = append(parts, strings.Repeat("─", widths.Hash+2))
+	parts = append(parts, strings.Repeat("─", widths.Time+2))
+	return "├" + strings.Join(parts, "┼") + "┤"
+}
+
+// formatHeader formats the header row
+func (f *HistoryTableFormatter) formatHeader(widths ColumnWidths) string {
+	headers := []struct {
+		name  string
+		width int
+	}{
+		{"CommitID", widths.CommitID},
+		{"Module", widths.Module},
+		{"Job", widths.Job},
+		{"Status", widths.Status},
+		{"Hash", widths.Hash},
+		{"Time", widths.Time},
+	}
+
+	var parts []string
+	for _, h := range headers {
+		header := f.padCenter(h.name, h.width)
+		if f.useColor {
+			header = f.colorize(header, "\033[1m\033[37m") // Bold white
+		}
+		parts = append(parts, " "+header+" ")
+	}
+
+	return "│" + strings.Join(parts, "│") + "│"
+}
+
+// formatRow formats a single data row
+func (f *HistoryTableFormatter) formatRow(entry LoopHistoryEntry, widths ColumnWidths) string {
+	shortHash := f.formatShortHash(entry.ShortHash)
+	module := f.padRight(entry.Module, widths.Module)
+	job := f.padRight(entry.Job, widths.Job)
+	hash := f.padCenter(shortHash, widths.Hash)
+	timeStr := f.padCenter(f.formatTime(entry.Timestamp), widths.Time)
+
+	// For alignment without color codes in the padding calculation, we need special handling
+	statusPadded := f.padRight(entry.Status, widths.Status)
+
+	var parts []string
+	parts = append(parts, " "+f.padCenter(shortHash, widths.CommitID)+" ")
+	parts = append(parts, " "+module+" ")
+	parts = append(parts, " "+job+" ")
+	parts = append(parts, " "+f.colorize(statusPadded, f.getStatusColor(entry.Status))+" ")
+	parts = append(parts, " "+hash+" ")
+	parts = append(parts, " "+timeStr+" ")
+
+	return "│" + strings.Join(parts, "│") + "│"
+}
+
+// padRight pads a string to the right to reach the specified width
+func (f *HistoryTableFormatter) padRight(s string, width int) string {
+	if len(s) >= width {
+		return s
+	}
+	return s + strings.Repeat(" ", width-len(s))
+}
+
+// padCenter pads a string to center it within the specified width
+func (f *HistoryTableFormatter) padCenter(s string, width int) string {
+	if len(s) >= width {
+		return s
+	}
+	totalPad := width - len(s)
+	leftPad := totalPad / 2
+	rightPad := totalPad - leftPad
+	return strings.Repeat(" ", leftPad) + s + strings.Repeat(" ", rightPad)
 }
