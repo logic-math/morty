@@ -250,25 +250,26 @@ type TaskRunner struct {
 - Plan Parser 模块完成
 
 **Tasks (Todo 列表)**:
-- [ ] Task 1: 创建 `internal/executor/prompt_builder.go` 文件结构
-- [ ] Task 2: 实现 `PromptBuilder` 接口
-- [ ] Task 3: 实现 `BuildPrompt(module, job, taskIndex, taskDesc)` 方法
-- [ ] Task 4: 读取 Plan 文件内容
-- [ ] Task 5: 读取系统提示词 (prompts/doing.md)
-- [ ] Task 6: 实现 `BuildCompactContext(module, job)` 精简上下文
-- [ ] Task 7: 实现模板变量替换
-- [ ] Task 8: 编写单元测试 `prompt_builder_test.go`
+- [x] Task 1: 创建 `internal/executor/prompt_builder.go` 文件结构
+- [x] Task 2: 实现 `PromptBuilder` 接口
+- [x] Task 3: 实现 `BuildPrompt(module, job, taskIndex, taskDesc)` 方法
+- [x] Task 4: 读取 Plan 文件内容
+- [x] Task 5: 读取系统提示词 (prompts/doing.md)
+- [x] Task 6: 实现 `BuildCompactContext(module, job)` 精简上下文
+- [x] Task 7: 实现模板变量替换
+- [x] Task 8: 编写单元测试 `prompt_builder_test.go`
 
 **验证器**:
-- [ ] BuildPrompt 生成完整的提示词
-- [ ] 包含系统提示词、Plan 内容、当前 Task
-- [ ] BuildCompactContext 返回精简的上下文信息
-- [ ] 模板变量正确替换
-- [ ] 提示词长度控制在合理范围
-- [ ] 所有单元测试通过 (覆盖率 >= 80%)
+- [x] BuildPrompt 生成完整的提示词
+- [x] 包含系统提示词、Plan 内容、当前 Task
+- [x] BuildCompactContext 返回精简的上下文信息
+- [x] 模板变量正确替换
+- [x] 提示词长度控制在合理范围
+- [x] 所有单元测试通过 (覆盖率 >= 80%)
 
 **调试日志**:
-- 待填充
+- explore1: [探索发现] 项目使用 Go Modules, 核心代码在 internal/executor/, Plan 解析使用 internal/parser/plan, 状态管理使用 internal/state, 已记录
+- debug1: 测试文件引号冲突, Go 字符串字面量中包含双引号需要转义或改用反引号, 检查第 580 行语法错误, 修复: 将双引号字符串改为反引号包裹, 已修复
 
 ---
 

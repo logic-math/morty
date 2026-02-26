@@ -3,16 +3,16 @@
   "state": "running",
   "current": {
     "module": "executor",
-    "job": "job_3",
+    "job": "job_4",
     "status": "COMPLETED",
-    "start_time": "2026-02-26T00:49:59Z",
+    "start_time": "2026-02-26T01:35:02Z",
     "interrupted_at": "2026-02-24T16:51:59Z",
-    "completed_at": "2026-02-26T01:35:00Z"
+    "completed_at": "2026-02-26T01:54:12Z"
   },
   "session": {
     "start_time": "2026-02-24T12:51:47Z",
-    "last_update": "2026-02-26T01:35:00Z",
-    "total_loops": 46
+    "last_update": "2026-02-26T01:54:12Z",
+    "total_loops": 47
   },
   "modules": {
     "go_env_setup": {
@@ -2543,12 +2543,65 @@
           "completion_summary": "Job executed successfully"
         },
         "job_4": {
-          "status": "PENDING",
-          "loop_count": 0,
+          "status": "COMPLETED",
+          "loop_count": 1,
           "retry_count": 0,
           "tasks_total": 8,
-          "tasks_completed": 0,
-          "debug_logs": []
+          "tasks_completed": 8,
+          "debug_logs": [],
+          "started_at": "2026-02-26T01:35:02Z",
+          "tasks": {
+            "1": {
+              "index": 1,
+              "status": "COMPLETED",
+              "description": "Task 1: 创建 `internal/executor/prompt_builder.go` 文件结构",
+              "updated_at": "2026-02-26T01:54:08Z"
+            },
+            "2": {
+              "index": 2,
+              "status": "COMPLETED",
+              "description": "Task 2: 实现 `PromptBuilder` 接口",
+              "updated_at": "2026-02-26T01:54:08Z"
+            },
+            "3": {
+              "index": 3,
+              "status": "COMPLETED",
+              "description": "Task 3: 实现 `BuildPrompt(module, job, taskIndex, taskDesc)` 方法",
+              "updated_at": "2026-02-26T01:54:09Z"
+            },
+            "4": {
+              "index": 4,
+              "status": "COMPLETED",
+              "description": "Task 4: 读取 Plan 文件内容",
+              "updated_at": "2026-02-26T01:54:09Z"
+            },
+            "5": {
+              "index": 5,
+              "status": "COMPLETED",
+              "description": "Task 5: 读取系统提示词 (prompts/doing.md)",
+              "updated_at": "2026-02-26T01:54:10Z"
+            },
+            "6": {
+              "index": 6,
+              "status": "COMPLETED",
+              "description": "Task 6: 实现 `BuildCompactContext(module, job)` 精简上下文",
+              "updated_at": "2026-02-26T01:54:10Z"
+            },
+            "7": {
+              "index": 7,
+              "status": "COMPLETED",
+              "description": "Task 7: 实现模板变量替换",
+              "updated_at": "2026-02-26T01:54:11Z"
+            },
+            "8": {
+              "index": 8,
+              "status": "COMPLETED",
+              "description": "Task 8: 编写单元测试 `prompt_builder_test.go`",
+              "updated_at": "2026-02-26T01:54:12Z"
+            }
+          },
+          "completed_at": "2026-02-26T01:54:12Z",
+          "completion_summary": "Job executed successfully"
         },
         "job_5": {
           "status": "PENDING",

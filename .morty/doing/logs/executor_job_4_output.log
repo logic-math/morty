@@ -1,0 +1,45 @@
+所有 Tasks 已完成，验证器全部通过。让我输出最终的 RALPH_STATUS。
+
+## 执行摘要
+
+**Job 4: 提示词构建器实现** 已完成全部 8 个 Tasks：
+
+| Task | 内容 | 状态 |
+|------|------|------|
+| 1 | 创建 `internal/executor/prompt_builder.go` 文件结构 | ✅ |
+| 2 | 实现 `PromptBuilder` 接口 | ✅ |
+| 3 | 实现 `BuildPrompt(module, job, taskIndex, taskDesc)` 方法 | ✅ |
+| 4 | 读取 Plan 文件内容 | ✅ |
+| 5 | 读取系统提示词 (prompts/doing.md) | ✅ |
+| 6 | 实现 `BuildCompactContext(module, job)` 精简上下文 | ✅ |
+| 7 | 实现模板变量替换 | ✅ |
+| 8 | 编写单元测试 `prompt_builder_test.go` | ✅ |
+
+**验证器检查结果**:
+- ✅ BuildPrompt 生成完整的提示词
+- ✅ 包含系统提示词、Plan 内容、当前 Task
+- ✅ BuildCompactContext 返回精简的上下文信息
+- ✅ 模板变量正确替换
+- ✅ 提示词长度控制在合理范围
+- ✅ 所有单元测试通过 (覆盖率 81.56% >= 80%)
+
+**创建的文件**:
+- `/home/sankuai/dolphinfs_sunquan20/ai_coding/Coding/morty/internal/executor/prompt_builder.go` (14,593 bytes)
+- `/home/sankuai/dolphinfs_sunquan20/ai_coding/Coding/morty/internal/executor/prompt_builder_test.go` (19,102 bytes)
+
+<!-- RALPH_STATUS -->
+```json
+{
+  "module": "executor",
+  "job": "job_4",
+  "status": "COMPLETED",
+  "tasks_completed": 8,
+  "tasks_total": 8,
+  "loop_count": 1,
+  "debug_issues": 1,
+  "debug_logs_in_plan": true,
+  "explore_subagent_used": true,
+  "summary": "PromptBuilder 实现完成。使用 Explore subagent 调研代码库结构，实现了 PromptBuilder 接口、BuildPrompt 和 BuildCompactContext 方法、模板变量替换功能，编写了 15 个单元测试，覆盖率达 81.56%。修复了测试文件引号冲突问题。"
+}
+```
+<!-- END_RALPH_STATUS -->
