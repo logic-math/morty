@@ -9,6 +9,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/morty/morty/internal/callcli"
 	"github.com/morty/morty/internal/logging"
 )
 
@@ -212,6 +213,23 @@ func TestResearchHandler_Execute_WithArgs(t *testing.T) {
 
 	// Override paths to use temp directory
 	handler.paths.SetWorkDir(tmpDir)
+
+	// Create prompts directory and mock research.md in temp dir
+	promptsDir := filepath.Join(tmpDir, "prompts")
+	if err := os.MkdirAll(promptsDir, 0755); err != nil {
+		t.Fatalf("Failed to create prompts dir: %v", err)
+	}
+	promptFile := filepath.Join(promptsDir, "research.md")
+	if err := os.WriteFile(promptFile, []byte("# Research Prompt\n\nTest prompt content."), 0644); err != nil {
+		t.Fatalf("Failed to create prompt file: %v", err)
+	}
+
+	// Set prompts directory
+	handler.SetPromptsDir(promptsDir)
+
+	// Mock the CLI caller to avoid actual execution
+	mockCaller := &mockAICliCaller{}
+	handler.SetCLICaller(mockCaller)
 
 	ctx := context.Background()
 	args := []string{"golang", "concurrency"}
@@ -493,5 +511,248 @@ func TestResearchResult_Struct(t *testing.T) {
 
 	if result.OutputPath != "/path/to/output.md" {
 		t.Error("OutputPath not set correctly")
+	}
+}
+
+// mockAICliCaller is a mock implementation of callcli.AICliCaller for testing.
+type mockAICliCaller struct {
+	callWithPromptFunc        func(ctx context.Context, promptFile string) (*callcli.Result, error)
+	callWithPromptContentFunc func(ctx context.Context, content string) (*callcli.Result, error)
+	getCLIPathFunc            func() string
+	buildArgsFunc             func() []string
+	getBaseCallerFunc         func() callcli.Caller
+}
+
+func (m *mockAICliCaller) CallWithPrompt(ctx context.Context, promptFile string) (*callcli.Result, error) {
+	if m.callWithPromptFunc != nil {
+		return m.callWithPromptFunc(ctx, promptFile)
+	}
+	return &callcli.Result{ExitCode: 0}, nil
+}
+
+func (m *mockAICliCaller) CallWithPromptContent(ctx context.Context, content string) (*callcli.Result, error) {
+	if m.callWithPromptContentFunc != nil {
+		return m.callWithPromptContentFunc(ctx, content)
+	}
+	return &callcli.Result{ExitCode: 0}, nil
+}
+
+func (m *mockAICliCaller) GetCLIPath() string {
+	if m.getCLIPathFunc != nil {
+		return m.getCLIPathFunc()
+	}
+	return "claude"
+}
+
+func (m *mockAICliCaller) BuildArgs() []string {
+	if m.buildArgsFunc != nil {
+		return m.buildArgsFunc()
+	}
+	return []string{}
+}
+
+func (m *mockAICliCaller) GetBaseCaller() callcli.Caller {
+	if m.getBaseCallerFunc != nil {
+		return m.getBaseCallerFunc()
+	}
+	return &mockCaller{}
+}
+
+// mockCaller is a mock implementation of callcli.Caller for testing.
+type mockCaller struct {
+	callFunc               func(ctx context.Context, name string, args ...string) (*callcli.Result, error)
+	callWithOptionsFunc    func(ctx context.Context, name string, args []string, opts callcli.Options) (*callcli.Result, error)
+	setDefaultTimeoutFunc  func(timeout time.Duration)
+	getDefaultTimeoutFunc  func() time.Duration
+}
+
+func (m *mockCaller) Call(ctx context.Context, name string, args ...string) (*callcli.Result, error) {
+	if m.callFunc != nil {
+		return m.callFunc(ctx, name, args...)
+	}
+	return &callcli.Result{ExitCode: 0}, nil
+}
+
+func (m *mockCaller) CallWithOptions(ctx context.Context, name string, args []string, opts callcli.Options) (*callcli.Result, error) {
+	if m.callWithOptionsFunc != nil {
+		return m.callWithOptionsFunc(ctx, name, args, opts)
+	}
+	return &callcli.Result{ExitCode: 0}, nil
+}
+
+func (m *mockCaller) CallWithCtx(ctx context.Context, name string, args []string, opts callcli.Options) (callcli.CallHandler, error) {
+	return nil, fmt.Errorf("not implemented")
+}
+
+func (m *mockCaller) CallAsync(ctx context.Context, name string, args ...string) (callcli.CallHandler, error) {
+	return nil, fmt.Errorf("not implemented")
+}
+
+func (m *mockCaller) CallAsyncWithOptions(ctx context.Context, name string, args []string, opts callcli.Options) (callcli.CallHandler, error) {
+	return nil, fmt.Errorf("not implemented")
+}
+
+func (m *mockCaller) SetDefaultTimeout(timeout time.Duration) {
+	if m.setDefaultTimeoutFunc != nil {
+		m.setDefaultTimeoutFunc(timeout)
+	}
+}
+
+func (m *mockCaller) GetDefaultTimeout() time.Duration {
+	if m.getDefaultTimeoutFunc != nil {
+		return m.getDefaultTimeoutFunc()
+	}
+	return 0
+}
+
+// Test helper functions
+
+func TestResearchHandler_loadResearchPrompt(t *testing.T) {
+	tmpDir := setupTestDir(t)
+
+	// Create prompts directory and research.md
+	promptsDir := filepath.Join(tmpDir, "prompts")
+	if err := os.MkdirAll(promptsDir, 0755); err != nil {
+		t.Fatalf("Failed to create prompts dir: %v", err)
+	}
+	promptFile := filepath.Join(promptsDir, "research.md")
+	expectedContent := "# Research Prompt\n\nTest content."
+	if err := os.WriteFile(promptFile, []byte(expectedContent), 0644); err != nil {
+		t.Fatalf("Failed to create prompt file: %v", err)
+	}
+
+	cfg := &mockConfig{}
+	logger := &mockLogger{}
+	handler := NewResearchHandler(cfg, logger)
+	handler.SetPromptsDir(promptsDir)
+
+	content, err := handler.loadResearchPrompt()
+	if err != nil {
+		t.Fatalf("loadResearchPrompt failed: %v", err)
+	}
+
+	if content != expectedContent {
+		t.Errorf("Expected content '%s', got '%s'", expectedContent, content)
+	}
+}
+
+func TestResearchHandler_buildClaudeCommand(t *testing.T) {
+	handler := NewResearchHandler(&mockConfig{}, &mockLogger{})
+
+	topic := "test-topic"
+	prompt := "# Test Prompt"
+
+	args := handler.buildClaudeCommand(topic, prompt)
+
+	// Check that --permission-mode plan is included
+	foundPlanMode := false
+	for i, arg := range args {
+		if arg == "--permission-mode" && i+1 < len(args) && args[i+1] == "plan" {
+			foundPlanMode = true
+			break
+		}
+	}
+	if !foundPlanMode {
+		t.Error("Expected --permission-mode plan in args")
+	}
+
+	// Check that -p flag is included
+	foundPromptFlag := false
+	for _, arg := range args {
+		if arg == "-p" {
+			foundPromptFlag = true
+			break
+		}
+	}
+	if !foundPromptFlag {
+		t.Error("Expected -p flag in args")
+	}
+}
+
+func TestResearchHandler_executeClaudeCode(t *testing.T) {
+	tmpDir := setupTestDir(t)
+
+	cfg := &mockConfig{}
+	logger := &mockLogger{}
+	handler := NewResearchHandler(cfg, logger)
+	handler.paths.SetWorkDir(tmpDir)
+
+	// Create mock caller that returns success
+	mockBaseCaller := &mockCaller{
+		callWithOptionsFunc: func(ctx context.Context, name string, args []string, opts callcli.Options) (*callcli.Result, error) {
+			return &callcli.Result{
+				ExitCode: 0,
+				Stdout:   "Success",
+			}, nil
+		},
+	}
+
+	mockCliCaller := &mockAICliCaller{
+		getBaseCallerFunc: func() callcli.Caller {
+			return mockBaseCaller
+		},
+		getCLIPathFunc: func() string {
+			return "claude"
+		},
+		buildArgsFunc: func() []string {
+			return []string{}
+		},
+	}
+
+	handler.SetCLICaller(mockCliCaller)
+
+	ctx := context.Background()
+	exitCode, err := handler.executeClaudeCode(ctx, "test-topic", "# Test Prompt")
+
+	if err != nil {
+		t.Fatalf("executeClaudeCode failed: %v", err)
+	}
+
+	if exitCode != 0 {
+		t.Errorf("Expected exit code 0, got %d", exitCode)
+	}
+}
+
+func TestResearchHandler_executeClaudeCode_WithError(t *testing.T) {
+	tmpDir := setupTestDir(t)
+
+	cfg := &mockConfig{}
+	logger := &mockLogger{}
+	handler := NewResearchHandler(cfg, logger)
+	handler.paths.SetWorkDir(tmpDir)
+
+	// Create mock caller that returns error
+	mockBaseCaller := &mockCaller{
+		callWithOptionsFunc: func(ctx context.Context, name string, args []string, opts callcli.Options) (*callcli.Result, error) {
+			return &callcli.Result{
+				ExitCode: 1,
+				Stderr:   "Command failed",
+			}, fmt.Errorf("execution failed")
+		},
+	}
+
+	mockCliCaller := &mockAICliCaller{
+		getBaseCallerFunc: func() callcli.Caller {
+			return mockBaseCaller
+		},
+		getCLIPathFunc: func() string {
+			return "claude"
+		},
+		buildArgsFunc: func() []string {
+			return []string{}
+		},
+	}
+
+	handler.SetCLICaller(mockCliCaller)
+
+	ctx := context.Background()
+	exitCode, err := handler.executeClaudeCode(ctx, "test-topic", "# Test Prompt")
+
+	if err == nil {
+		t.Error("Expected error for failed execution")
+	}
+
+	if exitCode != 1 {
+		t.Errorf("Expected exit code 1, got %d", exitCode)
 	}
 }

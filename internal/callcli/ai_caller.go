@@ -26,6 +26,9 @@ type AICliCaller interface {
 
 	// BuildArgs builds the CLI arguments based on configuration.
 	BuildArgs() []string
+
+	// GetBaseCaller returns the base caller instance.
+	GetBaseCaller() Caller
 }
 
 // AICliCallerImpl implements the AICliCaller interface.
@@ -173,6 +176,11 @@ func (a *AICliCallerImpl) CallWithPromptContent(ctx context.Context, content str
 // SetBaseCaller sets a custom base caller (useful for testing).
 func (a *AICliCallerImpl) SetBaseCaller(caller Caller) {
 	a.baseCaller = caller
+}
+
+// GetBaseCaller returns the base caller instance.
+func (a *AICliCallerImpl) GetBaseCaller() Caller {
+	return a.baseCaller
 }
 
 // GetConfig returns the AI CLI configuration.

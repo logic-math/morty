@@ -14,6 +14,7 @@ type Paths struct {
 	loader     *Loader
 	workDir    string
 	configFile string
+	promptsDir string
 }
 
 // NewPaths creates a new Paths instance with default values.
@@ -220,10 +221,19 @@ func (p *Paths) SanitizePath(path string) string {
 
 // GetPromptsDir returns the prompts directory path.
 func (p *Paths) GetPromptsDir() string {
+	// If custom prompts dir is set, use it
+	if p.promptsDir != "" {
+		return p.resolvePath(p.promptsDir)
+	}
 	if p.loader != nil && p.loader.config != nil && p.loader.config.Prompts.Dir != "" {
 		return p.resolvePath(p.loader.config.Prompts.Dir)
 	}
 	return p.resolvePath(DefaultPromptsDir)
+}
+
+// SetPromptsDir sets a custom prompts directory.
+func (p *Paths) SetPromptsDir(dir string) {
+	p.promptsDir = dir
 }
 
 // EnsurePromptsDir ensures the prompts directory exists.

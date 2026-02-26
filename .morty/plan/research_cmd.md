@@ -130,24 +130,27 @@ type ResearchResult struct {
 - Job 1 完成
 
 **Tasks (Todo 列表)**:
-- [ ] Task 1: 实现 `loadResearchPrompt() string` 加载系统提示词
-- [ ] Task 2: 实现 `buildClaudeCommand(topic, prompt) []string`
-- [ ] Task 3: 使用 `os/exec` 执行 Claude Code
-- [ ] Task 4: 传递研究主题给 Claude
-- [ ] Task 5: 处理执行错误和退出码
-- [ ] Task 6: 记录执行日志
-- [ ] Task 7: 编写单元测试
+- [x] Task 1: 实现 `loadResearchPrompt() string` 加载系统提示词
+- [x] Task 2: 实现 `buildClaudeCommand(topic, prompt) []string`
+- [x] Task 3: 使用 `os/exec` 执行 Claude Code
+- [x] Task 4: 传递研究主题给 Claude
+- [x] Task 5: 处理执行错误和退出码
+- [x] Task 6: 记录执行日志
+- [x] Task 7: 编写单元测试
 
 **验证器**:
-- [ ] 正确读取 `prompts/research.md`
-- [ ] 构建正确的 Claude Code 命令
-- [ ] 以 Plan 模式启动 (`--permission-mode plan`)
-- [ ] 正确传递研究主题
-- [ ] 执行失败时返回错误
-- [ ] 所有单元测试通过 (覆盖率 >= 80%)
+- [x] 正确读取 `prompts/research.md`
+- [x] 构建正确的 Claude Code 命令
+- [x] 以 Plan 模式启动 (`--permission-mode plan`)
+- [x] 正确传递研究主题
+- [x] 执行失败时返回错误
+- [x] 所有单元测试通过 (覆盖率 >= 80%)
 
 **调试日志**:
-- 待填充
+- debug1: [现象] 编译失败 logging.Duration 未定义, [复现] 运行 go build 时报错, [猜想] logging 包没有 Duration 函数, [验证] 检查 logging/logger.go, [修复] 使用 logging.Any 替代 logging.Duration, [进展] 已修复
+- debug2: [现象] AICliCaller 接口缺少 GetBaseCaller 方法, [复现] 编译报错, [猜想] 接口定义不完整, [验证] 检查 ai_caller.go, [修复] 向 AICliCaller 接口和 AICliCallerImpl 添加 GetBaseCaller 方法, [进展] 已修复
+- debug3: [现象] 测试失败 prompts/research.md 文件未找到, [复现] 运行 go test 时报错, [猜想] 路径解析不正确, [验证] 检查 getResearchPromptPath 和测试代码, [修复] 修改 getResearchPromptPath 使用 GetPromptsDir 并添加 SetPromptsDir 方法用于测试, [进展] 已修复
+- debug4: [探索发现] 项目 prompts/ 目录位于项目根目录, callcli 包提供 AICliCaller 接口用于执行外部 CLI 命令, 已记录
 
 ---
 
