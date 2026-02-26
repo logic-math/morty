@@ -9,6 +9,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/morty/morty/internal/executor"
+	"github.com/morty/morty/internal/git"
 	"github.com/morty/morty/internal/state"
 )
 
@@ -1603,5 +1605,362 @@ func TestDoingHandler_loadPlan_complexStructure(t *testing.T) {
 	}
 	if len(job2.DebugLogs) != 0 {
 		t.Errorf("loadPlan() len(job2.DebugLogs) = %v, want 0", len(job2.DebugLogs))
+	}
+}
+
+// ============================================================================
+// Job 4: Executor Integration Tests
+// ============================================================================
+
+// mockExecutor implements a mock executor.Engine for testing
+type mockExecutor struct {
+	executeJobFunc func(ctx context.Context, module, job string) error
+	lastModule     string
+	lastJob        string
+	callCount      int
+}
+
+func (m *mockExecutor) ExecuteJob(ctx context.Context, module, job string) error {
+	m.lastModule = module
+	m.lastJob = job
+	m.callCount++
+	if m.executeJobFunc != nil {
+		return m.executeJobFunc(ctx, module, job)
+	}
+	return nil
+}
+
+func (m *mockExecutor) ExecuteTask(ctx context.Context, module, job string, taskIndex int, taskDesc string) error {
+	return nil
+}
+
+func (m *mockExecutor) ResumeJob(ctx context.Context, module, job string) error {
+	return m.ExecuteJob(ctx, module, job)
+}
+
+// Test initializeExecutor
+// Task 1: Test Executor initialization
+func TestDoingHandler_initializeExecutor(t *testing.T) {
+	tmpDir := setupTestDir(t)
+	workDir := filepath.Join(tmpDir, ".morty")
+	planDir := filepath.Join(workDir, "plan")
+	if err := os.MkdirAll(planDir, 0755); err != nil {
+		t.Fatalf("Failed to create plan dir: %v", err)
+	}
+
+	// Setup test state
+	setupTestState(t, workDir, map[string]map[string]state.Status{
+		"test-module": {
+			"job_1": state.StatusPending,
+		},
+	})
+
+	cfg := &mockConfig{
+		workDir: workDir,
+		planDir: planDir,
+	}
+	handler := NewDoingHandler(cfg, &mockLogger{})
+	handler.loadStatus()
+
+	// Test initializeExecutor
+	err := handler.initializeExecutor()
+	if err != nil {
+		t.Errorf("initializeExecutor() error = %v", err)
+	}
+
+	// Verify executor was initialized
+	if handler.executor == nil {
+		t.Error("initializeExecutor() executor should be set")
+	}
+
+	// Verify git manager was initialized
+	if handler.gitManager == nil {
+		t.Error("initializeExecutor() gitManager should be set")
+	}
+}
+
+// Test initializeExecutor without state manager
+func TestDoingHandler_initializeExecutor_noStateManager(t *testing.T) {
+	handler := NewDoingHandler(&mockConfig{}, &mockLogger{})
+
+	// Test initializeExecutor without loading state first
+	err := handler.initializeExecutor()
+	if err == nil {
+		t.Error("initializeExecutor() should return error when state manager is nil")
+	}
+}
+
+// Test executeJob with mock executor
+// Task 2, 3, 4, 5: Test executeJob function
+func TestDoingHandler_executeJob(t *testing.T) {
+	tmpDir := setupTestDir(t)
+	workDir := filepath.Join(tmpDir, ".morty")
+	planDir := filepath.Join(workDir, "plan")
+	if err := os.MkdirAll(planDir, 0755); err != nil {
+		t.Fatalf("Failed to create plan dir: %v", err)
+	}
+
+	// Setup test state
+	setupTestState(t, workDir, map[string]map[string]state.Status{
+		"test-module": {
+			"job_1": state.StatusPending,
+		},
+	})
+
+	cfg := &mockConfig{
+		workDir: workDir,
+		planDir: planDir,
+	}
+	handler := NewDoingHandler(cfg, &mockLogger{})
+	handler.loadStatus()
+
+	// Create mock executor
+	mockExec := &mockExecutor{}
+	handler.SetExecutor(mockExec)
+
+	// Test executeJob
+	ctx := context.Background()
+	result, err := handler.executeJob(ctx, "test-module", "job_1")
+
+	if err != nil {
+		t.Errorf("executeJob() error = %v", err)
+	}
+
+	if result == nil {
+		t.Fatal("executeJob() result should not be nil")
+	}
+
+	// Verify executor was called with correct parameters
+	if mockExec.lastModule != "test-module" {
+		t.Errorf("executeJob() module = %v, want 'test-module'", mockExec.lastModule)
+	}
+	if mockExec.lastJob != "job_1" {
+		t.Errorf("executeJob() job = %v, want 'job_1'", mockExec.lastJob)
+	}
+	if mockExec.callCount != 1 {
+		t.Errorf("executeJob() call count = %v, want 1", mockExec.callCount)
+	}
+
+	// Verify result fields
+	if result.Module != "test-module" {
+		t.Errorf("result.Module = %v, want 'test-module'", result.Module)
+	}
+	if result.Job != "job_1" {
+		t.Errorf("result.Job = %v, want 'job_1'", result.Job)
+	}
+}
+
+// Test executeJob without executor initialization
+func TestDoingHandler_executeJob_noExecutor(t *testing.T) {
+	handler := NewDoingHandler(&mockConfig{}, &mockLogger{})
+
+	ctx := context.Background()
+	_, err := handler.executeJob(ctx, "test-module", "job_1")
+
+	if err == nil {
+		t.Error("executeJob() should return error when executor is not initialized")
+	}
+}
+
+// Test executeJob with execution failure
+// Task 5: Test execution result handling
+func TestDoingHandler_executeJob_failure(t *testing.T) {
+	tmpDir := setupTestDir(t)
+	workDir := filepath.Join(tmpDir, ".morty")
+	planDir := filepath.Join(workDir, "plan")
+	if err := os.MkdirAll(planDir, 0755); err != nil {
+		t.Fatalf("Failed to create plan dir: %v", err)
+	}
+
+	// Setup test state
+	setupTestState(t, workDir, map[string]map[string]state.Status{
+		"test-module": {
+			"job_1": state.StatusPending,
+		},
+	})
+
+	cfg := &mockConfig{
+		workDir: workDir,
+		planDir: planDir,
+	}
+	handler := NewDoingHandler(cfg, &mockLogger{})
+	handler.loadStatus()
+
+	// Create mock executor that returns error
+	mockExec := &mockExecutor{
+		executeJobFunc: func(ctx context.Context, module, job string) error {
+			return fmt.Errorf("execution failed")
+		},
+	}
+	handler.SetExecutor(mockExec)
+
+	// Test executeJob with failure
+	ctx := context.Background()
+	result, err := handler.executeJob(ctx, "test-module", "job_1")
+
+	if err == nil {
+		t.Error("executeJob() should return error when execution fails")
+	}
+
+	if result == nil {
+		t.Fatal("executeJob() result should not be nil even on failure")
+	}
+
+	// Verify result status is FAILED
+	if result.Status != state.StatusFailed {
+		t.Errorf("result.Status = %v, want FAILED", result.Status)
+	}
+}
+
+// Test executeJob timeout
+// Task 6: Test timeout control
+func TestDoingHandler_executeJob_timeout(t *testing.T) {
+	tmpDir := setupTestDir(t)
+	workDir := filepath.Join(tmpDir, ".morty")
+	planDir := filepath.Join(workDir, "plan")
+	if err := os.MkdirAll(planDir, 0755); err != nil {
+		t.Fatalf("Failed to create plan dir: %v", err)
+	}
+
+	// Setup test state
+	setupTestState(t, workDir, map[string]map[string]state.Status{
+		"test-module": {
+			"job_1": state.StatusPending,
+		},
+	})
+
+	cfg := &mockConfig{
+		workDir: workDir,
+		planDir: planDir,
+	}
+	handler := NewDoingHandler(cfg, &mockLogger{})
+	handler.loadStatus()
+
+	// Create mock executor that simulates timeout
+	mockExec := &mockExecutor{
+		executeJobFunc: func(ctx context.Context, module, job string) error {
+			// Simulate context timeout
+			<-ctx.Done()
+			return ctx.Err()
+		},
+	}
+	handler.SetExecutor(mockExec)
+
+	// Create a context with short timeout
+	ctx, cancel := context.WithTimeout(context.Background(), 100*time.Millisecond)
+	defer cancel()
+
+	// Test executeJob with timeout
+	_, err := handler.executeJob(ctx, "test-module", "job_1")
+
+	// Should return timeout error
+	if err == nil {
+		t.Error("executeJob() should return error on timeout")
+	}
+}
+
+// Test SetExecutor
+func TestDoingHandler_SetExecutor(t *testing.T) {
+	handler := NewDoingHandler(&mockConfig{}, &mockLogger{})
+	mockExec := &mockExecutor{}
+
+	handler.SetExecutor(mockExec)
+
+	if handler.executor != mockExec {
+		t.Error("SetExecutor() should set the executor")
+	}
+}
+
+// Test SetGitManager
+func TestDoingHandler_SetGitManager(t *testing.T) {
+	handler := NewDoingHandler(&mockConfig{}, &mockLogger{})
+	gitMgr := git.NewManager()
+
+	handler.SetGitManager(gitMgr)
+
+	if handler.gitManager != gitMgr {
+		t.Error("SetGitManager() should set the git manager")
+	}
+}
+
+// Test Executor integration with real executor
+// Task 7: Integration test
+func TestDoingHandler_ExecutorIntegration(t *testing.T) {
+	tmpDir := setupTestDir(t)
+	workDir := filepath.Join(tmpDir, ".morty")
+	planDir := filepath.Join(workDir, "plan")
+	if err := os.MkdirAll(planDir, 0755); err != nil {
+		t.Fatalf("Failed to create plan dir: %v", err)
+	}
+
+	// Setup test state with tasks
+	stateContent := `{
+		"version": "1.0",
+		"global": {
+			"status": "PENDING",
+			"start_time": "2024-01-01T00:00:00Z",
+			"last_update": "2024-01-01T00:00:00Z"
+		},
+		"modules": {
+			"test-module": {
+				"name": "test-module",
+				"status": "PENDING",
+				"jobs": {
+					"job_1": {
+						"name": "job_1",
+						"status": "PENDING",
+						"tasks_total": 2,
+						"tasks_completed": 0,
+						"tasks": [
+							{"index": 0, "status": "PENDING", "description": "Task 1"},
+							{"index": 1, "status": "PENDING", "description": "Task 2"}
+						],
+						"created_at": "2024-01-01T00:00:00Z",
+						"updated_at": "2024-01-01T00:00:00Z"
+					}
+				},
+				"created_at": "2024-01-01T00:00:00Z",
+				"updated_at": "2024-01-01T00:00:00Z"
+			}
+		}
+	}`
+
+	stateFile := filepath.Join(workDir, "status.json")
+	if err := os.WriteFile(stateFile, []byte(stateContent), 0644); err != nil {
+		t.Fatalf("Failed to write state file: %v", err)
+	}
+
+	cfg := &mockConfig{
+		workDir: workDir,
+		planDir: planDir,
+	}
+	handler := NewDoingHandler(cfg, &mockLogger{})
+	handler.loadStatus()
+
+	// Initialize git manager and executor
+	gitMgr := git.NewManager()
+	handler.SetGitManager(gitMgr)
+
+	// Create real executor with test config
+	execConfig := &executor.Config{
+		MaxRetries:   3,
+		AutoCommit:   false,
+		CommitPrefix: "morty:",
+		WorkingDir:   workDir,
+	}
+	eng := executor.NewEngine(handler.stateManager, gitMgr, &mockLogger{}, execConfig)
+	handler.SetExecutor(eng)
+
+	// Verify executor is properly set
+	if handler.executor == nil {
+		t.Fatal("Executor should be set")
+	}
+
+	// Test that executor can be called
+	ctx := context.Background()
+	_, err := handler.executeJob(ctx, "test-module", "job_1")
+	// May fail due to actual execution, but should not panic
+	if err != nil {
+		t.Logf("executeJob() returned error (may be expected): %v", err)
 	}
 }

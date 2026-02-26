@@ -11,6 +11,8 @@ import (
 
 	"github.com/morty/morty/internal/callcli"
 	"github.com/morty/morty/internal/config"
+	"github.com/morty/morty/internal/executor"
+	"github.com/morty/morty/internal/git"
 	"github.com/morty/morty/internal/logging"
 	"github.com/morty/morty/internal/parser/plan"
 	"github.com/morty/morty/internal/state"
@@ -34,6 +36,8 @@ type DoingHandler struct {
 	paths        *config.Paths
 	cliCaller    callcli.AICliCaller
 	stateManager *state.Manager
+	executor     executor.Engine
+	gitManager   *git.Manager
 }
 
 // NewDoingHandler creates a new DoingHandler instance.
@@ -149,6 +153,29 @@ func (h *DoingHandler) Execute(ctx context.Context, args []string) (*DoingResult
 		logger.Info("Additional arguments", logging.Any("args", remainingArgs))
 	}
 
+	// Step 5: Initialize Executor and execute the job
+	if err := h.initializeExecutor(); err != nil {
+		result.Err = fmt.Errorf("初始化执行器失败: %w", err)
+		result.ExitCode = 1
+		result.Duration = time.Since(startTime)
+		logger.Error("Failed to initialize executor", logging.String("error", err.Error()))
+		return result, result.Err
+	}
+
+	// Step 6: Execute the job with timeout control
+	execResult, err := h.executeJob(ctx, targetModule, targetJob)
+	if err != nil {
+		result.Err = err
+		result.ExitCode = 1
+		result.Duration = time.Since(startTime)
+		logger.Error("Job execution failed",
+			logging.String("module", targetModule),
+			logging.String("job", targetJob),
+			logging.String("error", err.Error()),
+		)
+		return result, result.Err
+	}
+
 	result.Duration = time.Since(startTime)
 	result.ExitCode = 0
 
@@ -157,6 +184,7 @@ func (h *DoingHandler) Execute(ctx context.Context, args []string) (*DoingResult
 		logging.String("job", targetJob),
 		logging.Int("exit_code", result.ExitCode),
 		logging.Any("duration", result.Duration),
+		logging.String("exec_status", string(execResult.Status)),
 	)
 
 	return result, nil
@@ -608,6 +636,117 @@ func (h *DoingHandler) updateStatus(moduleName, jobName string, status state.Sta
 // GetStateManager returns the state manager (useful for testing).
 func (h *DoingHandler) GetStateManager() *state.Manager {
 	return h.stateManager
+}
+
+// initializeExecutor initializes the executor with necessary dependencies.
+// Task 1: Initialize Executor
+func (h *DoingHandler) initializeExecutor() error {
+	if h.stateManager == nil {
+		return fmt.Errorf("state manager not initialized")
+	}
+
+	// Initialize git manager if not already set
+	if h.gitManager == nil {
+		h.gitManager = git.NewManager()
+	}
+
+	// Create executor configuration
+	execConfig := &executor.Config{
+		MaxRetries:   3,
+		AutoCommit:   true,
+		CommitPrefix: "morty:",
+		WorkingDir:   h.getWorkDir(),
+	}
+
+	// Create the executor engine
+	h.executor = executor.NewEngine(h.stateManager, h.gitManager, h.logger, execConfig)
+
+	return nil
+}
+
+// executeJob executes the specified job using the executor.
+// Task 2: Implement executeJob(module, job)
+// Task 3: Build execution context
+// Task 4: Call Executor to execute
+// Task 5: Handle execution results
+// Task 6: Timeout control
+func (h *DoingHandler) executeJob(ctx context.Context, module, job string) (*executor.ExecutionResult, error) {
+	if h.executor == nil {
+		return nil, fmt.Errorf("executor not initialized")
+	}
+
+	logger := h.logger.WithContext(ctx)
+	logger.Info("Starting job execution",
+		logging.String("module", module),
+		logging.String("job", job),
+	)
+
+	// Task 6: Create timeout context (30 minutes default)
+	timeout := 30 * time.Minute
+
+	execCtx, cancel := context.WithTimeout(ctx, timeout)
+	defer cancel()
+
+	// Task 4: Call Executor to execute the job
+	err := h.executor.ExecuteJob(execCtx, module, job)
+
+	// Task 5: Handle execution results
+	result := &executor.ExecutionResult{
+		Module:   module,
+		Job:      job,
+		Status:   state.StatusCompleted,
+		Summary:  "Job completed successfully",
+	}
+
+	if err != nil {
+		// Check it was a timeout
+		if execCtx.Err() == context.DeadlineExceeded {
+			result.Status = state.StatusFailed
+			result.Summary = fmt.Sprintf("Job execution timed out after %v", timeout)
+			logger.Error("Job execution timed out",
+				logging.String("module", module),
+				logging.String("job", job),
+				logging.Any("timeout", timeout),
+			)
+			return result, fmt.Errorf("job execution timed out after %v: %w", timeout, err)
+		}
+
+		result.Status = state.StatusFailed
+		result.Summary = fmt.Sprintf("Job execution failed: %v", err)
+		logger.Error("Job execution failed",
+			logging.String("module", module),
+			logging.String("job", job),
+			logging.String("error", err.Error()),
+		)
+		return result, err
+	}
+
+	// Get the final job state
+	jobState := h.stateManager.GetJob(module, job)
+	if jobState != nil {
+		result.Status = jobState.Status
+		result.TasksCompleted = jobState.TasksCompleted
+		result.TasksTotal = jobState.TasksTotal
+		result.RetryCount = jobState.RetryCount
+	}
+
+	logger.Success("Job execution completed",
+		logging.String("module", module),
+		logging.String("job", job),
+		logging.String("status", string(result.Status)),
+	)
+
+	return result, nil
+}
+
+// SetExecutor sets a custom executor (useful for testing).
+func (h *DoingHandler) SetExecutor(exec executor.Engine) {
+	h.executor = exec
+}
+
+// SetGitManager sets a custom git manager (useful for testing).
+func (h *DoingHandler) SetGitManager(gitMgr *git.Manager) {
+	h.gitManager = gitMgr
 }
 
 // loadPlan loads and parses a Plan file for the specified module.
