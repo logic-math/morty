@@ -1230,8 +1230,6 @@ func TestValidateCommitHash(t *testing.T) {
 
 // TestPromptForConfirmation tests the confirmation prompt logic.
 func TestPromptForConfirmation(t *testing.T) {
-	handler := NewResetHandler(nil, &mockResetLogger{})
-
 	commitInfo := &CommitInfo{
 		Hash:       "abc1234567890abcdef1234567890abcdef123456",
 		ShortHash:  "abc1234",
@@ -1415,5 +1413,171 @@ func TestRecalculateModuleStatus(t *testing.T) {
 				t.Errorf("Status = %v, want %v", module.Status, tc.expectedStatus)
 			}
 		})
+	}
+}
+
+// TestSyncStateAfterReset tests the syncStateAfterReset function.
+// Task 7: Unit tests for syncStatusAfterReset.
+func TestSyncStateAfterReset(t *testing.T) {
+	now := time.Now()
+
+	// Create a temporary directory for the state file
+	tempDir := t.TempDir()
+	statusFile := filepath.Join(tempDir, "status.json")
+
+	// Create initial state with multiple modules and jobs
+	initialState := &state.StatusJSON{
+		Version: "1.0",
+		Global: state.GlobalState{
+			Status:        state.StatusRunning,
+			CurrentModule: "config",
+			CurrentJob:    "job_3",
+			StartTime:     now,
+			LastUpdate:    now,
+		},
+		Modules: map[string]*state.ModuleState{
+			"cli": {
+				Name:      "cli",
+				Status:    state.StatusCompleted,
+				CreatedAt: now,
+				UpdatedAt: now,
+				Jobs: map[string]*state.JobState{
+					"job_1": {Name: "job_1", Status: state.StatusCompleted, LoopCount: 1, TasksTotal: 5, TasksCompleted: 5, UpdatedAt: now},
+					"job_2": {Name: "job_2", Status: state.StatusCompleted, LoopCount: 1, TasksTotal: 5, TasksCompleted: 5, UpdatedAt: now},
+				},
+			},
+			"config": {
+				Name:      "config",
+				Status:    state.StatusCompleted,
+				CreatedAt: now,
+				UpdatedAt: now,
+				Jobs: map[string]*state.JobState{
+					"job_1": {Name: "job_1", Status: state.StatusCompleted, LoopCount: 1, TasksTotal: 5, TasksCompleted: 5, UpdatedAt: now},
+					"job_2": {Name: "job_2", Status: state.StatusCompleted, LoopCount: 1, TasksTotal: 5, TasksCompleted: 5, UpdatedAt: now},
+					"job_3": {Name: "job_3", Status: state.StatusCompleted, LoopCount: 2, TasksTotal: 5, TasksCompleted: 5, UpdatedAt: now},
+				},
+			},
+			"logging": {
+				Name:      "logging",
+				Status:    state.StatusPending,
+				CreatedAt: now,
+				UpdatedAt: now,
+				Jobs: map[string]*state.JobState{
+					"job_1": {Name: "job_1", Status: state.StatusPending, LoopCount: 0, TasksTotal: 5, TasksCompleted: 0, UpdatedAt: now},
+					"job_2": {Name: "job_2", Status: state.StatusPending, LoopCount: 0, TasksTotal: 5, TasksCompleted: 0, UpdatedAt: now},
+				},
+			},
+		},
+	}
+
+	// Save initial state to file
+	stateManager := state.NewManager(statusFile)
+	stateManager.SetState(initialState)
+	if err := stateManager.Save(); err != nil {
+		t.Fatalf("Failed to save initial state: %v", err)
+	}
+
+	// Create handler
+	handler := NewResetHandler(nil, &mockResetLogger{})
+
+	// Test case: Reset to config/job_2
+	// - cli/job_1, cli/job_2, config/job_1 should remain COMPLETED
+	// - config/job_2 should be reset to PENDING
+	// - config/job_3 should be reset to PENDING
+	// - logging/* should remain PENDING
+	commitInfo := &CommitInfo{
+		Hash:       "abc1234",
+		ShortHash:  "abc1234",
+		Message:    "morty: loop 5 - COMPLETED",
+		Module:     "config",
+		Job:        "job_2",
+		Status:     "COMPLETED",
+		Timestamp:  now,
+	}
+
+	err := handler.syncStateAfterReset(stateManager, commitInfo)
+	if err != nil {
+		t.Fatalf("syncStateAfterReset() error = %v", err)
+	}
+
+	// Reload state and verify
+	newManager := state.NewManager(statusFile)
+	if err := newManager.Load(); err != nil {
+		t.Fatalf("Failed to load state: %v", err)
+	}
+
+	newState := newManager.GetState()
+
+	// Verify 1: Target job (config/job_2) should be PENDING
+	if newState.Modules["config"].Jobs["job_2"].Status != state.StatusPending {
+		t.Errorf("Target job config/job_2 status = %v, want PENDING", newState.Modules["config"].Jobs["job_2"].Status)
+	}
+
+	// Verify 2: Subsequent jobs (config/job_3) should be PENDING
+	if newState.Modules["config"].Jobs["job_3"].Status != state.StatusPending {
+		t.Errorf("Subsequent job config/job_3 status = %v, want PENDING", newState.Modules["config"].Jobs["job_3"].Status)
+	}
+
+	// Verify 3: Previous jobs should remain COMPLETED
+	if newState.Modules["cli"].Jobs["job_1"].Status != state.StatusCompleted {
+		t.Errorf("Previous job cli/job_1 status = %v, want COMPLETED", newState.Modules["cli"].Jobs["job_1"].Status)
+	}
+	if newState.Modules["cli"].Jobs["job_2"].Status != state.StatusCompleted {
+		t.Errorf("Previous job cli/job_2 status = %v, want COMPLETED", newState.Modules["cli"].Jobs["job_2"].Status)
+	}
+	if newState.Modules["config"].Jobs["job_1"].Status != state.StatusCompleted {
+		t.Errorf("Previous job config/job_1 status = %v, want COMPLETED", newState.Modules["config"].Jobs["job_1"].Status)
+	}
+
+	// Verify 4: LoopCount and TasksCompleted should be reset for target and subsequent jobs
+	if newState.Modules["config"].Jobs["job_2"].LoopCount != 0 {
+		t.Errorf("Target job LoopCount = %v, want 0", newState.Modules["config"].Jobs["job_2"].LoopCount)
+	}
+	if newState.Modules["config"].Jobs["job_2"].TasksCompleted != 0 {
+		t.Errorf("Target job TasksCompleted = %v, want 0", newState.Modules["config"].Jobs["job_2"].TasksCompleted)
+	}
+
+	// Verify 5: Global state should be updated
+	if newState.Global.CurrentModule != "config" {
+		t.Errorf("Global.CurrentModule = %v, want config", newState.Global.CurrentModule)
+	}
+	if newState.Global.CurrentJob != "job_2" {
+		t.Errorf("Global.CurrentJob = %v, want job_2", newState.Global.CurrentJob)
+	}
+}
+
+// TestSyncStateAfterReset_InvalidModuleJob tests error handling when module/job cannot be parsed.
+func TestSyncStateAfterReset_InvalidModuleJob(t *testing.T) {
+	tempDir := t.TempDir()
+	statusFile := filepath.Join(tempDir, "status.json")
+
+	// Create initial state
+	initialState := &state.StatusJSON{
+		Version: "1.0",
+		Global:  state.GlobalState{Status: state.StatusRunning},
+		Modules: map[string]*state.ModuleState{
+			"cli": {
+				Name: "cli",
+				Jobs: map[string]*state.JobState{
+					"job_1": {Name: "job_1", Status: state.StatusCompleted},
+				},
+			},
+		},
+	}
+
+	stateManager := state.NewManager(statusFile)
+	stateManager.SetState(initialState)
+
+	handler := NewResetHandler(nil, &mockResetLogger{})
+
+	// Test with invalid module/job ("-" values)
+	commitInfo := &CommitInfo{
+		Module: "-",
+		Job:    "-",
+	}
+
+	err := handler.syncStateAfterReset(stateManager, commitInfo)
+	if err == nil {
+		t.Error("Expected error when module/job is '-', got nil")
 	}
 }

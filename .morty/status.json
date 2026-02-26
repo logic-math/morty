@@ -3,16 +3,16 @@
   "state": "running",
   "current": {
     "module": "reset_cmd",
-    "job": "job_4",
+    "job": "job_5",
     "status": "COMPLETED",
-    "start_time": "2026-02-26T14:55:25Z",
+    "start_time": "2026-02-26T15:37:20Z",
     "interrupted_at": "2026-02-24T16:51:59Z",
-    "completed_at": "2026-02-26T15:37:19Z"
+    "completed_at": "2026-02-26T16:29:10Z"
   },
   "session": {
     "start_time": "2026-02-24T12:51:47Z",
-    "last_update": "2026-02-26T15:37:19Z",
-    "total_loops": 72
+    "last_update": "2026-02-26T16:29:10Z",
+    "total_loops": 73
   },
   "modules": {
     "go_env_setup": {
@@ -4016,12 +4016,59 @@
           "completion_summary": "Job executed successfully"
         },
         "job_5": {
-          "status": "PENDING",
-          "loop_count": 0,
+          "status": "COMPLETED",
+          "loop_count": 1,
           "retry_count": 0,
           "tasks_total": 7,
-          "tasks_completed": 0,
-          "debug_logs": []
+          "tasks_completed": 7,
+          "debug_logs": [],
+          "started_at": "2026-02-26T15:37:20Z",
+          "tasks": {
+            "1": {
+              "index": 1,
+              "status": "COMPLETED",
+              "description": "Task 1: 实现 `syncStatusAfterReset(commit)`",
+              "updated_at": "2026-02-26T16:29:09Z"
+            },
+            "2": {
+              "index": 2,
+              "status": "COMPLETED",
+              "description": "Task 2: 从提交信息解析回滚到的位置",
+              "updated_at": "2026-02-26T16:29:09Z"
+            },
+            "3": {
+              "index": 3,
+              "status": "COMPLETED",
+              "description": "Task 3: 重置该位置之后的所有 Job 为 PENDING",
+              "updated_at": "2026-02-26T16:29:09Z"
+            },
+            "4": {
+              "index": 4,
+              "status": "COMPLETED",
+              "description": "Task 4: 更新 `status.json`",
+              "updated_at": "2026-02-26T16:29:09Z"
+            },
+            "5": {
+              "index": 5,
+              "status": "COMPLETED",
+              "description": "Task 5: 保持回滚位置之前的完成状态",
+              "updated_at": "2026-02-26T16:29:09Z"
+            },
+            "6": {
+              "index": 6,
+              "status": "COMPLETED",
+              "description": "Task 6: 输出当前状态提示",
+              "updated_at": "2026-02-26T16:29:10Z"
+            },
+            "7": {
+              "index": 7,
+              "status": "COMPLETED",
+              "description": "Task 7: 编写单元测试",
+              "updated_at": "2026-02-26T16:29:10Z"
+            }
+          },
+          "completed_at": "2026-02-26T16:29:10Z",
+          "completion_summary": "Job executed successfully"
         }
       }
     },

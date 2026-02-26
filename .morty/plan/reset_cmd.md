@@ -238,23 +238,24 @@ type LoopCommit struct {
 - Job 4 完成
 
 **Tasks (Todo 列表)**:
-- [ ] Task 1: 实现 `syncStatusAfterReset(commit)`
-- [ ] Task 2: 从提交信息解析回滚到的位置
-- [ ] Task 3: 重置该位置之后的所有 Job 为 PENDING
-- [ ] Task 4: 更新 `status.json`
-- [ ] Task 5: 保持回滚位置之前的完成状态
-- [ ] Task 6: 输出当前状态提示
-- [ ] Task 7: 编写单元测试
+- [x] Task 1: 实现 `syncStatusAfterReset(commit)`
+- [x] Task 2: 从提交信息解析回滚到的位置
+- [x] Task 3: 重置该位置之后的所有 Job 为 PENDING
+- [x] Task 4: 更新 `status.json`
+- [x] Task 5: 保持回滚位置之前的完成状态
+- [x] Task 6: 输出当前状态提示
+- [x] Task 7: 编写单元测试
 
 **验证器**:
-- [ ] 正确解析回滚位置
-- [ ] 之后 Jobs 重置为 PENDING
-- [ ] 之前 Jobs 保持 COMPLETED
-- [ ] status.json 正确更新
-- [ ] 所有单元测试通过
+- [x] 正确解析回滚位置
+- [x] 之后 Jobs 重置为 PENDING
+- [x] 之前 Jobs 保持 COMPLETED
+- [x] status.json 正确更新
+- [x] 所有单元测试通过
 
 **调试日志**:
-- 待填充
+- debug1: shell 工具起始目录与项目目录不一致, 使用 go test -C 参数解决路径问题, 猜想: 1) bash 工具初始 pwd 与项目目录不同 2) 需要显式指定工作目录, 验证: 使用 go test -C /path/to/morty 成功运行测试, 修复: 使用 -C 参数指定 morty 目录, 已修复
+- debug2: 测试编译失败 handler declared and not used, 在 TestPromptForConfirmation 函数中, 猜想: 之前 Job 遗留的未使用变量, 验证: 检查 reset_test.go 第 1233 行, 修复: 删除未使用的 handler 变量声明, 已修复
 
 ---
 

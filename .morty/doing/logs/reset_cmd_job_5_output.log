@@ -1,0 +1,49 @@
+All tests pass. Let me provide the final RALPH_STATUS:
+
+<!-- RALPH_STATUS -->
+```json
+{
+  "ralph_status": {
+    "module": "reset_cmd",
+    "job": "job_5",
+    "status": "COMPLETED",
+    "tasks_completed": 7,
+    "tasks_total": 7,
+    "loop_count": 1,
+    "debug_issues": 2,
+    "debug_logs_in_plan": true,
+    "explore_subagent_used": true,
+    "summary": "Job 5 完成：实现了 `syncStatusAfterReset(commit)` 函数，从提交信息解析回滚位置，重置该位置之后的所有 Job 为 PENDING，保持回滚位置之前的完成状态，更新 status.json，输出状态提示，并编写了单元测试。所有 7 个 Tasks 已完成，所有验证器通过，单元测试全部通过（包括 TestSyncStateAfterReset 和 TestSyncStateAfterReset_InvalidModuleJob）。"
+  }
+}
+```
+<!-- END_RALPH_STATUS -->
+
+---
+
+## 执行摘要
+
+**Job 5: 状态同步** 已完成。
+
+### 已完成的 Tasks:
+
+1. **Task 1**: 实现了 `syncStatusAfterReset(commit)` 函数 (reset.go:877-920)
+2. **Task 2**: 从提交信息解析回滚到的位置 (module/job)
+3. **Task 3**: 重置该位置之后的所有 Job 为 PENDING
+4. **Task 4**: 更新 `status.json` (调用 sm.Save())
+5. **Task 5**: 保持回滚位置之前的完成状态 (已完成的 Jobs 保持 COMPLETED)
+6. **Task 6**: 输出当前状态提示 (显示重置数量、保留数量、当前位置)
+7. **Task 7**: 编写了单元测试 (TestSyncStateAfterReset, TestSyncStateAfterReset_InvalidModuleJob)
+
+### 验证结果:
+
+- ✅ 正确解析回滚位置 (从 CommitInfo.Module 和 CommitInfo.Job)
+- ✅ 之后 Jobs 重置为 PENDING (包括目标 job 和后续 jobs)
+- ✅ 之前 Jobs 保持 COMPLETED (不受影响)
+- ✅ status.json 正确更新 (通过 state.Manager.Save())
+- ✅ 所有单元测试通过
+
+### 调试日志 (已记录到 Plan):
+
+1. **debug1**: 解决了 shell 工具起始目录与项目目录不一致的问题
+2. **debug2**: 修复了测试文件中未使用变量的编译错误

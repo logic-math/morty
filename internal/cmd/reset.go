@@ -873,6 +873,7 @@ func (h *ResetHandler) restoreStateForCommit(info *CommitInfo) error {
 }
 
 // syncStateAfterReset synchronizes the state file after a reset.
+// Task 1: Implement `syncStatusAfterReset(commit)` - Main entry point for status synchronization.
 // It sets the target job and resets subsequent jobs appropriately.
 func (h *ResetHandler) syncStateAfterReset(sm *state.Manager, targetCommit *CommitInfo) error {
 	// Get current state
@@ -881,26 +882,43 @@ func (h *ResetHandler) syncStateAfterReset(sm *state.Manager, targetCommit *Comm
 		return fmt.Errorf("状态未加载")
 	}
 
-	// Find the target module and job
+	// Task 2: Parse rollback position from commit info
 	targetModule := targetCommit.Module
 	targetJob := targetCommit.Job
 
-	// Update the state: set target job as RUNNING (will be re-executed)
-	// and all subsequent jobs as PENDING
+	if targetModule == "-" || targetJob == "-" {
+		return fmt.Errorf("无法从提交信息解析模块/Job")
+	}
+
+	// Track statistics for output summary
+	resetCount := 0
+	preservedCount := 0
+
+	// Task 3 & 5: Reset subsequent jobs to PENDING, keep previous jobs COMPLETED
 	for moduleName, module := range currentState.Modules {
 		for jobName, job := range module.Jobs {
 			if moduleName == targetModule && jobName == targetJob {
-				// Set target job to PENDING so it will be re-executed
+				// Target job: reset to PENDING for re-execution
 				job.Status = state.StatusPending
 				job.LoopCount = 0
+				job.RetryCount = 0
+				job.TasksCompleted = 0
 				job.UpdatedAt = time.Now()
+				resetCount++
 			} else if shouldResetJob(moduleName, jobName, targetModule, targetJob) {
-				// Reset subsequent jobs to PENDING
+				// Subsequent jobs: reset to PENDING
 				job.Status = state.StatusPending
 				job.LoopCount = 0
+				job.RetryCount = 0
+				job.TasksCompleted = 0
 				job.UpdatedAt = time.Now()
+				resetCount++
+			} else {
+				// Previous jobs: keep as COMPLETED (Task 5)
+				if job.Status == state.StatusCompleted {
+					preservedCount++
+				}
 			}
-			// Jobs before the target remain COMPLETED
 		}
 
 		// Recalculate module status
@@ -913,8 +931,18 @@ func (h *ResetHandler) syncStateAfterReset(sm *state.Manager, targetCommit *Comm
 	currentState.Global.CurrentJob = targetJob
 	currentState.Global.LastUpdate = time.Now()
 
-	// Save updated state
-	return sm.Save()
+	// Task 4: Update status.json
+	if err := sm.Save(); err != nil {
+		return fmt.Errorf("保存状态失败: %w", err)
+	}
+
+	// Task 6: Output current status hints
+	fmt.Printf("\n状态同步完成:\n")
+	fmt.Printf("  当前位置: %s/%s\n", targetModule, targetJob)
+	fmt.Printf("  重置 %d 个 Job 为 PENDING\n", resetCount)
+	fmt.Printf("  保留 %d 个已完成的 Job\n", preservedCount)
+
+	return nil
 }
 
 // shouldResetJob determines if a job should be reset based on the target.
