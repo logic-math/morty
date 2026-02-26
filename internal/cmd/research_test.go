@@ -72,7 +72,9 @@ func (m *mockLogger) IsEnabled(level logging.Level) bool {
 
 // mockConfig is a mock implementation of config.Manager for testing.
 type mockConfig struct {
-	values map[string]interface{}
+	values     map[string]interface{}
+	workDir    string
+	planDir    string
 }
 
 func (m *mockConfig) Load(path string) error {
@@ -147,27 +149,41 @@ func (m *mockConfig) SaveTo(path string) error {
 }
 
 func (m *mockConfig) GetWorkDir() string {
+	if m.workDir != "" {
+		return m.workDir
+	}
 	return ".morty"
 }
 
 func (m *mockConfig) GetLogDir() string {
-	return ".morty/doing/logs"
+	return filepath.Join(m.GetWorkDir(), "doing", "logs")
 }
 
 func (m *mockConfig) GetResearchDir() string {
-	return ".morty/research"
+	return filepath.Join(m.GetWorkDir(), "research")
 }
 
 func (m *mockConfig) GetPlanDir() string {
-	return ".morty/plan"
+	if m.planDir != "" {
+		return m.planDir
+	}
+	return filepath.Join(m.GetWorkDir(), "plan")
 }
 
 func (m *mockConfig) GetStatusFile() string {
-	return ".morty/status.json"
+	return filepath.Join(m.GetWorkDir(), "status.json")
 }
 
 func (m *mockConfig) GetConfigFile() string {
-	return ".morty/settings.json"
+	return filepath.Join(m.GetWorkDir(), "settings.json")
+}
+
+func (m *mockConfig) SetWorkDir(dir string) {
+	m.workDir = dir
+}
+
+func (m *mockConfig) SetPlanDir(dir string) {
+	m.planDir = dir
 }
 
 // setupTestDir creates a temporary directory for testing.

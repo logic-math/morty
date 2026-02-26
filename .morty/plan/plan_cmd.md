@@ -106,24 +106,26 @@ type PlanResult struct {
 - Plan Parser 模块完成
 
 **Tasks (Todo 列表)**:
-- [ ] Task 1: 创建 `internal/cmd/plan.go` 文件
-- [ ] Task 2: 实现 `PlanHandler` 结构体
-- [ ] Task 3: 实现 `NewPlanHandler(cfg, logger, parser)` 构造函数
-- [ ] Task 4: 实现 `Execute(ctx, args) error` 方法
-- [ ] Task 5: 解析 `--force` 选项
-- [ ] Task 6: 检查并创建 `.morty/plan/` 目录
-- [ ] Task 7: 检查已有 Plan 文件是否存在
-- [ ] Task 8: 编写单元测试 `plan_test.go`
+- [x] Task 1: 创建 `internal/cmd/plan.go` 文件
+- [x] Task 2: 实现 `PlanHandler` 结构体
+- [x] Task 3: 实现 `NewPlanHandler(cfg, logger, parser)` 构造函数
+- [x] Task 4: 实现 `Execute(ctx, args) error` 方法
+- [x] Task 5: 解析 `--force` 选项
+- [x] Task 6: 检查并创建 `.morty/plan/` 目录
+- [x] Task 7: 检查已有 Plan 文件是否存在
+- [x] Task 8: 编写单元测试 `plan_test.go`
 
 **验证器**:
-- [ ] 无 `--force` 时，已有 Plan 文件提示确认
-- [ ] `--force` 时直接覆盖
-- [ ] 自动创建 `.morty/plan/` 目录
-- [ ] 返回正确的 PlanResult
-- [ ] 所有单元测试通过 (覆盖率 >= 80%)
+- [x] 无 `--force` 时，已有 Plan 文件提示确认
+- [x] `--force` 时直接覆盖
+- [x] 自动创建 `.morty/plan/` 目录
+- [x] 返回正确的 PlanResult
+- [x] 所有单元测试通过 (覆盖率 >= 80%)
 
 **调试日志**:
-- 待填充
+- debug1: mockConfig 和 mockLogger 在多个测试文件中重复定义导致编译错误, 同时加载 plan_test.go 和 research_test.go 时报 redeclared 错误, 猜想: 1)包级别类型重名 2)Go测试文件共享同一包命名空间, 验证: 检查 research_test.go 发现已定义 mockConfig/mockLogger, 修复: 移除 plan_test.go 中的重复定义，使用 research_test.go 中的 mock 类型, 已修复
+- debug2: 测试失败因为 GetPlanDir() 返回相对路径 .morty/plan 而非绝对路径, 测试期望返回基于 tmpDir 的绝对路径, 猜想: 1)mockConfig.GetPlanDir() 实现问题 2)Paths 配置未正确设置, 验证: 检查 mockConfig 实现发现返回固定字符串, 修复: 更新 mockConfig 支持 SetWorkDir 和 SetPlanDir 方法，GetPlanDir 基于 workDir 计算, 已修复
+- explore1: [探索发现] 项目使用单文件日志实现, lib/logging.sh 为核心模块, 使用文件追加模式写入, 已记录
 
 ---
 
