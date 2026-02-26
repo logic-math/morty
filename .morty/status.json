@@ -2,17 +2,17 @@
   "version": "2.0",
   "state": "running",
   "current": {
-    "module": "reset_cmd",
-    "job": "job_5",
+    "module": "e2e_test",
+    "job": "job_1",
     "status": "COMPLETED",
-    "start_time": "2026-02-26T15:37:20Z",
+    "start_time": "2026-02-26T16:29:11Z",
     "interrupted_at": "2026-02-24T16:51:59Z",
-    "completed_at": "2026-02-26T16:29:10Z"
+    "completed_at": "2026-02-26T16:42:44Z"
   },
   "session": {
     "start_time": "2026-02-24T12:51:47Z",
-    "last_update": "2026-02-26T16:29:10Z",
-    "total_loops": 73
+    "last_update": "2026-02-26T16:42:44Z",
+    "total_loops": 74
   },
   "modules": {
     "go_env_setup": {
@@ -4076,12 +4076,47 @@
       "status": "pending",
       "jobs": {
         "job_1": {
-          "status": "PENDING",
-          "loop_count": 0,
+          "status": "COMPLETED",
+          "loop_count": 1,
           "retry_count": 0,
           "tasks_total": 5,
-          "tasks_completed": 0,
-          "debug_logs": []
+          "tasks_completed": 5,
+          "debug_logs": [],
+          "started_at": "2026-02-26T16:29:11Z",
+          "tasks": {
+            "1": {
+              "index": 1,
+              "status": "COMPLETED",
+              "description": "Task 1: 下载 install.sh 脚本",
+              "updated_at": "2026-02-26T16:42:43Z"
+            },
+            "2": {
+              "index": 2,
+              "status": "COMPLETED",
+              "description": "Task 2: 执行安装脚本",
+              "updated_at": "2026-02-26T16:42:43Z"
+            },
+            "3": {
+              "index": 3,
+              "status": "COMPLETED",
+              "description": "Task 3: 验证安装目录创建",
+              "updated_at": "2026-02-26T16:42:43Z"
+            },
+            "4": {
+              "index": 4,
+              "status": "COMPLETED",
+              "description": "Task 4: 验证命令可用",
+              "updated_at": "2026-02-26T16:42:43Z"
+            },
+            "5": {
+              "index": 5,
+              "status": "COMPLETED",
+              "description": "Task 5: 检查默认配置生成",
+              "updated_at": "2026-02-26T16:42:44Z"
+            }
+          },
+          "completed_at": "2026-02-26T16:42:44Z",
+          "completion_summary": "Job executed successfully"
         },
         "job_2": {
           "status": "PENDING",
