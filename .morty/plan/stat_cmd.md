@@ -194,23 +194,25 @@ type ProgressInfo struct {
 - Job 1 完成
 
 **Tasks (Todo 列表)**:
-- [ ] Task 1: 实现 `collectStatus()` 收集状态
-- [ ] Task 2: 读取 `status.json` 获取当前 Job
-- [ ] Task 3: 查找上一个完成的 Job
-- [ ] Task 4: 统计所有模块的 Jobs
-- [ ] Task 5: 计算进度百分比
-- [ ] Task 6: 从日志中提取 debug 问题
-- [ ] Task 7: 编写单元测试
+- [x] Task 1: 实现 `collectStatus()` 收集状态
+- [x] Task 2: 读取 `status.json` 获取当前 Job
+- [x] Task 3: 查找上一个完成的 Job
+- [x] Task 4: 统计所有模块的 Jobs
+- [x] Task 5: 计算进度百分比
+- [x] Task 6: 从日志中提取 debug 问题
+- [x] Task 7: 编写单元测试
 
 **验证器**:
-- [ ] 正确读取当前 Job 信息
-- [ ] 正确找到上一个完成的 Job
-- [ ] 正确统计 Jobs 数量
-- [ ] 进度计算正确
-- [ ] 所有单元测试通过
+- [x] 正确读取当前 Job 信息
+- [x] 正确找到上一个完成的 Job
+- [x] 正确统计 Jobs 数量
+- [x] 进度计算正确
+- [x] 所有单元测试通过
 
 **调试日志**:
-- 待填充
+- explore1: [探索发现] 项目使用标准 Handler 模式, state.Manager 提供 GetCurrent() 和 GetSummary() 方法, 状态文件格式为 version 1.0 (StatusJSON with Global and Modules), 已记录
+- debug1: 需要从 state.Manager 获取原始数据来查找上一个完成的 Job 和 debug logs, 直接解析 status.json 文件, 使用匿名结构体匹配 version 1.0 格式, 已修复
+- debug2: TestStatHandler_collectStatus 测试失败, 状态文件格式错误, 猜想: 使用了 version 2.0 格式而非 1.0, 验证: 检查 state/state.go 确认使用 version 1.0 格式 (GlobalState/ModuleState), 修复: 更新测试数据使用 version 1.0 格式, 已修复
 
 ---
 

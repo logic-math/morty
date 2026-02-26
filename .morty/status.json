@@ -3,16 +3,16 @@
   "state": "running",
   "current": {
     "module": "stat_cmd",
-    "job": "job_1",
+    "job": "job_2",
     "status": "COMPLETED",
-    "start_time": "2026-02-26T10:45:15Z",
+    "start_time": "2026-02-26T11:01:58Z",
     "interrupted_at": "2026-02-24T16:51:59Z",
-    "completed_at": "2026-02-26T11:01:57Z"
+    "completed_at": "2026-02-26T11:52:08Z"
   },
   "session": {
     "start_time": "2026-02-24T12:51:47Z",
-    "last_update": "2026-02-26T11:01:57Z",
-    "total_loops": 64
+    "last_update": "2026-02-26T11:52:08Z",
+    "total_loops": 65
   },
   "modules": {
     "go_env_setup": {
@@ -3577,12 +3577,59 @@
           "completion_summary": "Job executed successfully"
         },
         "job_2": {
-          "status": "PENDING",
-          "loop_count": 0,
+          "status": "COMPLETED",
+          "loop_count": 1,
           "retry_count": 0,
           "tasks_total": 7,
-          "tasks_completed": 0,
-          "debug_logs": []
+          "tasks_completed": 7,
+          "debug_logs": [],
+          "started_at": "2026-02-26T11:01:58Z",
+          "tasks": {
+            "1": {
+              "index": 1,
+              "status": "COMPLETED",
+              "description": "Task 1: 实现 `collectStatus()` 收集状态",
+              "updated_at": "2026-02-26T11:52:07Z"
+            },
+            "2": {
+              "index": 2,
+              "status": "COMPLETED",
+              "description": "Task 2: 读取 `status.json` 获取当前 Job",
+              "updated_at": "2026-02-26T11:52:07Z"
+            },
+            "3": {
+              "index": 3,
+              "status": "COMPLETED",
+              "description": "Task 3: 查找上一个完成的 Job",
+              "updated_at": "2026-02-26T11:52:07Z"
+            },
+            "4": {
+              "index": 4,
+              "status": "COMPLETED",
+              "description": "Task 4: 统计所有模块的 Jobs",
+              "updated_at": "2026-02-26T11:52:07Z"
+            },
+            "5": {
+              "index": 5,
+              "status": "COMPLETED",
+              "description": "Task 5: 计算进度百分比",
+              "updated_at": "2026-02-26T11:52:07Z"
+            },
+            "6": {
+              "index": 6,
+              "status": "COMPLETED",
+              "description": "Task 6: 从日志中提取 debug 问题",
+              "updated_at": "2026-02-26T11:52:08Z"
+            },
+            "7": {
+              "index": 7,
+              "status": "COMPLETED",
+              "description": "Task 7: 编写单元测试",
+              "updated_at": "2026-02-26T11:52:08Z"
+            }
+          },
+          "completed_at": "2026-02-26T11:52:08Z",
+          "completion_summary": "Job executed successfully"
         },
         "job_3": {
           "status": "PENDING",
