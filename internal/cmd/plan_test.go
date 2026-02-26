@@ -2,10 +2,13 @@ package cmd
 
 import (
 	"context"
+	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/morty/morty/internal/callcli"
 )
 
 func TestNewPlanHandler(t *testing.T) {
@@ -811,3 +814,326 @@ func TestPlanHandler_loadResearchFacts_returnsErrorForUnreadableFile(t *testing.
 		t.Error("loadResearchFacts() expected error for unreadable file, got nil")
 	}
 }
+
+// Tests for Job 3: Claude Code execution
+
+func TestPlanHandler_loadPlanPrompt(t *testing.T) {
+	tmpDir := setupTestDir(t)
+
+	// Create prompts directory and plan.md file
+	promptsDir := filepath.Join(tmpDir, "prompts")
+	os.MkdirAll(promptsDir, 0755)
+	planPromptPath := filepath.Join(promptsDir, "plan.md")
+	expectedContent := "# Plan Prompt\nThis is the plan system prompt."
+	os.WriteFile(planPromptPath, []byte(expectedContent), 0644)
+
+	cfg := &mockConfig{}
+	cfg.SetWorkDir(tmpDir)
+	handler := NewPlanHandler(cfg, &mockLogger{}, nil)
+	handler.SetPromptsDir(promptsDir)
+
+	content, err := handler.loadPlanPrompt()
+
+	if err != nil {
+		t.Errorf("loadPlanPrompt() error = %v", err)
+	}
+
+	if content != expectedContent {
+		t.Errorf("loadPlanPrompt() = %v, want %v", content, expectedContent)
+	}
+}
+
+func TestPlanHandler_loadPlanPrompt_fileNotFound(t *testing.T) {
+	tmpDir := setupTestDir(t)
+
+	cfg := &mockConfig{}
+	cfg.SetWorkDir(tmpDir)
+	handler := NewPlanHandler(cfg, &mockLogger{}, nil)
+	handler.SetPromptsDir(filepath.Join(tmpDir, "nonexistent"))
+
+	_, err := handler.loadPlanPrompt()
+
+	if err == nil {
+		t.Error("loadPlanPrompt() expected error for non-existent file, got nil")
+	}
+}
+
+func TestPlanHandler_getPlanPromptPath(t *testing.T) {
+	tests := []struct {
+		name       string
+		configPath string
+		wantSuffix string
+	}{
+		{
+			name:       "default path",
+			configPath: "",
+			wantSuffix: "prompts/plan.md",
+		},
+		{
+			name:       "config override",
+			configPath: "custom/prompt.md",
+			wantSuffix: "custom/prompt.md",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			cfg := &mockConfig{}
+			if tt.configPath != "" {
+				cfg.values = map[string]interface{}{
+					"prompts.plan": tt.configPath,
+				}
+			}
+			handler := NewPlanHandler(cfg, &mockLogger{}, nil)
+
+			got := handler.getPlanPromptPath()
+
+			if !strings.HasSuffix(got, tt.wantSuffix) {
+				t.Errorf("getPlanPromptPath() = %v, want suffix %v", got, tt.wantSuffix)
+			}
+		})
+	}
+}
+
+func TestPlanHandler_buildClaudeCommand(t *testing.T) {
+	tests := []struct {
+		name         string
+		prompt       string
+		facts        []string
+		wantContains []string
+	}{
+		{
+			name:         "prompt only",
+			prompt:       "# Plan System Prompt",
+			facts:        []string{},
+			wantContains: []string{"--permission-mode", "plan", "-p", "# Plan System Prompt"},
+		},
+		{
+			name:   "prompt with facts",
+			prompt: "# Plan System Prompt",
+			facts:  []string{"Fact 1 content", "Fact 2 content"},
+			wantContains: []string{
+				"--permission-mode", "plan", "-p",
+				"# Research Facts",
+				"## Fact 1",
+				"Fact 1 content",
+				"## Fact 2",
+				"Fact 2 content",
+				"# Plan System Prompt",
+			},
+		},
+		{
+			name:   "prompt with single fact",
+			prompt: "Create a plan",
+			facts:  []string{"Single research fact"},
+			wantContains: []string{
+				"# Research Facts",
+				"## Fact 1",
+				"Single research fact",
+				"Create a plan",
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			handler := NewPlanHandler(&mockConfig{}, &mockLogger{}, nil)
+			args := handler.buildClaudeCommand(tt.prompt, tt.facts)
+
+			// Join all args to check content
+			argsStr := strings.Join(args, " ")
+
+			for _, want := range tt.wantContains {
+				if !strings.Contains(argsStr, want) {
+					t.Errorf("buildClaudeCommand() args missing %q in %v", want, argsStr)
+				}
+			}
+
+			// Verify --permission-mode plan is present
+			foundPermissionMode := false
+			for i, arg := range args {
+				if arg == "--permission-mode" && i+1 < len(args) && args[i+1] == "plan" {
+					foundPermissionMode = true
+					break
+				}
+			}
+			if !foundPermissionMode {
+				t.Error("buildClaudeCommand() missing '--permission-mode plan'")
+			}
+		})
+	}
+}
+
+func TestPlanHandler_SetCLICaller(t *testing.T) {
+	handler := NewPlanHandler(&mockConfig{}, &mockLogger{}, nil)
+
+	// Create a mock CLI caller
+	mockCaller := &mockAICliCaller{}
+
+	handler.SetCLICaller(mockCaller)
+
+	if handler.cliCaller != mockCaller {
+		t.Error("SetCLICaller() did not set the cliCaller correctly")
+	}
+}
+
+func TestPlanHandler_SetPromptsDir(t *testing.T) {
+	tmpDir := setupTestDir(t)
+	customPromptsDir := filepath.Join(tmpDir, "custom_prompts")
+
+	handler := NewPlanHandler(&mockConfig{}, &mockLogger{}, nil)
+	handler.SetPromptsDir(customPromptsDir)
+
+	if handler.paths.GetPromptsDir() != customPromptsDir {
+		t.Errorf("SetPromptsDir() = %v, want %v", handler.paths.GetPromptsDir(), customPromptsDir)
+	}
+}
+
+func TestPlanHandler_executeClaudeCode_success(t *testing.T) {
+	mockCaller := &mockCaller{
+		callWithOptionsFunc: func(ctx context.Context, name string, args []string, opts callcli.Options) (*callcli.Result, error) {
+			return &callcli.Result{
+				ExitCode: 0,
+				Stdout:   "Plan created successfully",
+			}, nil
+		},
+	}
+
+	mockAI := &mockAICliCaller{
+		getBaseCallerFunc: func() callcli.Caller {
+			return mockCaller
+		},
+		getCLIPathFunc: func() string {
+			return "claude"
+		},
+		buildArgsFunc: func() []string {
+			return []string{}
+		},
+	}
+
+	handler := NewPlanHandler(&mockConfig{}, &mockLogger{}, nil)
+	handler.SetCLICaller(mockAI)
+
+	ctx := context.Background()
+	exitCode, err := handler.executeClaudeCode(ctx, "# Plan Prompt", []string{"Fact 1"})
+
+	if err != nil {
+		t.Errorf("executeClaudeCode() error = %v", err)
+	}
+
+	if exitCode != 0 {
+		t.Errorf("executeClaudeCode() exitCode = %v, want 0", exitCode)
+	}
+}
+
+func TestPlanHandler_executeClaudeCode_noFacts(t *testing.T) {
+	mockCaller := &mockCaller{
+		callWithOptionsFunc: func(ctx context.Context, name string, args []string, opts callcli.Options) (*callcli.Result, error) {
+			return &callcli.Result{
+				ExitCode: 0,
+				Stdout:   "Plan created",
+			}, nil
+		},
+	}
+
+	mockAI := &mockAICliCaller{
+		getBaseCallerFunc: func() callcli.Caller {
+			return mockCaller
+		},
+		getCLIPathFunc: func() string {
+			return "claude"
+		},
+		buildArgsFunc: func() []string {
+			return []string{}
+		},
+	}
+
+	handler := NewPlanHandler(&mockConfig{}, &mockLogger{}, nil)
+	handler.SetCLICaller(mockAI)
+
+	ctx := context.Background()
+	exitCode, err := handler.executeClaudeCode(ctx, "# Plan Prompt", []string{})
+
+	if err != nil {
+		t.Errorf("executeClaudeCode() error = %v", err)
+	}
+
+	if exitCode != 0 {
+		t.Errorf("executeClaudeCode() exitCode = %v, want 0", exitCode)
+	}
+}
+
+func TestPlanHandler_executeClaudeCode_failure(t *testing.T) {
+	mockCaller := &mockCaller{
+		callWithOptionsFunc: func(ctx context.Context, name string, args []string, opts callcli.Options) (*callcli.Result, error) {
+			return &callcli.Result{
+				ExitCode: 1,
+				Stderr:   "Command failed",
+			}, fmt.Errorf("execution failed")
+		},
+	}
+
+	mockAI := &mockAICliCaller{
+		getBaseCallerFunc: func() callcli.Caller {
+			return mockCaller
+		},
+		getCLIPathFunc: func() string {
+			return "claude"
+		},
+		buildArgsFunc: func() []string {
+			return []string{}
+		},
+	}
+
+	handler := NewPlanHandler(&mockConfig{}, &mockLogger{}, nil)
+	handler.SetCLICaller(mockAI)
+
+	ctx := context.Background()
+	exitCode, err := handler.executeClaudeCode(ctx, "# Plan Prompt", []string{})
+
+	if err == nil {
+		t.Error("executeClaudeCode() expected error, got nil")
+	}
+
+	if exitCode != 1 {
+		t.Errorf("executeClaudeCode() exitCode = %v, want 1", exitCode)
+	}
+}
+
+func TestPlanHandler_executeClaudeCode_nonZeroExit(t *testing.T) {
+	mockCaller := &mockCaller{
+		callWithOptionsFunc: func(ctx context.Context, name string, args []string, opts callcli.Options) (*callcli.Result, error) {
+			return &callcli.Result{
+				ExitCode: 2,
+				Stderr:   "Invalid arguments",
+			}, nil
+		},
+	}
+
+	mockAI := &mockAICliCaller{
+		getBaseCallerFunc: func() callcli.Caller {
+			return mockCaller
+		},
+		getCLIPathFunc: func() string {
+			return "claude"
+		},
+		buildArgsFunc: func() []string {
+			return []string{}
+		},
+	}
+
+	handler := NewPlanHandler(&mockConfig{}, &mockLogger{}, nil)
+	handler.SetCLICaller(mockAI)
+
+	ctx := context.Background()
+	exitCode, err := handler.executeClaudeCode(ctx, "# Plan Prompt", []string{})
+
+	if err == nil {
+		t.Error("executeClaudeCode() expected error for non-zero exit, got nil")
+	}
+
+	if exitCode != 2 {
+		t.Errorf("executeClaudeCode() exitCode = %v, want 2", exitCode)
+	}
+}
+

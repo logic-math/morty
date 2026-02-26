@@ -1,0 +1,33 @@
+All tasks completed successfully. Here's the final RALPH_STATUS:
+
+```json
+{
+  "module": "plan_cmd",
+  "job": "job_3",
+  "status": "COMPLETED",
+  "tasks_completed": 8,
+  "tasks_total": 8,
+  "loop_count": 1,
+  "debug_issues": 2,
+  "debug_logs_in_plan": true,
+  "explore_subagent_used": true,
+  "summary": "Job 3 (Claude Code 调用实现) 完成。实现了 loadPlanPrompt()、buildClaudeCommand()、executeClaudeCode() 方法，支持以 Plan 模式调用 Claude Code，正确嵌入研究事实到提示词，处理执行错误和退出码。所有单元测试通过，覆盖率 84.7% (超过 80% 要求)。修复了与 research_test.go 的 mock 类型重复定义问题。"
+}
+```
+
+**实现摘要:**
+
+1. **Task 1-2**: 添加了 `loadPlanPrompt()` 和 `buildClaudeCommand()` 方法，用于加载系统提示词和构建 Claude Code 命令参数。
+
+2. **Task 3**: 实现了研究事实嵌入功能，将 `.morty/research/` 目录中的研究内容按顺序格式化为提示词输入。
+
+3. **Task 4-5**: 使用 `callcli.AICliCaller` 接口执行 Claude Code，以 `--permission-mode plan` 模式启动。
+
+4. **Task 6-7**: 实现了完整的错误处理，包括执行失败、非零退出码等情况，并使用结构化日志记录执行过程。
+
+5. **Task 8**: 编写了全面的单元测试（12个新测试用例），覆盖率达到 84.7%。
+
+**关键文件变更:**
+- `internal/cmd/plan.go`: 添加了 cliCaller 字段和执行方法
+- `internal/cmd/plan_test.go`: 添加了 executeClaudeCode、loadPlanPrompt、buildClaudeCommand 等测试
+- `.morty/plan/plan_cmd.md`: 更新了 Job 3 的 Task 状态和调试日志

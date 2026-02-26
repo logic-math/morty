@@ -167,25 +167,26 @@ type PlanResult struct {
 - Job 2 完成
 
 **Tasks (Todo 列表)**:
-- [ ] Task 1: 实现 `loadPlanPrompt() string` 加载系统提示词
-- [ ] Task 2: 实现 `buildClaudeCommand(prompt, facts) []string`
-- [ ] Task 3: 构建包含研究事实的完整提示词
-- [ ] Task 4: 使用 `os/exec` 执行 Claude Code
-- [ ] Task 5: 以 Plan 模式启动 (`--permission-mode plan`)
-- [ ] Task 6: 处理执行错误和退出码
-- [ ] Task 7: 记录执行日志
-- [ ] Task 8: 编写单元测试
+- [x] Task 1: 实现 `loadPlanPrompt() string` 加载系统提示词
+- [x] Task 2: 实现 `buildClaudeCommand(prompt, facts) []string`
+- [x] Task 3: 构建包含研究事实的完整提示词
+- [x] Task 4: 使用 `os/exec` 执行 Claude Code
+- [x] Task 5: 以 Plan 模式启动 (`--permission-mode plan`)
+- [x] Task 6: 处理执行错误和退出码
+- [x] Task 7: 记录执行日志
+- [x] Task 8: 编写单元测试
 
 **验证器**:
-- [ ] 正确读取 `prompts/plan.md`
-- [ ] 研究事实正确嵌入提示词
-- [ ] 构建正确的 Claude Code 命令
-- [ ] 以 Plan 模式启动
-- [ ] 执行失败时返回错误
-- [ ] 所有单元测试通过 (覆盖率 >= 80%)
+- [x] 正确读取 `prompts/plan.md`
+- [x] 研究事实正确嵌入提示词
+- [x] 构建正确的 Claude Code 命令
+- [x] 以 Plan 模式启动
+- [x] 执行失败时返回错误
+- [x] 所有单元测试通过 (覆盖率 >= 80%)
 
 **调试日志**:
-- 待填充
+- debug1: mockAICliCaller 和 mockCaller 在 plan_test.go 和 research_test.go 中重复定义导致编译错误, 同时加载两个测试文件时报 redeclared 错误, 猜想: 1)包级别类型重名 2)Go测试文件共享同一包命名空间, 验证: 检查 research_test.go 发现已定义 mockAICliCaller/mockCaller, 修复: 移除 plan_test.go 中的重复定义，使用 research_test.go 中的 mock 类型, 已修复
+- debug2: 覆盖率最初为 79.1% 未达到 80% 要求, 缺少 executeClaudeCode 测试, 猜想: 1)未测试执行成功/失败场景 2)缺少 mock 测试, 验证: 添加 executeClaudeCode 的多种场景测试, 修复: 添加 TestPlanHandler_executeClaudeCode_success/failure/nonZeroExit 等测试, 已修复 (覆盖率提升至 84.7%)
 
 ---
 

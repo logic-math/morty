@@ -11,6 +11,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/morty/morty/internal/callcli"
 	"github.com/morty/morty/internal/config"
 	"github.com/morty/morty/internal/logging"
 )
@@ -28,9 +29,10 @@ type PlanResult struct {
 
 // PlanHandler handles the plan command.
 type PlanHandler struct {
-	cfg     config.Manager
-	logger  logging.Logger
-	paths   *config.Paths
+	cfg       config.Manager
+	logger    logging.Logger
+	paths     *config.Paths
+	cliCaller callcli.AICliCaller
 }
 
 // NewPlanHandler creates a new PlanHandler instance.
@@ -41,9 +43,10 @@ func NewPlanHandler(cfg config.Manager, logger logging.Logger, parser interface{
 		paths.SetWorkDir(cfg.GetWorkDir())
 	}
 	return &PlanHandler{
-		cfg:     cfg,
-		logger:  logger,
-		paths:   paths,
+		cfg:       cfg,
+		logger:    logger,
+		paths:     paths,
+		cliCaller: callcli.NewAICliCallerWithLoader(cfg),
 	}
 }
 
@@ -391,4 +394,124 @@ func (h *PlanHandler) loadResearchFacts() ([]string, error) {
 	}
 
 	return facts, nil
+}
+
+// SetCLICaller sets a custom CLI caller (useful for testing).
+func (h *PlanHandler) SetCLICaller(caller callcli.AICliCaller) {
+	h.cliCaller = caller
+}
+
+// SetPromptsDir sets a custom prompts directory (useful for testing).
+func (h *PlanHandler) SetPromptsDir(dir string) {
+	h.paths.SetPromptsDir(dir)
+}
+
+// loadPlanPrompt loads the plan prompt from prompts/plan.md.
+func (h *PlanHandler) loadPlanPrompt() (string, error) {
+	promptPath := h.getPlanPromptPath()
+
+	// Read the prompt file
+	content, err := os.ReadFile(promptPath)
+	if err != nil {
+		return "", fmt.Errorf("failed to read plan prompt file %s: %w", promptPath, err)
+	}
+
+	return string(content), nil
+}
+
+// getPlanPromptPath returns the path to the plan prompt file.
+func (h *PlanHandler) getPlanPromptPath() string {
+	// First check if there's a config override
+	if h.cfg != nil {
+		if promptPath := h.cfg.GetString("prompts.plan"); promptPath != "" {
+			return h.paths.GetAbsolutePath(promptPath)
+		}
+	}
+
+	// Default to prompts/plan.md relative to prompts dir
+	return filepath.Join(h.paths.GetPromptsDir(), "plan.md")
+}
+
+// buildClaudeCommand builds the Claude Code command arguments.
+func (h *PlanHandler) buildClaudeCommand(prompt string, facts []string) []string {
+	var args []string
+
+	// Add permission mode plan
+	args = append(args, "--permission-mode", "plan")
+
+	// Build full prompt with research facts if available
+	var fullPrompt strings.Builder
+
+	// Add research facts section if there are any
+	if len(facts) > 0 {
+		fullPrompt.WriteString("# Research Facts\n\n")
+		for i, fact := range facts {
+			fullPrompt.WriteString(fmt.Sprintf("## Fact %d\n%s\n\n", i+1, fact))
+		}
+		fullPrompt.WriteString("---\n\n")
+	}
+
+	// Add the main prompt content
+	fullPrompt.WriteString(prompt)
+
+	// Add the prompt content via -p flag
+	args = append(args, "-p", fullPrompt.String())
+
+	return args
+}
+
+// executeClaudeCode executes Claude Code with the given prompt and research facts.
+// Returns the exit code and any error that occurred.
+func (h *PlanHandler) executeClaudeCode(ctx context.Context, prompt string, facts []string) (int, error) {
+	logger := h.logger.WithContext(ctx)
+
+	// Build full prompt with research facts
+	var fullPrompt strings.Builder
+
+	// Add research facts section if there are any
+	if len(facts) > 0 {
+		fullPrompt.WriteString("# Research Facts\n\n")
+		for i, fact := range facts {
+			fullPrompt.WriteString(fmt.Sprintf("## Fact %d\n%s\n\n", i+1, fact))
+		}
+		fullPrompt.WriteString("---\n\n")
+	}
+
+	// Add the main prompt content
+	fullPrompt.WriteString(prompt)
+
+	logger.Info("Executing Claude Code for plan mode",
+		logging.String("cli_path", h.cliCaller.GetCLIPath()),
+		logging.Int("facts_count", len(facts)),
+	)
+
+	// Create options for the call
+	opts := callcli.Options{
+		Timeout: 0, // No timeout for interactive plan mode
+		Output: callcli.OutputConfig{
+			Mode: callcli.OutputStream, // Stream output for interactive mode
+		},
+	}
+
+	// Build base args
+	baseArgs := h.cliCaller.BuildArgs()
+
+	// Add permission mode plan
+	args := append([]string{"--permission-mode", "plan"}, baseArgs...)
+
+	// Add the prompt content
+	args = append(args, "-p", fullPrompt.String())
+
+	// Execute the command using the base caller
+	result, err := h.cliCaller.GetBaseCaller().CallWithOptions(ctx, h.cliCaller.GetCLIPath(), args, opts)
+
+	if err != nil {
+		return result.ExitCode, err
+	}
+
+	if result.ExitCode != 0 {
+		return result.ExitCode, fmt.Errorf("claude code exited with code %d: %s", result.ExitCode, result.Stderr)
+	}
+
+	return result.ExitCode, nil
 }
