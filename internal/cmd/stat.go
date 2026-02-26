@@ -531,92 +531,15 @@ func (h *StatHandler) outputText(result *StatResult) {
 
 // outputEnhancedText outputs enhanced text format using StatusInfo.
 func (h *StatHandler) outputEnhancedText(result *StatResult) {
-	info := result.StatusInfo
-
-	fmt.Println()
-	fmt.Println("=" + strings.Repeat("=", 60))
-	fmt.Println("  Morty 监控大盘")
-	fmt.Println("=" + strings.Repeat("=", 60))
-
-	// Current job section
-	fmt.Println()
-	fmt.Println("  当前执行")
-	if info.Current.Module != "" {
-		fmt.Printf("    模块: %s\n", info.Current.Module)
-		fmt.Printf("    Job:  %s\n", info.Current.Job)
-		fmt.Printf("    状态: %s", info.Current.Status)
-		if info.Current.LoopCount > 0 {
-			fmt.Printf(" (第%d次循环)", info.Current.LoopCount)
-		}
-		fmt.Println()
-		if !info.Current.StartedAt.IsZero() {
-			elapsed := time.Since(info.Current.StartedAt)
-			fmt.Printf("    累计时间: %s\n", h.formatDuration(elapsed))
-		}
-	} else {
-		fmt.Println("    无")
+	if result.StatusInfo == nil {
+		// Fallback to basic output if StatusInfo is not available
+		h.outputText(result)
+		return
 	}
 
-	// Previous job section
-	if info.Previous != nil {
-		fmt.Println()
-		fmt.Println("  上一个 Job")
-		fmt.Printf("    %s/%s: %s", info.Previous.Module, info.Previous.Job, info.Previous.Status)
-		if info.Previous.Duration > 0 {
-			fmt.Printf(" (耗时 %s)", h.formatDuration(info.Previous.Duration))
-		}
-		fmt.Println()
-	}
-
-	// Debug issues section
-	if len(info.DebugIssues) > 0 {
-		fmt.Println()
-		fmt.Println("  Debug 问题 (当前 Job)")
-		for _, issue := range info.DebugIssues {
-			fmt.Printf("    • %s (loop %d)\n", issue.Description, issue.Loop)
-			if issue.Hypothesis != "" {
-				fmt.Printf("      猜想: %s\n", issue.Hypothesis)
-			}
-			if issue.Status != "" {
-				fmt.Printf("      状态: %s\n", issue.Status)
-			}
-		}
-	}
-
-	// Progress section
-	fmt.Println()
-	fmt.Println("  整体进度")
-	progressBar := h.formatProgressBar(info.Progress.Percentage, 40)
-	fmt.Printf("    [%s] %d%% (%d/%d Jobs)\n",
-		progressBar, info.Progress.Percentage,
-		info.Progress.CompletedJobs, info.Progress.TotalJobs)
-
-	// Module status
-	if len(info.Modules) > 0 {
-		fmt.Println()
-		fmt.Println("  模块状态:")
-		for _, mod := range info.Modules {
-			statusStr := ""
-			switch mod.Status {
-			case "completed":
-				statusStr = "已完成"
-			case "in_progress":
-				statusStr = "进行中"
-			case "pending":
-				statusStr = "待开始"
-			case "failed":
-				statusStr = "失败"
-			default:
-				statusStr = mod.Status
-			}
-			fmt.Printf("    %s: %s (%d/%d)\n", mod.Name, statusStr, mod.CompletedJobs, mod.TotalJobs)
-		}
-	}
-
-	fmt.Println()
-	fmt.Println("=" + strings.Repeat("=", 60))
-	fmt.Printf("  Duration: %s\n", result.Duration)
-	fmt.Println("=" + strings.Repeat("=", 60))
+	// Use the new table formatting
+	output := h.formatTable(result.StatusInfo, result.Duration)
+	fmt.Print(output)
 }
 
 // formatDuration formats a duration in a human-readable way.
@@ -641,6 +564,382 @@ func (h *StatHandler) formatProgressBar(percentage, width int) string {
 
 	bar := strings.Repeat("█", filled) + strings.Repeat("░", empty)
 	return bar
+}
+
+// Table formatting constants
+const (
+	tableWidth     = 61
+	contentWidth   = 57 // tableWidth - 4 (for "│ " and " │")
+)
+
+// ANSI color codes
+const (
+	colorReset  = "\033[0m"
+	colorBold   = "\033[1m"
+	colorGreen  = "\033[32m"
+	colorYellow = "\033[33m"
+	colorBlue   = "\033[34m"
+	colorCyan   = "\033[36m"
+	colorGray   = "\033[90m"
+)
+
+// TableFormatter handles table formatting with box-drawing characters
+type TableFormatter struct {
+	useColor   bool
+	useUnicode bool
+}
+
+// NewTableFormatter creates a new TableFormatter
+func NewTableFormatter(useColor, useUnicode bool) *TableFormatter {
+	return &TableFormatter{
+		useColor:   useColor,
+		useUnicode: useUnicode,
+	}
+}
+
+// formatTable formats the entire status table
+func (h *StatHandler) formatTable(info *StatusInfo, duration time.Duration) string {
+	// Check if terminal supports colors
+	useColor := h.supportsColor()
+	formatter := NewTableFormatter(useColor, true)
+
+	var sb strings.Builder
+
+	// Top border
+	sb.WriteString(formatter.topBorder())
+	sb.WriteString("\n")
+
+	// Title
+	sb.WriteString(formatter.formatTitle("Morty 监控大盘"))
+	sb.WriteString("\n")
+
+	// Title separator
+	sb.WriteString(formatter.sectionSeparator())
+	sb.WriteString("\n")
+
+	// Current execution section
+	sb.WriteString(formatter.formatSectionHeader("当前执行"))
+	sb.WriteString("\n")
+	sb.WriteString(h.formatCurrentJobSection(info.Current, formatter))
+	sb.WriteString("\n")
+
+	// Previous job section
+	if info.Previous != nil {
+		sb.WriteString(formatter.sectionSeparator())
+		sb.WriteString("\n")
+		sb.WriteString(formatter.formatSectionHeader("上一个 Job"))
+		sb.WriteString("\n")
+		sb.WriteString(h.formatPreviousJobSection(info.Previous, formatter))
+		sb.WriteString("\n")
+	}
+
+	// Debug issues section
+	if len(info.DebugIssues) > 0 {
+		sb.WriteString(formatter.sectionSeparator())
+		sb.WriteString("\n")
+		sb.WriteString(formatter.formatSectionHeader("Debug 问题 (当前 Job)"))
+		sb.WriteString("\n")
+		sb.WriteString(h.formatDebugIssuesSection(info.DebugIssues, formatter))
+		sb.WriteString("\n")
+	}
+
+	// Progress section
+	sb.WriteString(formatter.sectionSeparator())
+	sb.WriteString("\n")
+	sb.WriteString(formatter.formatSectionHeader("整体进度"))
+	sb.WriteString("\n")
+	sb.WriteString(h.formatProgressSection(info.Progress, info.Modules, formatter))
+	sb.WriteString("\n")
+
+	// Bottom border
+	sb.WriteString(formatter.bottomBorder())
+	sb.WriteString("\n")
+
+	// Duration line
+	sb.WriteString(formatter.formatDurationLine(duration))
+	sb.WriteString("\n")
+
+	return sb.String()
+}
+
+// supportsColor checks if the terminal supports ANSI colors
+func (h *StatHandler) supportsColor() bool {
+	// Check if NO_COLOR is set
+	if os.Getenv("NO_COLOR") != "" {
+		return false
+	}
+	// Check if stdout is a terminal
+	if fi, err := os.Stdout.Stat(); err == nil {
+		return (fi.Mode() & os.ModeCharDevice) != 0
+	}
+	return false
+}
+
+// topBorder returns the top border of the table
+func (f *TableFormatter) topBorder() string {
+	return "┌" + strings.Repeat("─", tableWidth-2) + "┐"
+}
+
+// bottomBorder returns the bottom border of the table
+func (f *TableFormatter) bottomBorder() string {
+	return "└" + strings.Repeat("─", tableWidth-2) + "┘"
+}
+
+// sectionSeparator returns a separator line between sections
+func (f *TableFormatter) sectionSeparator() string {
+	return "├" + strings.Repeat("─", tableWidth-2) + "┤"
+}
+
+// formatTitle formats the table title centered
+func (f *TableFormatter) formatTitle(title string) string {
+	padding := (contentWidth - len(title)) / 2
+	leftPad := strings.Repeat(" ", padding)
+	rightPad := strings.Repeat(" ", contentWidth-len(title)-padding)
+	line := leftPad + title + rightPad
+	if f.useColor {
+		line = colorBold + colorCyan + line + colorReset
+	}
+	return "│ " + line + " │"
+}
+
+// formatSectionHeader formats a section header
+func (f *TableFormatter) formatSectionHeader(header string) string {
+	line := header + strings.Repeat(" ", contentWidth-len(header))
+	if f.useColor {
+		line = colorBold + line + colorReset
+	}
+	return "│ " + line + " │"
+}
+
+// formatContentLine formats a content line with proper indentation
+func (f *TableFormatter) formatContentLine(content string, indent int) string {
+	prefix := strings.Repeat("  ", indent)
+	fullContent := prefix + content
+	if len(fullContent) > contentWidth {
+		fullContent = fullContent[:contentWidth-3] + "..."
+	}
+	line := fullContent + strings.Repeat(" ", contentWidth-len(fullContent))
+	return "│ " + line + " │"
+}
+
+// formatDurationLine formats the duration line outside the table
+func (f *TableFormatter) formatDurationLine(duration time.Duration) string {
+	hours := int(duration.Hours())
+	minutes := int(duration.Minutes()) % 60
+	seconds := int(duration.Seconds()) % 60
+
+	var durationStr string
+	if hours > 0 {
+		durationStr = fmt.Sprintf("%02d:%02d:%02d", hours, minutes, seconds)
+	} else {
+		durationStr = fmt.Sprintf("%02d:%02d", minutes, seconds)
+	}
+
+	line := "Duration: " + durationStr
+	padding := (tableWidth - len(line)) / 2
+	return strings.Repeat(" ", padding) + line
+}
+
+// formatCurrentJobSection formats the current job section
+func (h *StatHandler) formatCurrentJobSection(current CurrentJobInfo, f *TableFormatter) string {
+	var sb strings.Builder
+
+	if current.Module != "" {
+		moduleLine := "模块: " + current.Module
+		if f.useColor {
+			moduleLine = "模块: " + colorBlue + current.Module + colorReset
+		}
+		sb.WriteString(f.formatContentLine(moduleLine, 1))
+		sb.WriteString("\n")
+
+		jobLine := "Job:  " + current.Job
+		if f.useColor {
+			jobLine = "Job:  " + colorYellow + current.Job + colorReset
+		}
+		sb.WriteString(f.formatContentLine(jobLine, 1))
+		sb.WriteString("\n")
+
+		statusStr := current.Status
+		if f.useColor {
+			switch statusStr {
+			case "COMPLETED":
+				statusStr = colorGreen + statusStr + colorReset
+			case "RUNNING":
+				statusStr = colorCyan + statusStr + colorReset
+			case "FAILED":
+				statusStr = "\033[31m" + statusStr + colorReset
+			default:
+				statusStr = colorYellow + statusStr + colorReset
+			}
+		}
+		statusLine := "状态: " + statusStr
+		sb.WriteString(f.formatContentLine(statusLine, 1))
+		sb.WriteString("\n")
+
+		if !current.StartedAt.IsZero() {
+			elapsed := time.Since(current.StartedAt)
+			timeLine := "累计时间: " + h.formatDuration(elapsed)
+			sb.WriteString(f.formatContentLine(timeLine, 1))
+		}
+	} else {
+		sb.WriteString(f.formatContentLine("无", 1))
+	}
+
+	return sb.String()
+}
+
+// formatPreviousJobSection formats the previous job section
+func (h *StatHandler) formatPreviousJobSection(previous *PreviousJob, f *TableFormatter) string {
+	var sb strings.Builder
+
+	jobInfo := previous.Module + "/" + previous.Job
+	if f.useColor {
+		jobInfo = colorBlue + previous.Module + colorReset + "/" + colorYellow + previous.Job + colorReset
+	}
+
+	statusStr := previous.Status
+	if f.useColor {
+		switch statusStr {
+		case "COMPLETED":
+			statusStr = colorGreen + statusStr + colorReset
+		default:
+			statusStr = colorYellow + statusStr + colorReset
+		}
+	}
+
+	line := jobInfo + ": " + statusStr
+	if previous.Duration > 0 {
+		line += " (耗时 " + h.formatDuration(previous.Duration) + ")"
+	}
+	sb.WriteString(f.formatContentLine(line, 1))
+
+	return sb.String()
+}
+
+// formatDebugIssuesSection formats the debug issues section
+func (h *StatHandler) formatDebugIssuesSection(issues []DebugIssue, f *TableFormatter) string {
+	var sb strings.Builder
+
+	for _, issue := range issues {
+		bullet := "•"
+		if f.useColor {
+			bullet = colorYellow + "•" + colorReset
+		}
+		line := bullet + " " + issue.Description
+		if issue.Loop > 0 {
+			line += fmt.Sprintf(" (loop %d)", issue.Loop)
+		}
+		sb.WriteString(f.formatContentLine(line, 1))
+		sb.WriteString("\n")
+
+		if issue.Hypothesis != "" {
+			hypoLine := "猜想: " + issue.Hypothesis
+			if f.useColor {
+				hypoLine = colorGray + hypoLine + colorReset
+			}
+			sb.WriteString(f.formatContentLine(hypoLine, 2))
+			sb.WriteString("\n")
+		}
+
+		if issue.Status != "" {
+			statusLine := "状态: " + issue.Status
+			if f.useColor {
+				statusLine = colorGray + statusLine + colorReset
+			}
+			sb.WriteString(f.formatContentLine(statusLine, 2))
+		}
+	}
+
+	return sb.String()
+}
+
+// formatProgressSection formats the progress section
+func (h *StatHandler) formatProgressSection(progress ProgressInfo, modules []ModuleStatus, f *TableFormatter) string {
+	var sb strings.Builder
+
+	// Progress bar - use a narrower bar to fit within content width
+	// Content width is 57, with indent of 2 ("  "), we have 55 chars
+	// "[xxxxxx] 100% (100/100 Jobs)" needs ~28 chars, so barWidth = 8
+	barWidth := 10
+	progressBar := h.formatProgressBar(progress.Percentage, barWidth)
+	if f.useColor {
+		// Colorize the progress bar
+		filled := (progress.Percentage * barWidth) / 100
+		if filled > barWidth {
+			filled = barWidth
+		}
+		empty := barWidth - filled
+		coloredBar := colorGreen + strings.Repeat("█", filled) + colorReset + strings.Repeat("░", empty)
+		progressBar = coloredBar
+	}
+
+	progressLine := fmt.Sprintf("[%s] %d%% (%d/%d Jobs)",
+		progressBar, progress.Percentage,
+		progress.CompletedJobs, progress.TotalJobs)
+	sb.WriteString(f.formatContentLine(progressLine, 1))
+	sb.WriteString("\n")
+
+	// Module status summary
+	if len(modules) > 0 {
+		sb.WriteString(f.formatContentLine("", 0))
+		sb.WriteString("\n")
+
+		// Group modules by status
+		var completed, inProgress, pending, failed []ModuleStatus
+		for _, mod := range modules {
+			switch mod.Status {
+			case "completed":
+				completed = append(completed, mod)
+			case "in_progress":
+				inProgress = append(inProgress, mod)
+			case "pending":
+				pending = append(pending, mod)
+			case "failed":
+				failed = append(failed, mod)
+			}
+		}
+
+		// Format each group
+		if len(completed) > 0 {
+			sb.WriteString(h.formatModuleGroup("已完成", completed, colorGreen, f))
+		}
+		if len(inProgress) > 0 {
+			sb.WriteString(h.formatModuleGroup("进行中", inProgress, colorCyan, f))
+		}
+		if len(pending) > 0 {
+			sb.WriteString(h.formatModuleGroup("待开始", pending, colorGray, f))
+		}
+		if len(failed) > 0 {
+			sb.WriteString(h.formatModuleGroup("失败", failed, "\033[31m", f))
+		}
+	}
+
+	return sb.String()
+}
+
+// formatModuleGroup formats a group of modules with the same status
+func (h *StatHandler) formatModuleGroup(label string, modules []ModuleStatus, color string, f *TableFormatter) string {
+	var sb strings.Builder
+
+	labelPart := label + ": "
+	if f.useColor {
+		labelPart = color + label + colorReset + ": "
+	}
+
+	var moduleParts []string
+	for _, mod := range modules {
+		modStr := mod.Name + " (" + fmt.Sprintf("%d/%d", mod.CompletedJobs, mod.TotalJobs) + ")"
+		if f.useColor {
+			modStr = color + mod.Name + colorReset + " (" + fmt.Sprintf("%d/%d", mod.CompletedJobs, mod.TotalJobs) + ")"
+		}
+		moduleParts = append(moduleParts, modStr)
+	}
+
+	content := labelPart + strings.Join(moduleParts, ", ")
+	sb.WriteString(f.formatContentLine(content, 1))
+	sb.WriteString("\n")
+
+	return sb.String()
 }
 
 // getStatusString returns a status string for the result.

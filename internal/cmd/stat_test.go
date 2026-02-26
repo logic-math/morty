@@ -1107,3 +1107,312 @@ func TestStatInfo_Structs(t *testing.T) {
 		t.Error("PreviousJob.Status not set correctly")
 	}
 }
+
+// Table formatting tests
+
+func TestNewTableFormatter(t *testing.T) {
+	f := NewTableFormatter(true, true)
+	if f == nil {
+		t.Fatal("Expected TableFormatter to be non-nil")
+	}
+	if !f.useColor {
+		t.Error("Expected useColor to be true")
+	}
+	if !f.useUnicode {
+		t.Error("Expected useUnicode to be true")
+	}
+}
+
+func TestTableFormatter_topBorder(t *testing.T) {
+	f := NewTableFormatter(false, true)
+	border := f.topBorder()
+	if !strings.HasPrefix(border, "┌") {
+		t.Errorf("Expected border to start with '┌', got '%s'", border)
+	}
+	if !strings.HasSuffix(border, "┐") {
+		t.Errorf("Expected border to end with '┐', got '%s'", border)
+	}
+	if len(border) != tableWidth {
+		t.Errorf("Expected border length %d, got %d", tableWidth, len(border))
+	}
+}
+
+func TestTableFormatter_bottomBorder(t *testing.T) {
+	f := NewTableFormatter(false, true)
+	border := f.bottomBorder()
+	if !strings.HasPrefix(border, "└") {
+		t.Errorf("Expected border to start with '└', got '%s'", border)
+	}
+	if !strings.HasSuffix(border, "┘") {
+		t.Errorf("Expected border to end with '┘', got '%s'", border)
+	}
+}
+
+func TestTableFormatter_sectionSeparator(t *testing.T) {
+	f := NewTableFormatter(false, true)
+	sep := f.sectionSeparator()
+	if !strings.HasPrefix(sep, "├") {
+		t.Errorf("Expected separator to start with '├', got '%s'", sep)
+	}
+	if !strings.HasSuffix(sep, "┤") {
+		t.Errorf("Expected separator to end with '┤', got '%s'", sep)
+	}
+}
+
+func TestTableFormatter_formatTitle(t *testing.T) {
+	f := NewTableFormatter(false, true)
+	title := f.formatTitle("Test Title")
+	if !strings.Contains(title, "Test Title") {
+		t.Errorf("Expected title to contain 'Test Title', got '%s'", title)
+	}
+	if !strings.HasPrefix(title, "│") {
+		t.Errorf("Expected title to start with '│', got '%s'", title)
+	}
+}
+
+func TestTableFormatter_formatSectionHeader(t *testing.T) {
+	f := NewTableFormatter(false, true)
+	header := f.formatSectionHeader("Section")
+	if !strings.Contains(header, "Section") {
+		t.Errorf("Expected header to contain 'Section', got '%s'", header)
+	}
+}
+
+func TestTableFormatter_formatContentLine(t *testing.T) {
+	f := NewTableFormatter(false, true)
+	line := f.formatContentLine("test content", 0)
+	if !strings.HasPrefix(line, "│") {
+		t.Errorf("Expected line to start with '│', got '%s'", line)
+	}
+	if !strings.Contains(line, "test content") {
+		t.Errorf("Expected line to contain 'test content', got '%s'", line)
+	}
+
+	// Test with indentation
+	line2 := f.formatContentLine("indented", 1)
+	if !strings.Contains(line2, "  indented") {
+		t.Errorf("Expected indented line to contain '  indented', got '%s'", line2)
+	}
+}
+
+func TestTableFormatter_formatDurationLine(t *testing.T) {
+	f := NewTableFormatter(false, true)
+	duration := 5*time.Minute + 30*time.Second
+	line := f.formatDurationLine(duration)
+	if !strings.Contains(line, "Duration:") {
+		t.Errorf("Expected line to contain 'Duration:', got '%s'", line)
+	}
+	if !strings.Contains(line, "05:30") {
+		t.Errorf("Expected line to contain '05:30', got '%s'", line)
+	}
+}
+
+func TestStatHandler_formatTable(t *testing.T) {
+	tmpDir := setupTestDir(t)
+	handler := NewStatHandler(&mockConfig{workDir: tmpDir}, &mockLogger{})
+
+	info := &StatusInfo{
+		Current: CurrentJobInfo{
+			Module:    "test_module",
+			Job:       "job_1",
+			Status:    "RUNNING",
+			StartedAt: time.Now().Add(-30 * time.Minute),
+		},
+		Previous: &PreviousJob{
+			Module:      "test_module",
+			Job:         "job_0",
+			Status:      "COMPLETED",
+			Duration:    15 * time.Minute,
+			CompletedAt: time.Now().Add(-1 * time.Hour),
+		},
+		Progress: ProgressInfo{
+			TotalJobs:     10,
+			CompletedJobs: 5,
+			Percentage:    50,
+		},
+		Modules: []ModuleStatus{
+			{Name: "module1", Status: "completed", TotalJobs: 3, CompletedJobs: 3},
+			{Name: "module2", Status: "in_progress", TotalJobs: 3, CompletedJobs: 2},
+		},
+		DebugIssues: []DebugIssue{
+			{
+				ID:          "debug1",
+				Description: "Test issue",
+				Loop:        2,
+				Hypothesis:  "Missing config",
+				Status:      "待修复",
+			},
+		},
+	}
+
+	output := handler.formatTable(info, time.Second)
+
+	// Verify table structure
+	expectedElements := []string{
+		"┌", "┐", "└", "┘", "├", "┤", "│",
+		"Morty 监控大盘",
+		"当前执行",
+		"test_module",
+		"job_1",
+		"上一个 Job",
+		"job_0",
+		"整体进度",
+		"50%",
+		"Debug 问题",
+		"Test issue",
+	}
+
+	for _, expected := range expectedElements {
+		if !strings.Contains(output, expected) {
+			t.Errorf("Expected output to contain '%s'", expected)
+		}
+	}
+}
+
+func TestStatHandler_formatCurrentJobSection(t *testing.T) {
+	tmpDir := setupTestDir(t)
+	handler := NewStatHandler(&mockConfig{workDir: tmpDir}, &mockLogger{})
+	f := NewTableFormatter(false, true)
+
+	// Test with current job
+	current := CurrentJobInfo{
+		Module:    "test_module",
+		Job:       "job_1",
+		Status:    "RUNNING",
+		StartedAt: time.Now().Add(-30 * time.Minute),
+	}
+	output := handler.formatCurrentJobSection(current, f)
+
+	expectedStrings := []string{"模块:", "test_module", "Job:", "job_1", "状态:", "RUNNING"}
+	for _, expected := range expectedStrings {
+		if !strings.Contains(output, expected) {
+			t.Errorf("Expected output to contain '%s'", expected)
+		}
+	}
+
+	// Test with no current job
+	emptyCurrent := CurrentJobInfo{}
+	emptyOutput := handler.formatCurrentJobSection(emptyCurrent, f)
+	if !strings.Contains(emptyOutput, "无") {
+		t.Errorf("Expected empty output to contain '无', got '%s'", emptyOutput)
+	}
+}
+
+func TestStatHandler_formatPreviousJobSection(t *testing.T) {
+	tmpDir := setupTestDir(t)
+	handler := NewStatHandler(&mockConfig{workDir: tmpDir}, &mockLogger{})
+	f := NewTableFormatter(false, true)
+
+	previous := &PreviousJob{
+		Module:      "test_module",
+		Job:         "job_0",
+		Status:      "COMPLETED",
+		Duration:    15 * time.Minute,
+		CompletedAt: time.Now().Add(-1 * time.Hour),
+	}
+
+	output := handler.formatPreviousJobSection(previous, f)
+
+	if !strings.Contains(output, "test_module/job_0") && !strings.Contains(output, "test_module") {
+		t.Errorf("Expected output to contain job info, got '%s'", output)
+	}
+	if !strings.Contains(output, "COMPLETED") {
+		t.Errorf("Expected output to contain status, got '%s'", output)
+	}
+}
+
+func TestStatHandler_formatDebugIssuesSection(t *testing.T) {
+	tmpDir := setupTestDir(t)
+	handler := NewStatHandler(&mockConfig{workDir: tmpDir}, &mockLogger{})
+	f := NewTableFormatter(false, true)
+
+	issues := []DebugIssue{
+		{
+			ID:          "debug1",
+			Description: "Test failure",
+			Loop:        2,
+			Hypothesis:  "Missing mock",
+			Status:      "待修复",
+		},
+	}
+
+	output := handler.formatDebugIssuesSection(issues, f)
+
+	if !strings.Contains(output, "Test failure") {
+		t.Errorf("Expected output to contain description, got '%s'", output)
+	}
+	if !strings.Contains(output, "猜想:") {
+		t.Errorf("Expected output to contain hypothesis label, got '%s'", output)
+	}
+	if !strings.Contains(output, "状态:") {
+		t.Errorf("Expected output to contain status label, got '%s'", output)
+	}
+}
+
+func TestStatHandler_formatProgressSection(t *testing.T) {
+	tmpDir := setupTestDir(t)
+	handler := NewStatHandler(&mockConfig{workDir: tmpDir}, &mockLogger{})
+	f := NewTableFormatter(false, true)
+
+	progress := ProgressInfo{
+		TotalJobs:     10,
+		CompletedJobs: 5,
+		Percentage:    50,
+	}
+	modules := []ModuleStatus{
+		{Name: "module1", Status: "completed", TotalJobs: 3, CompletedJobs: 3},
+		{Name: "module2", Status: "in_progress", TotalJobs: 3, CompletedJobs: 2},
+	}
+
+	output := handler.formatProgressSection(progress, modules, f)
+
+	if !strings.Contains(output, "50%") {
+		t.Errorf("Expected output to contain '50%%', got '%s'", output)
+	}
+	if !strings.Contains(output, "5/10 Jobs") {
+		t.Errorf("Expected output to contain job count, got '%s'", output)
+	}
+	if !strings.Contains(output, "已完成:") {
+		t.Errorf("Expected output to contain completed label, got '%s'", output)
+	}
+}
+
+func TestStatHandler_formatModuleGroup(t *testing.T) {
+	tmpDir := setupTestDir(t)
+	handler := NewStatHandler(&mockConfig{workDir: tmpDir}, &mockLogger{})
+	f := NewTableFormatter(false, true)
+
+	modules := []ModuleStatus{
+		{Name: "mod1", Status: "completed", TotalJobs: 3, CompletedJobs: 3},
+		{Name: "mod2", Status: "completed", TotalJobs: 2, CompletedJobs: 2},
+	}
+
+	output := handler.formatModuleGroup("已完成", modules, "", f)
+
+	if !strings.Contains(output, "已完成:") {
+		t.Errorf("Expected output to contain label, got '%s'", output)
+	}
+	if !strings.Contains(output, "mod1") {
+		t.Errorf("Expected output to contain module name, got '%s'", output)
+	}
+}
+
+func TestStatHandler_supportsColor(t *testing.T) {
+	tmpDir := setupTestDir(t)
+	handler := NewStatHandler(&mockConfig{workDir: tmpDir}, &mockLogger{})
+
+	// Save original env
+	origNoColor := os.Getenv("NO_COLOR")
+	defer os.Setenv("NO_COLOR", origNoColor)
+
+	// Test with NO_COLOR set
+	os.Setenv("NO_COLOR", "1")
+	if handler.supportsColor() {
+		t.Error("Expected supportsColor to return false when NO_COLOR is set")
+	}
+
+	// Test with NO_COLOR unset
+	os.Unsetenv("NO_COLOR")
+	// Result depends on whether stdout is a terminal, so we just check it doesn't panic
+	_ = handler.supportsColor()
+}
