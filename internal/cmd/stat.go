@@ -6,8 +6,10 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"os/signal"
 	"path/filepath"
 	"strings"
+	"syscall"
 	"time"
 
 	"github.com/morty/morty/internal/config"
@@ -986,27 +988,77 @@ func (h *StatHandler) getStatusString(result *StatResult) string {
 	return "idle"
 }
 
-// runWatchMode runs the stat command in watch mode.
-func (h *StatHandler) runWatchMode(ctx context.Context, initialResult *StatResult) (*StatResult, error) {
-	fmt.Println("\n  Watch mode enabled. Press Ctrl+C to exit.")
+// defaultRefreshInterval is the default interval for watch mode
+const defaultRefreshInterval = 60 * time.Second
 
-	ticker := time.NewTicker(2 * time.Second)
+// clearScreen clears the terminal screen using ANSI escape sequences
+func (h *StatHandler) clearScreen() {
+	// ANSI escape sequences: clear screen and move cursor to top-left
+	fmt.Print("\033[H\033[2J")
+	// Alternative for better compatibility: clear screen and scrollback buffer
+	fmt.Print("\033[2J\033[3J\033[H")
+}
+
+// runWatchMode runs the stat command in watch mode with 60s refresh interval.
+func (h *StatHandler) runWatchMode(ctx context.Context, initialResult *StatResult) (*StatResult, error) {
+	// Create a signal-aware context for graceful shutdown
+	sigChan := make(chan os.Signal, 1)
+	signal.Notify(sigChan, os.Interrupt, syscall.SIGTERM)
+
+	// Create a cancellable context
+	watchCtx, cancel := context.WithCancel(ctx)
+	defer cancel()
+
+	// Handle signals in a goroutine
+	go func() {
+		select {
+		case <-sigChan:
+			h.logger.Info("Watch mode: received interrupt signal, exiting gracefully")
+			cancel()
+		case <-watchCtx.Done():
+		}
+	}()
+
+	// Track last refresh time
+	lastRefresh := time.Now()
+
+	// Initial screen clear and display
+	h.clearScreen()
+	h.displayWatchHeader(lastRefresh)
+
+	ticker := time.NewTicker(defaultRefreshInterval)
 	defer ticker.Stop()
 
+	// Initial data display
+	result := initialResult
 	for {
 		select {
-		case <-ctx.Done():
-			return initialResult, ctx.Err()
+		case <-watchCtx.Done():
+			fmt.Println("\n\n  Watch mode exited.")
+			return result, nil
 		case <-ticker.C:
-			// Clear screen (ANSI escape sequence)
-			fmt.Print("\033[H\033[2J")
+			// Update refresh time
+			lastRefresh = time.Now()
 
-			// Re-execute stat
-			result, err := h.Execute(ctx, []string{})
+			// Clear screen for in-place refresh
+			h.clearScreen()
+
+			// Display refresh header
+			h.displayWatchHeader(lastRefresh)
+
+			// Re-execute stat to collect fresh data
+			freshResult, err := h.Execute(watchCtx, []string{})
 			if err != nil {
 				h.logger.Error("Watch mode error", logging.String("error", err.Error()))
+			} else {
+				result = freshResult
 			}
-			initialResult = result
 		}
 	}
+}
+
+// displayWatchHeader displays the watch mode header with refresh time
+func (h *StatHandler) displayWatchHeader(refreshTime time.Time) {
+	fmt.Printf("\n  Watch mode enabled. Refresh every 60s. Press Ctrl+C to exit.\n")
+	fmt.Printf("  Last refresh: %s\n\n", refreshTime.Format("2006-01-02 15:04:05"))
 }

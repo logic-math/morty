@@ -1715,3 +1715,219 @@ func TestStatHandler_supportsColor(t *testing.T) {
 	// Result depends on whether stdout is a terminal, so we just check it doesn't panic
 	_ = handler.supportsColor()
 }
+
+// Watch mode tests
+
+func TestStatHandler_clearScreen(t *testing.T) {
+	handler := NewStatHandler(&mockConfig{}, &mockLogger{})
+
+	// Redirect stdout to capture output
+	oldStdout := os.Stdout
+	r, w, _ := os.Pipe()
+	os.Stdout = w
+
+	// Call clearScreen
+	handler.clearScreen()
+
+	w.Close()
+	os.Stdout = oldStdout
+
+	outputBytes, _ := io.ReadAll(r)
+	output := string(outputBytes)
+
+	// Verify ANSI escape sequences are present
+	if !strings.Contains(output, "\033[") {
+		t.Error("Expected clearScreen to output ANSI escape sequences")
+	}
+}
+
+func TestStatHandler_displayWatchHeader(t *testing.T) {
+	handler := NewStatHandler(&mockConfig{}, &mockLogger{})
+
+	// Redirect stdout to capture output
+	oldStdout := os.Stdout
+	r, w, _ := os.Pipe()
+	os.Stdout = w
+
+	// Test with specific time
+	testTime := time.Date(2024, 1, 15, 10, 30, 0, 0, time.UTC)
+	handler.displayWatchHeader(testTime)
+
+	w.Close()
+	os.Stdout = oldStdout
+
+	outputBytes, _ := io.ReadAll(r)
+	output := string(outputBytes)
+
+	// Verify expected content
+	expectedStrings := []string{
+		"Watch mode enabled",
+		"Refresh every 60s",
+		"Ctrl+C to exit",
+		"Last refresh:",
+		"2024-01-15 10:30:00",
+	}
+
+	for _, expected := range expectedStrings {
+		if !strings.Contains(output, expected) {
+			t.Errorf("Expected output to contain '%s', got '%s'", expected, output)
+		}
+	}
+}
+
+func TestDefaultRefreshInterval(t *testing.T) {
+	// Verify the default refresh interval is 60 seconds
+	if defaultRefreshInterval != 60*time.Second {
+		t.Errorf("Expected defaultRefreshInterval to be 60s, got %v", defaultRefreshInterval)
+	}
+}
+
+func TestStatHandler_runWatchMode_ContextCancellation(t *testing.T) {
+	tmpDir := setupTestDir(t)
+
+	// Create a minimal status file
+	statusFile := filepath.Join(tmpDir, "status.json")
+	statusData := `{
+		"version": "1.0",
+		"global": {
+			"status": "RUNNING",
+			"current_module": "test",
+			"current_job": "job_1",
+			"start_time": "2024-01-01T00:00:00Z",
+			"last_update": "2024-01-01T00:00:00Z",
+			"total_loops": 1
+		},
+		"modules": {
+			"test": {
+				"name": "test",
+				"status": "RUNNING",
+				"jobs": {
+					"job_1": {
+						"name": "job_1",
+						"status": "RUNNING",
+						"loop_count": 1,
+						"tasks_total": 5,
+						"tasks_completed": 2,
+						"created_at": "2024-01-01T00:00:00Z",
+						"updated_at": "2024-01-01T00:00:00Z"
+					}
+				},
+				"created_at": "2024-01-01T00:00:00Z",
+				"updated_at": "2024-01-01T00:00:00Z"
+			}
+		}
+	}`
+
+	if err := os.WriteFile(statusFile, []byte(statusData), 0644); err != nil {
+		t.Fatalf("Failed to create status file: %v", err)
+	}
+
+	cfg := &mockConfig{workDir: tmpDir}
+	handler := NewStatHandler(cfg, &mockLogger{})
+
+	// Create a context that will be cancelled
+	ctx, cancel := context.WithCancel(context.Background())
+
+	initialResult := &StatResult{
+		ExitCode: 0,
+		Duration: time.Second,
+	}
+
+	// Cancel the context after a short delay
+	go func() {
+		time.Sleep(100 * time.Millisecond)
+		cancel()
+	}()
+
+	// Run watch mode - it should exit gracefully when context is cancelled
+	result, err := handler.runWatchMode(ctx, initialResult)
+
+	// Should return without error on graceful exit
+	if err != nil {
+		t.Errorf("Expected no error on context cancellation, got: %v", err)
+	}
+
+	// Should return the initial result
+	if result == nil {
+		t.Error("Expected result to be non-nil")
+	}
+}
+
+func TestStatHandler_runWatchMode_RefreshInterval(t *testing.T) {
+	// Verify the refresh interval constant
+	if defaultRefreshInterval != 60*time.Second {
+		t.Errorf("Expected refresh interval to be 60s, got %v", defaultRefreshInterval)
+	}
+}
+
+func TestStatHandler_WatchModeFeatures(t *testing.T) {
+	tests := []struct {
+		name     string
+		testFunc func(t *testing.T)
+	}{
+		{
+			name: "clearScreen uses ANSI escape sequences",
+			testFunc: func(t *testing.T) {
+				handler := NewStatHandler(&mockConfig{}, &mockLogger{})
+
+				oldStdout := os.Stdout
+				r, w, _ := os.Pipe()
+				os.Stdout = w
+
+				handler.clearScreen()
+
+				w.Close()
+				os.Stdout = oldStdout
+
+				outputBytes, _ := io.ReadAll(r)
+				output := string(outputBytes)
+
+				// Verify ANSI clear screen sequences
+				expectedSequences := []string{"\033[H", "\033[2J", "\033[3J"}
+				for _, seq := range expectedSequences {
+					if !strings.Contains(output, seq) {
+						t.Errorf("Expected output to contain ANSI sequence '%s'", seq)
+					}
+				}
+			},
+		},
+		{
+			name: "displayWatchHeader shows refresh time",
+			testFunc: func(t *testing.T) {
+				handler := NewStatHandler(&mockConfig{}, &mockLogger{})
+
+				oldStdout := os.Stdout
+				r, w, _ := os.Pipe()
+				os.Stdout = w
+
+				refreshTime := time.Date(2024, 6, 15, 14, 30, 45, 0, time.UTC)
+				handler.displayWatchHeader(refreshTime)
+
+				w.Close()
+				os.Stdout = oldStdout
+
+				outputBytes, _ := io.ReadAll(r)
+				output := string(outputBytes)
+
+				if !strings.Contains(output, "14:30:45") {
+					t.Errorf("Expected output to contain formatted time '14:30:45', got '%s'", output)
+				}
+				if !strings.Contains(output, "60s") {
+					t.Errorf("Expected output to mention '60s' refresh interval, got '%s'", output)
+				}
+			},
+		},
+		{
+			name: "default refresh interval is 60 seconds",
+			testFunc: func(t *testing.T) {
+				if defaultRefreshInterval != 60*time.Second {
+					t.Errorf("defaultRefreshInterval = %v, want %v", defaultRefreshInterval, 60*time.Second)
+				}
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, tt.testFunc)
+	}
+}

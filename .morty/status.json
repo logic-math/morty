@@ -3,16 +3,16 @@
   "state": "running",
   "current": {
     "module": "stat_cmd",
-    "job": "job_4",
+    "job": "job_5",
     "status": "COMPLETED",
-    "start_time": "2026-02-26T12:25:23Z",
+    "start_time": "2026-02-26T13:00:12Z",
     "interrupted_at": "2026-02-24T16:51:59Z",
-    "completed_at": "2026-02-26T13:00:11Z"
+    "completed_at": "2026-02-26T13:24:28Z"
   },
   "session": {
     "start_time": "2026-02-24T12:51:47Z",
-    "last_update": "2026-02-26T13:00:11Z",
-    "total_loops": 67
+    "last_update": "2026-02-26T13:24:28Z",
+    "total_loops": 68
   },
   "modules": {
     "go_env_setup": {
@@ -3730,12 +3730,59 @@
           "completion_summary": "Job executed successfully"
         },
         "job_5": {
-          "status": "PENDING",
-          "loop_count": 0,
+          "status": "COMPLETED",
+          "loop_count": 1,
           "retry_count": 0,
           "tasks_total": 7,
-          "tasks_completed": 0,
-          "debug_logs": []
+          "tasks_completed": 7,
+          "debug_logs": [],
+          "started_at": "2026-02-26T13:00:12Z",
+          "tasks": {
+            "1": {
+              "index": 1,
+              "status": "COMPLETED",
+              "description": "Task 1: 实现 `watchMode()` 监控循环",
+              "updated_at": "2026-02-26T13:24:27Z"
+            },
+            "2": {
+              "index": 2,
+              "status": "COMPLETED",
+              "description": "Task 2: 设置刷新间隔（默认 60s）",
+              "updated_at": "2026-02-26T13:24:27Z"
+            },
+            "3": {
+              "index": 3,
+              "status": "COMPLETED",
+              "description": "Task 3: 实现屏幕清空（原地刷新）",
+              "updated_at": "2026-02-26T13:24:27Z"
+            },
+            "4": {
+              "index": 4,
+              "status": "COMPLETED",
+              "description": "Task 4: 信号处理（Ctrl+C 优雅退出）",
+              "updated_at": "2026-02-26T13:24:27Z"
+            },
+            "5": {
+              "index": 5,
+              "status": "COMPLETED",
+              "description": "Task 5: 刷新时重新收集数据",
+              "updated_at": "2026-02-26T13:24:28Z"
+            },
+            "6": {
+              "index": 6,
+              "status": "COMPLETED",
+              "description": "Task 6: 显示刷新时间",
+              "updated_at": "2026-02-26T13:24:28Z"
+            },
+            "7": {
+              "index": 7,
+              "status": "COMPLETED",
+              "description": "Task 7: 编写单元测试",
+              "updated_at": "2026-02-26T13:24:28Z"
+            }
+          },
+          "completed_at": "2026-02-26T13:24:28Z",
+          "completion_summary": "Job executed successfully"
         }
       }
     },

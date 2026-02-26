@@ -1,0 +1,65 @@
+所有 stat 相关的测试都通过了！现在让我输出最终的 RALPH_STATUS。
+
+---
+
+## 执行摘要
+
+已成功完成 **stat_cmd/job_5** 的所有 7 个 Tasks：
+
+### 已完成任务
+
+| Task | 描述 | 状态 |
+|------|------|------|
+| 1 | 实现 `watchMode()` 监控循环 | ✅ 完成 |
+| 2 | 设置刷新间隔（默认 60s） | ✅ 完成 |
+| 3 | 实现屏幕清空（原地刷新） | ✅ 完成 |
+| 4 | 信号处理（Ctrl+C 优雅退出） | ✅ 完成 |
+| 5 | 刷新时重新收集数据 | ✅ 完成 |
+| 6 | 显示刷新时间 | ✅ 完成 |
+| 7 | 编写单元测试 | ✅ 完成 |
+
+### 实现细节
+
+**修改文件**: `internal/cmd/stat.go`
+- 添加了 `os/signal` 和 `syscall` 包导入
+- 定义了 `defaultRefreshInterval = 60 * time.Second` 常量
+- 实现了 `clearScreen()` 方法 - 使用 ANSI 转义序列原地清屏
+- 重写了 `runWatchMode()` 方法：
+  - 添加信号监听（Ctrl+C / SIGTERM）
+  - 使用可取消的 context 实现优雅退出
+  - 每 60 秒自动刷新数据
+  - 显示最后刷新时间
+- 实现了 `displayWatchHeader()` 方法 - 显示监控模式头部信息
+
+**新增测试**（`internal/cmd/stat_test.go`）：
+- `TestStatHandler_clearScreen` - 测试屏幕清空功能
+- `TestStatHandler_displayWatchHeader` - 测试刷新时间显示
+- `TestDefaultRefreshInterval` - 验证默认刷新间隔为 60s
+- `TestStatHandler_runWatchMode_ContextCancellation` - 测试优雅退出
+- `TestStatHandler_WatchModeFeatures` - 综合功能测试
+
+### 验证结果
+
+所有验证器检查通过：
+- ✅ 每 60s 自动刷新
+- ✅ 原地刷新无滚动（ANSI 转义序列）
+- ✅ Ctrl+C 能优雅退出（信号处理）
+- ✅ 显示最后刷新时间
+- ✅ 所有单元测试通过
+
+<!-- RALPH_STATUS -->
+```json
+{
+  "module": "stat_cmd",
+  "job": "job_5",
+  "status": "COMPLETED",
+  "tasks_completed": 7,
+  "tasks_total": 7,
+  "loop_count": 1,
+  "debug_issues": 0,
+  "debug_logs_in_plan": true,
+  "explore_subagent_used": true,
+  "summary": "成功实现 stat 命令的 --watch 监控模式。包括：60秒刷新间隔、ANSI清屏、Ctrl+C信号处理、刷新时间显示。所有7个任务完成，单元测试通过。"
+}
+```
+<!-- END_RALPH_STATUS -->
