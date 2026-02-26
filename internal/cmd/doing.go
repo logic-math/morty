@@ -757,6 +757,223 @@ type CommitSummary struct {
 	LoopCount int
 }
 
+// ExecutionSummary represents the execution result summary for display.
+type ExecutionSummary struct {
+	Module         string
+	Job            string
+	Status         string
+	Duration       time.Duration
+	TasksTotal     int
+	TasksCompleted int
+	NextAction     string
+}
+
+// generateSummary generates an execution summary from the doing result and execution result.
+// Task 1: Implement generateSummary()
+// Task 2: Calculate execution duration
+// Task 3: Count tasks completion status
+// Task 4: Determine next action hint
+func (h *DoingHandler) generateSummary(result *DoingResult, execResult *executor.ExecutionResult) *ExecutionSummary {
+	summary := &ExecutionSummary{
+		Module:   result.ModuleName,
+		Job:      result.JobName,
+		Status:   string(execResult.Status),
+		Duration: result.Duration,
+	}
+
+	// Task 3: Get tasks statistics from execution result or state
+	if execResult != nil {
+		summary.TasksTotal = execResult.TasksTotal
+		summary.TasksCompleted = execResult.TasksCompleted
+	}
+
+	// If execution result doesn't have task info, try getting from state
+	if summary.TasksTotal == 0 && h.stateManager != nil {
+		if jobState := h.stateManager.GetJob(result.ModuleName, result.JobName); jobState != nil {
+			summary.TasksTotal = jobState.TasksTotal
+			summary.TasksCompleted = jobState.TasksCompleted
+		}
+	}
+
+	// Task 4: Determine next action based on status
+	summary.NextAction = h.determineNextAction(summary.Status)
+
+	return summary
+}
+
+// determineNextAction determines the next action based on job status.
+func (h *DoingHandler) determineNextAction(status string) string {
+	switch state.Status(status) {
+	case state.StatusCompleted:
+		return "运行 `morty doing` 继续执行下一个 Job"
+	case state.StatusFailed:
+		return "检查错误后运行 `morty doing --restart` 重试"
+	case state.StatusBlocked:
+		return "等待依赖项完成后重试"
+	case state.StatusRunning:
+		return "Job 正在执行中，请等待完成"
+	default:
+		return "运行 `morty doing` 开始执行"
+	}
+}
+
+// formatSummary formats the execution summary for display.
+// Task 5: Format output summary
+func (h *DoingHandler) formatSummary(summary *ExecutionSummary) string {
+	if summary == nil {
+		return "无执行摘要"
+	}
+
+	var b strings.Builder
+	b.WriteString("\n")
+	b.WriteString("╔════════════════════════════════════════════════╗\n")
+	b.WriteString("║            📋 执行摘要                         ║\n")
+	b.WriteString("╚════════════════════════════════════════════════╝\n")
+
+	// Module and Job info
+	b.WriteString(fmt.Sprintf("📦 模块: %s\n", summary.Module))
+	b.WriteString(fmt.Sprintf("🔧 Job:  %s\n", summary.Job))
+
+	// Status with color indicator (plain text for now, color added in print method)
+	statusIcon := h.getStatusIcon(summary.Status)
+	b.WriteString(fmt.Sprintf("📊 状态: %s %s\n", statusIcon, summary.Status))
+
+	// Duration
+	b.WriteString(fmt.Sprintf("⏱️  耗时: %s\n", h.formatDuration(summary.Duration)))
+
+	// Tasks progress
+	if summary.TasksTotal > 0 {
+		progress := fmt.Sprintf("📝 任务: %d/%d 完成", summary.TasksCompleted, summary.TasksTotal)
+		if summary.TasksCompleted == summary.TasksTotal && summary.TasksTotal > 0 {
+			progress += " ✓"
+		}
+		b.WriteString(progress + "\n")
+	}
+
+	// Next action
+	b.WriteString("\n👉 下一步: " + summary.NextAction + "\n")
+
+	return b.String()
+}
+
+// getStatusIcon returns an icon for the given status.
+func (h *DoingHandler) getStatusIcon(status string) string {
+	switch state.Status(status) {
+	case state.StatusCompleted:
+		return "✅"
+	case state.StatusFailed:
+		return "❌"
+	case state.StatusBlocked:
+		return "🚫"
+	case state.StatusRunning:
+		return "🔄"
+	default:
+		return "⏳"
+	}
+}
+
+// formatDuration formats a duration in a human-readable format.
+func (h *DoingHandler) formatDuration(d time.Duration) string {
+	if d < time.Second {
+		return fmt.Sprintf("%dms", d.Milliseconds())
+	}
+	if d < time.Minute {
+		return fmt.Sprintf("%.1fs", d.Seconds())
+	}
+	if d < time.Hour {
+		minutes := int(d.Minutes())
+		seconds := int(d.Seconds()) % 60
+		return fmt.Sprintf("%dm %ds", minutes, seconds)
+	}
+	hours := int(d.Hours())
+	minutes := int(d.Minutes()) % 60
+	return fmt.Sprintf("%dh %dm", hours, minutes)
+}
+
+// printSummary prints the execution summary to stdout.
+// Task 6: Colorful output support
+func (h *DoingHandler) printSummary(summary *ExecutionSummary) {
+	if summary == nil {
+		return
+	}
+
+	// Print header
+	fmt.Println()
+	fmt.Println(h.colorize("╔════════════════════════════════════════════════╗", ColorCyan))
+	fmt.Println(h.colorize("║            📋 执行摘要                         ║", ColorCyan))
+	fmt.Println(h.colorize("╚════════════════════════════════════════════════╝", ColorCyan))
+
+	// Print module and job
+	fmt.Printf("📦 模块: %s\n", summary.Module)
+	fmt.Printf("🔧 Job:  %s\n", summary.Job)
+
+	// Print status with color
+	statusColor := h.getStatusColor(summary.Status)
+	statusIcon := h.getStatusIcon(summary.Status)
+	fmt.Printf("📊 状态: %s %s\n", statusIcon, h.colorize(summary.Status, statusColor))
+
+	// Print duration
+	fmt.Printf("⏱️  耗时: %s\n", h.formatDuration(summary.Duration))
+
+	// Print tasks progress
+	if summary.TasksTotal > 0 {
+		progress := fmt.Sprintf("📝 任务: %d/%d 完成", summary.TasksCompleted, summary.TasksTotal)
+		if summary.TasksCompleted == summary.TasksTotal && summary.TasksTotal > 0 {
+			progress += h.colorize(" ✓", ColorGreen)
+		}
+		fmt.Println(progress)
+	}
+
+	// Print next action
+	fmt.Println()
+	fmt.Printf("👉 下一步: %s\n", h.colorize(summary.NextAction, ColorYellow))
+}
+
+// Color constants for terminal output.
+const (
+	ColorReset  = "\033[0m"
+	ColorRed    = "\033[31m"
+	ColorGreen  = "\033[32m"
+	ColorYellow = "\033[33m"
+	ColorBlue   = "\033[34m"
+	ColorCyan   = "\033[36m"
+)
+
+// colorize adds color to text if the terminal supports it.
+func (h *DoingHandler) colorize(text, color string) string {
+	// Check if terminal supports color
+	if !h.isTerminal() {
+		return text
+	}
+	return color + text + ColorReset
+}
+
+// isTerminal checks if stdout is a terminal.
+func (h *DoingHandler) isTerminal() bool {
+	// Check if stdout is a terminal
+	stat, err := os.Stdout.Stat()
+	if err != nil {
+		return false
+	}
+	return (stat.Mode() & os.ModeCharDevice) == os.ModeCharDevice
+}
+
+// getStatusColor returns the color for a given status.
+func (h *DoingHandler) getStatusColor(status string) string {
+	switch state.Status(status) {
+	case state.StatusCompleted:
+		return ColorGreen
+	case state.StatusFailed:
+		return ColorRed
+	case state.StatusBlocked:
+		return ColorYellow
+	case state.StatusRunning:
+		return ColorBlue
+	default:
+		return ColorReset
+	}
+}
+
 // createGitCommit creates a git commit with the job execution summary.
 // Task 1: Implement createGitCommit(summary)
 // It generates a commit message, stages all changes, and creates a commit.

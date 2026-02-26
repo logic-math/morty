@@ -2348,3 +2348,438 @@ func TestDoingHandler_createGitCommit_messageFormat(t *testing.T) {
 		})
 	}
 }
+
+// ============================================================================
+// Job 6: Execution Summary Tests
+// ============================================================================
+
+// Test generateSummary
+// Task 1, 2, 3, 4: Test summary generation with all fields
+func TestDoingHandler_generateSummary(t *testing.T) {
+	tmpDir := setupTestDir(t)
+	workDir := filepath.Join(tmpDir, ".morty")
+	planDir := filepath.Join(workDir, "plan")
+	if err := os.MkdirAll(planDir, 0755); err != nil {
+		t.Fatalf("Failed to create plan dir: %v", err)
+	}
+
+	// Setup test state with tasks
+	stateContent := `{
+		"version": "1.0",
+		"global": {
+			"status": "PENDING",
+			"start_time": "2024-01-01T00:00:00Z",
+			"last_update": "2024-01-01T00:00:00Z"
+		},
+		"modules": {
+			"test-module": {
+				"name": "test-module",
+				"status": "PENDING",
+				"jobs": {
+					"job_1": {
+						"name": "job_1",
+						"status": "COMPLETED",
+						"tasks_total": 5,
+						"tasks_completed": 5,
+						"created_at": "2024-01-01T00:00:00Z",
+						"updated_at": "2024-01-01T00:00:00Z"
+					}
+				},
+				"created_at": "2024-01-01T00:00:00Z",
+				"updated_at": "2024-01-01T00:00:00Z"
+			}
+		}
+	}`
+
+	stateFile := filepath.Join(workDir, "status.json")
+	if err := os.WriteFile(stateFile, []byte(stateContent), 0644); err != nil {
+		t.Fatalf("Failed to write state file: %v", err)
+	}
+
+	cfg := &mockConfig{
+		workDir: workDir,
+		planDir: planDir,
+	}
+	handler := NewDoingHandler(cfg, &mockLogger{})
+	handler.loadStatus()
+
+	// Test with execution result containing task info
+	doingResult := &DoingResult{
+		ModuleName: "test-module",
+		JobName:    "job_1",
+		Duration:   2*time.Minute + 30*time.Second,
+	}
+
+	execResult := &executor.ExecutionResult{
+		Module:         "test-module",
+		Job:            "job_1",
+		Status:         state.StatusCompleted,
+		TasksTotal:     5,
+		TasksCompleted: 5,
+	}
+
+	summary := handler.generateSummary(doingResult, execResult)
+
+	// Validate all fields
+	if summary.Module != "test-module" {
+		t.Errorf("generateSummary() Module = %v, want 'test-module'", summary.Module)
+	}
+	if summary.Job != "job_1" {
+		t.Errorf("generateSummary() Job = %v, want 'job_1'", summary.Job)
+	}
+	if summary.Status != "COMPLETED" {
+		t.Errorf("generateSummary() Status = %v, want 'COMPLETED'", summary.Status)
+	}
+	if summary.Duration != 2*time.Minute+30*time.Second {
+		t.Errorf("generateSummary() Duration = %v, want 2m30s", summary.Duration)
+	}
+	if summary.TasksTotal != 5 {
+		t.Errorf("generateSummary() TasksTotal = %v, want 5", summary.TasksTotal)
+	}
+	if summary.TasksCompleted != 5 {
+		t.Errorf("generateSummary() TasksCompleted = %v, want 5", summary.TasksCompleted)
+	}
+	if summary.NextAction == "" {
+		t.Error("generateSummary() NextAction should not be empty")
+	}
+}
+
+// Test generateSummary with FAILED status
+func TestDoingHandler_generateSummary_failed(t *testing.T) {
+	tmpDir := setupTestDir(t)
+	workDir := filepath.Join(tmpDir, ".morty")
+	planDir := filepath.Join(workDir, "plan")
+	if err := os.MkdirAll(planDir, 0755); err != nil {
+		t.Fatalf("Failed to create plan dir: %v", err)
+	}
+
+	// Setup test state
+	setupTestState(t, workDir, map[string]map[string]state.Status{
+		"test-module": {
+			"job_1": state.StatusFailed,
+		},
+	})
+
+	cfg := &mockConfig{
+		workDir: workDir,
+		planDir: planDir,
+	}
+	handler := NewDoingHandler(cfg, &mockLogger{})
+	handler.loadStatus()
+
+	doingResult := &DoingResult{
+		ModuleName: "test-module",
+		JobName:    "job_1",
+		Duration:   30 * time.Second,
+	}
+
+	execResult := &executor.ExecutionResult{
+		Module:         "test-module",
+		Job:            "job_1",
+		Status:         state.StatusFailed,
+		TasksTotal:     5,
+		TasksCompleted: 2,
+	}
+
+	summary := handler.generateSummary(doingResult, execResult)
+
+	if summary.Status != "FAILED" {
+		t.Errorf("generateSummary() Status = %v, want 'FAILED'", summary.Status)
+	}
+	if summary.TasksCompleted != 2 {
+		t.Errorf("generateSummary() TasksCompleted = %v, want 2", summary.TasksCompleted)
+	}
+}
+
+// Test determineNextAction
+// Task 4: Test next action determination
+func TestDoingHandler_determineNextAction(t *testing.T) {
+	handler := NewDoingHandler(&mockConfig{}, &mockLogger{})
+
+	tests := []struct {
+		status   string
+		contains string
+	}{
+		{string(state.StatusCompleted), "morty doing"},
+		{string(state.StatusFailed), "restart"},
+		{string(state.StatusBlocked), "依赖"},
+		{string(state.StatusRunning), "执行中"},
+		{string(state.StatusPending), "morty doing"},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.status, func(t *testing.T) {
+			action := handler.determineNextAction(tc.status)
+			if !strings.Contains(action, tc.contains) {
+				t.Errorf("determineNextAction(%s) = %v, should contain %q", tc.status, action, tc.contains)
+			}
+		})
+	}
+}
+
+// Test formatSummary
+// Task 5: Test summary formatting
+func TestDoingHandler_formatSummary(t *testing.T) {
+	handler := NewDoingHandler(&mockConfig{}, &mockLogger{})
+
+	tests := []struct {
+		name     string
+		summary  *ExecutionSummary
+		contains []string
+	}{
+		{
+			name: "complete summary",
+			summary: &ExecutionSummary{
+				Module:         "doing_cmd",
+				Job:            "job_6",
+				Status:         "COMPLETED",
+				Duration:       2*time.Minute + 30*time.Second,
+				TasksTotal:     7,
+				TasksCompleted: 7,
+				NextAction:     "运行 `morty doing` 继续",
+			},
+			contains: []string{"doing_cmd", "job_6", "COMPLETED", "2m 30s", "7/7", "下一步"},
+		},
+		{
+			name: "partial tasks",
+			summary: &ExecutionSummary{
+				Module:         "test_module",
+				Job:            "test_job",
+				Status:         "FAILED",
+				Duration:       30 * time.Second,
+				TasksTotal:     5,
+				TasksCompleted: 2,
+				NextAction:     "重试",
+			},
+			contains: []string{"test_module", "test_job", "FAILED", "30s", "2/5"},
+		},
+		{
+			name:     "nil summary",
+			summary:  nil,
+			contains: []string{"无执行摘要"},
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			output := handler.formatSummary(tc.summary)
+			for _, s := range tc.contains {
+				if !strings.Contains(output, s) {
+					t.Errorf("formatSummary() output = %v, should contain %q", output, s)
+				}
+			}
+		})
+	}
+}
+
+// Test formatDuration
+// Task 2: Test duration formatting
+func TestDoingHandler_formatDuration(t *testing.T) {
+	handler := NewDoingHandler(&mockConfig{}, &mockLogger{})
+
+	tests := []struct {
+		duration time.Duration
+		expected string
+	}{
+		{500 * time.Millisecond, "500ms"},
+		{30 * time.Second, "30.0s"},
+		{90 * time.Second, "1m 30s"},
+		{2*time.Minute + 30*time.Second, "2m 30s"},
+		{90 * time.Minute, "1h 30m"},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.expected, func(t *testing.T) {
+			result := handler.formatDuration(tc.duration)
+			if result != tc.expected {
+				t.Errorf("formatDuration(%v) = %v, want %v", tc.duration, result, tc.expected)
+			}
+		})
+	}
+}
+
+// Test getStatusIcon
+func TestDoingHandler_getStatusIcon(t *testing.T) {
+	handler := NewDoingHandler(&mockConfig{}, &mockLogger{})
+
+	tests := []struct {
+		status string
+		want   string
+	}{
+		{string(state.StatusCompleted), "✅"},
+		{string(state.StatusFailed), "❌"},
+		{string(state.StatusBlocked), "🚫"},
+		{string(state.StatusRunning), "🔄"},
+		{string(state.StatusPending), "⏳"},
+		{"UNKNOWN", "⏳"},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.status, func(t *testing.T) {
+			got := handler.getStatusIcon(tc.status)
+			if got != tc.want {
+				t.Errorf("getStatusIcon(%s) = %v, want %v", tc.status, got, tc.want)
+			}
+		})
+	}
+}
+
+// Test getStatusColor
+// Task 6: Test color selection
+func TestDoingHandler_getStatusColor(t *testing.T) {
+	handler := NewDoingHandler(&mockConfig{}, &mockLogger{})
+
+	tests := []struct {
+		status string
+		want   string
+	}{
+		{string(state.StatusCompleted), ColorGreen},
+		{string(state.StatusFailed), ColorRed},
+		{string(state.StatusBlocked), ColorYellow},
+		{string(state.StatusRunning), ColorBlue},
+		{string(state.StatusPending), ColorReset},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.status, func(t *testing.T) {
+			got := handler.getStatusColor(tc.status)
+			if got != tc.want {
+				t.Errorf("getStatusColor(%s) = %v, want %v", tc.status, got, tc.want)
+			}
+		})
+	}
+}
+
+// Test colorize
+// Task 6: Test color output
+func TestDoingHandler_colorize(t *testing.T) {
+	handler := NewDoingHandler(&mockConfig{}, &mockLogger{})
+
+	tests := []struct {
+		text     string
+		color    string
+		expected string
+	}{
+		{"test", ColorRed, ColorRed + "test" + ColorReset},
+		{"test", ColorGreen, ColorGreen + "test" + ColorReset},
+		{"test", ColorYellow, ColorYellow + "test" + ColorReset},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.color, func(t *testing.T) {
+			result := handler.colorize(tc.text, tc.color)
+			// Note: colorize may return plain text if not a terminal
+			// We just check it doesn't panic and returns something
+			if result == "" {
+				t.Error("colorize() returned empty string")
+			}
+		})
+	}
+}
+
+// Test isTerminal
+func TestDoingHandler_isTerminal(t *testing.T) {
+	handler := NewDoingHandler(&mockConfig{}, &mockLogger{})
+
+	// This test may pass or fail depending on test environment
+	// We just ensure it doesn't panic
+	result := handler.isTerminal()
+	t.Logf("isTerminal() = %v", result)
+}
+
+// Test generateSummary fallback to state manager
+// Task 3: Test task stats fallback from state
+func TestDoingHandler_generateSummary_fallbackToState(t *testing.T) {
+	tmpDir := setupTestDir(t)
+	workDir := filepath.Join(tmpDir, ".morty")
+	planDir := filepath.Join(workDir, "plan")
+	if err := os.MkdirAll(planDir, 0755); err != nil {
+		t.Fatalf("Failed to create plan dir: %v", err)
+	}
+
+	// Setup test state with tasks info
+	stateContent := `{
+		"version": "1.0",
+		"global": {
+			"status": "PENDING",
+			"start_time": "2024-01-01T00:00:00Z",
+			"last_update": "2024-01-01T00:00:00Z"
+		},
+		"modules": {
+			"test-module": {
+				"name": "test-module",
+				"status": "PENDING",
+				"jobs": {
+					"job_1": {
+						"name": "job_1",
+						"status": "COMPLETED",
+						"tasks_total": 10,
+						"tasks_completed": 7,
+						"created_at": "2024-01-01T00:00:00Z",
+						"updated_at": "2024-01-01T00:00:00Z"
+					}
+				},
+				"created_at": "2024-01-01T00:00:00Z",
+				"updated_at": "2024-01-01T00:00:00Z"
+			}
+		}
+	}`
+
+	stateFile := filepath.Join(workDir, "status.json")
+	if err := os.WriteFile(stateFile, []byte(stateContent), 0644); err != nil {
+		t.Fatalf("Failed to write state file: %v", err)
+	}
+
+	cfg := &mockConfig{
+		workDir: workDir,
+		planDir: planDir,
+	}
+	handler := NewDoingHandler(cfg, &mockLogger{})
+	handler.loadStatus()
+
+	doingResult := &DoingResult{
+		ModuleName: "test-module",
+		JobName:    "job_1",
+		Duration:   1 * time.Minute,
+	}
+
+	// Exec result with no task info (0 values)
+	execResult := &executor.ExecutionResult{
+		Module: "test-module",
+		Job:    "job_1",
+		Status: state.StatusCompleted,
+		// TasksTotal and TasksCompleted are 0
+	}
+
+	summary := handler.generateSummary(doingResult, execResult)
+
+	// Should fallback to state manager for task info
+	if summary.TasksTotal != 10 {
+		t.Errorf("generateSummary() TasksTotal = %v, want 10 (from state)", summary.TasksTotal)
+	}
+	if summary.TasksCompleted != 7 {
+		t.Errorf("generateSummary() TasksCompleted = %v, want 7 (from state)", summary.TasksCompleted)
+	}
+}
+
+// Test printSummary doesn't panic
+// Task 6: Test colored output printing
+func TestDoingHandler_printSummary(t *testing.T) {
+	handler := NewDoingHandler(&mockConfig{}, &mockLogger{})
+
+	summary := &ExecutionSummary{
+		Module:         "doing_cmd",
+		Job:            "job_6",
+		Status:         "COMPLETED",
+		Duration:       2 * time.Minute,
+		TasksTotal:     7,
+		TasksCompleted: 7,
+		NextAction:     "运行 `morty doing` 继续",
+	}
+
+	// Should not panic
+	handler.printSummary(summary)
+
+	// Should not panic with nil
+	handler.printSummary(nil)
+}

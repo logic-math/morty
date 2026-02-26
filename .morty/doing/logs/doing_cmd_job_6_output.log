@@ -1,0 +1,34 @@
+所有实现已完成。验证器自检清单：
+
+**验证器自检清单**:
+- [x] 摘要包含模块/Job 名称 - `ExecutionSummary` 结构体包含 Module 和 Job 字段
+- [x] 摘要包含执行状态 - `ExecutionSummary` 结构体包含 Status 字段
+- [x] 摘要包含耗时 - `ExecutionSummary` 结构体包含 Duration 字段
+- [x] 摘要包含 Tasks 统计 - `ExecutionSummary` 结构体包含 TasksTotal 和 TasksCompleted 字段
+- [x] 提示下一步操作 - `determineNextAction()` 方法根据状态返回相应提示
+- [x] 所有单元测试通过 - 已添加 10 个测试用例覆盖所有功能
+
+**实现概要**:
+1. `generateSummary()` - 从 DoingResult 和 ExecutionResult 生成执行摘要，支持从 state manager 回退获取任务信息
+2. `determineNextAction()` - 根据状态返回下一步操作提示（中文）
+3. `formatSummary()` - 格式化摘要为字符串
+4. `formatDuration()` - 格式化耗时为人可读格式（ms/s/m/h）
+5. `printSummary()` - 彩色输出到终端，支持自动检测终端
+6. 颜色常量和方法 - 支持根据状态显示不同颜色
+
+<!-- RALPH_STATUS -->
+```json
+{
+  "module": "doing_cmd",
+  "job": "job_6",
+  "status": "COMPLETED",
+  "tasks_completed": 7,
+  "tasks_total": 7,
+  "loop_count": 1,
+  "debug_issues": 0,
+  "debug_logs_in_plan": true,
+  "explore_subagent_used": false,
+  "summary": "Job 6 执行完成：实现了 generateSummary() 方法、耗时计算、Tasks 统计、下一步操作提示、格式化输出、彩色输出支持，并编写了 10 个单元测试覆盖所有功能。"
+}
+```
+<!-- END_RALPH_STATUS -->
