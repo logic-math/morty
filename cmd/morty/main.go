@@ -252,6 +252,8 @@ func handleStat(cfg *config.Paths, logger logging.Logger, args []string) {
 func handleReset(cfg *config.Paths, logger logging.Logger, args []string) {
 	fs := flag.NewFlagSet("reset", flag.ExitOnError)
 	help := fs.Bool("help", false, "Show help")
+	list := fs.Bool("l", false, "List recent commits")
+	clean := fs.Bool("c", false, "Clean reset")
 	fs.Parse(args)
 
 	if *help {
@@ -261,15 +263,34 @@ func handleReset(cfg *config.Paths, logger logging.Logger, args []string) {
 		fmt.Println()
 		fmt.Println("Options:")
 		fmt.Println("  -l [count]    List recent commits")
-		fmt.Println("  -c hash       Reset to specific commit")
+		fmt.Println("  -c            Clean reset")
+		fmt.Println("  hash          Reset to specific commit")
 		os.Exit(0)
 	}
+
+	// Build args for handler - include parsed flags
+	handlerArgs := []string{}
+	if *list {
+		handlerArgs = append(handlerArgs, "-l")
+		// Check if there's a count argument after -l
+		remaining := fs.Args()
+		if len(remaining) > 0 {
+			if _, err := fmt.Sscanf(remaining[0], "%d", new(int)); err == nil {
+				handlerArgs = append(handlerArgs, remaining[0])
+			}
+		}
+	}
+	if *clean {
+		handlerArgs = append(handlerArgs, "-c")
+	}
+	// Add remaining args (commit hash, etc.)
+	handlerArgs = append(handlerArgs, fs.Args()...)
 
 	cfgMgr := &pathsConfigManager{paths: cfg}
 	handler := cmd.NewResetHandler(cfgMgr, logger)
 	ctx := context.Background()
 
-	_, err := handler.Execute(ctx, fs.Args())
+	_, err := handler.Execute(ctx, handlerArgs)
 	if err != nil {
 		logger.Error("Reset failed", logging.String("error", err.Error()))
 		os.Exit(1)

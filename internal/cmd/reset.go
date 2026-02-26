@@ -100,7 +100,32 @@ func (h *ResetHandler) Execute(ctx context.Context, args []string) (*ResetResult
 		return result, err
 	}
 
-	// Check if we're in a Git repository
+	// Handle list history (-l flag) - when used alone, show loop history (no need for git repo check)
+	if opts.ResetLocal && !opts.ResetClean && opts.CommitHash == "" {
+		// Check if this is a list request by looking for count argument
+		count := 10 // default count
+		for i, arg := range args {
+			if arg == "-l" && i+1 < len(args) {
+				// Check if next arg is a number
+				if n, err := strconv.Atoi(args[i+1]); err == nil {
+					count = n
+					break
+				}
+			}
+		}
+		historyResult, err := h.showLoopHistory(count)
+		if err != nil {
+			result.Err = err
+			result.ExitCode = 1
+			result.Duration = time.Since(startTime)
+			return result, err
+		}
+		fmt.Println(historyResult.Formatted)
+		result.Duration = time.Since(startTime)
+		return result, nil
+	}
+
+	// Check if we're in a Git repository (for non-list operations)
 	workDir := h.getWorkDir()
 	if !h.gitChecker.IsGitRepo(workDir) {
 		err := fmt.Errorf("错误: 当前目录不是 Git 仓库\n\n请在 Git 仓库目录下运行此命令")
@@ -203,6 +228,11 @@ func (h *ResetHandler) parseOptions(args []string) (*ResetOptions, error) {
 
 // getWorkDir returns the working directory.
 func (h *ResetHandler) getWorkDir() string {
+	// First try to get actual current working directory
+	if cwd, err := os.Getwd(); err == nil {
+		return cwd
+	}
+	// Fall back to configured work dir
 	if h.cfg != nil {
 		return h.cfg.GetWorkDir()
 	}

@@ -3,16 +3,16 @@
   "state": "running",
   "current": {
     "module": "e2e_test",
-    "job": "job_6",
+    "job": "job_7",
     "status": "COMPLETED",
-    "start_time": "2026-02-26T17:48:24Z",
+    "start_time": "2026-02-26T18:27:27Z",
     "interrupted_at": "2026-02-24T16:51:59Z",
-    "completed_at": "2026-02-26T18:27:26Z"
+    "completed_at": "2026-02-26T18:46:37Z"
   },
   "session": {
     "start_time": "2026-02-24T12:51:47Z",
-    "last_update": "2026-02-26T18:27:26Z",
-    "total_loops": 79
+    "last_update": "2026-02-26T18:46:37Z",
+    "total_loops": 80
   },
   "modules": {
     "go_env_setup": {
@@ -4364,12 +4364,53 @@
           "completion_summary": "Job executed successfully"
         },
         "job_7": {
-          "status": "PENDING",
-          "loop_count": 0,
+          "status": "COMPLETED",
+          "loop_count": 1,
           "retry_count": 0,
           "tasks_total": 6,
-          "tasks_completed": 0,
-          "debug_logs": []
+          "tasks_completed": 6,
+          "debug_logs": [],
+          "started_at": "2026-02-26T18:27:27Z",
+          "tasks": {
+            "1": {
+              "index": 1,
+              "status": "COMPLETED",
+              "description": "Task 1: 查看循环历史",
+              "updated_at": "2026-02-26T18:46:36Z"
+            },
+            "2": {
+              "index": 2,
+              "status": "COMPLETED",
+              "description": "Task 2: 验证历史输出格式",
+              "updated_at": "2026-02-26T18:46:36Z"
+            },
+            "3": {
+              "index": 3,
+              "status": "COMPLETED",
+              "description": "Task 3: 验证指定数量",
+              "updated_at": "2026-02-26T18:46:36Z"
+            },
+            "4": {
+              "index": 4,
+              "status": "COMPLETED",
+              "description": "Task 4: 获取一个提交哈希",
+              "updated_at": "2026-02-26T18:46:36Z"
+            },
+            "5": {
+              "index": 5,
+              "status": "COMPLETED",
+              "description": "Task 5: 测试回滚功能",
+              "updated_at": "2026-02-26T18:46:36Z"
+            },
+            "6": {
+              "index": 6,
+              "status": "COMPLETED",
+              "description": "Task 6: 验证回滚结果",
+              "updated_at": "2026-02-26T18:46:37Z"
+            }
+          },
+          "completed_at": "2026-02-26T18:46:37Z",
+          "completion_summary": "Job executed successfully"
         }
       }
     }

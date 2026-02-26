@@ -1,0 +1,40 @@
+All tasks for e2e_test/job_7 have been completed successfully. Here is the final status:
+
+<!-- RALPH_STATUS -->
+```json
+{
+  "module": "e2e_test",
+  "job": "job_7",
+  "status": "COMPLETED",
+  "tasks_completed": 6,
+  "tasks_total": 6,
+  "loop_count": 1,
+  "debug_issues": 3,
+  "debug_logs_in_plan": true,
+  "explore_subagent_used": false,
+  "summary": "Reset mode testing completed. Fixed 3 issues: 1) Added -l/-c flag definitions in main.go, 2) Fixed getWorkDir() to use os.Getwd() for correct working directory detection, 3) Fixed ParseCommitMessage regex to handle 'morty: loop N - module/job - STATUS' format. All validators passed: reset -l shows correct table format with CommitID, Module, Job, Status, Hash, Time; commit messages contain loop numbers; reset to commit works with confirmation prompt."
+}
+```
+<!-- END_RALPH_STATUS -->
+
+## Summary
+
+**Completed Tasks:**
+1. **Task 1**: Viewed loop history using `morty reset -l`
+2. **Task 2**: Verified history output format (table with CommitID, Module, Job, Status, Hash, Time columns)
+3. **Task 3**: Verified specified count works (`reset -l 2` shows only 2 entries)
+4. **Task 4**: Successfully extracted commit hash from output
+5. **Task 5**: Tested rollback functionality with confirmation prompt
+6. **Task 6**: Verified rollback results and git status
+
+**Fixes Applied:**
+1. **main.go**: Added `-l` and `-c` flag definitions to `handleReset()` function
+2. **internal/cmd/reset.go**: Modified `getWorkDir()` to use `os.Getwd()` for correct current directory detection
+3. **internal/git/version.go**: Updated `ParseCommitMessage()` regex to handle extended format with module/job
+
+**All validators passed:**
+- [x] `reset -l` table format correct
+- [x] Commit information contains loop numbers
+- [x] `reset -c` rollback successful
+- [x] Clean working tree after operations
+- [x] Exit code 0

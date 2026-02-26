@@ -226,16 +226,16 @@ func (m *Manager) parseLogLine(line string) (*LoopCommit, error) {
 }
 
 // ParseCommitMessage parses a commit message subject and extracts loop number and status.
-// Expected format: "morty: loop [number] - [status]" or variations thereof.
+// Expected format: "morty: loop [number] - [status]" or "morty: loop [number] - module/job - [status]"
 func (m *Manager) ParseCommitMessage(message string) (*LoopCommit, error) {
 	commit := &LoopCommit{
 		Message: message,
 	}
 
-	// Regex to match "morty: loop [number] - [status]" pattern
-	// Case insensitive, flexible spacing
-	re := regexp.MustCompile(`(?i)morty:\s*loop\s+(\d+)\s*-\s*(\w+)`)
-	matches := re.FindStringSubmatch(message)
+	// Try to match the extended format first: "morty: loop N - module/job - STATUS"
+	// This handles commit messages like "morty: loop 3 - sudoku/job_3 - COMPLETED"
+	reExtended := regexp.MustCompile(`(?i)morty:\s*loop\s+(\d+)\s*-\s*[\w/]+\s*-\s*(\w+)`)
+	matches := reExtended.FindStringSubmatch(message)
 
 	if len(matches) >= 3 {
 		loopNum, err := strconv.Atoi(matches[1])
@@ -245,18 +245,31 @@ func (m *Manager) ParseCommitMessage(message string) (*LoopCommit, error) {
 		commit.LoopNumber = loopNum
 		commit.Status = strings.ToUpper(matches[2])
 	} else {
-		// Try alternative pattern: "morty: loop [number]" without status
-		reSimple := regexp.MustCompile(`(?i)morty:\s*loop\s+(\d+)`)
-		matchesSimple := reSimple.FindStringSubmatch(message)
-		if len(matchesSimple) >= 2 {
-			loopNum, err := strconv.Atoi(matchesSimple[1])
+		// Try the simple format: "morty: loop [number] - [status]"
+		re := regexp.MustCompile(`(?i)morty:\s*loop\s+(\d+)\s*-\s*(\w+)`)
+		matches := re.FindStringSubmatch(message)
+
+		if len(matches) >= 3 {
+			loopNum, err := strconv.Atoi(matches[1])
 			if err != nil {
 				return nil, fmt.Errorf("failed to parse loop number: %w", err)
 			}
 			commit.LoopNumber = loopNum
-			commit.Status = "UNKNOWN"
+			commit.Status = strings.ToUpper(matches[2])
 		} else {
-			return nil, fmt.Errorf("message does not match morty loop pattern")
+			// Try alternative pattern: "morty: loop [number]" without status
+			reSimple := regexp.MustCompile(`(?i)morty:\s*loop\s+(\d+)`)
+			matchesSimple := reSimple.FindStringSubmatch(message)
+			if len(matchesSimple) >= 2 {
+				loopNum, err := strconv.Atoi(matchesSimple[1])
+				if err != nil {
+					return nil, fmt.Errorf("failed to parse loop number: %w", err)
+				}
+				commit.LoopNumber = loopNum
+				commit.Status = "UNKNOWN"
+			} else {
+				return nil, fmt.Errorf("message does not match morty loop pattern")
+			}
 		}
 	}
 
