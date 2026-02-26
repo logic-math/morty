@@ -756,3 +756,159 @@ func TestResearchHandler_executeClaudeCode_WithError(t *testing.T) {
 		t.Errorf("Expected exit code 1, got %d", exitCode)
 	}
 }
+
+// TestResearchHandler_ValidateResearchResult tests the ValidateResearchResult function.
+func TestResearchHandler_ValidateResearchResult(t *testing.T) {
+	tmpDir := setupTestDir(t)
+
+	tests := []struct {
+		name        string
+		setupFunc   func(t *testing.T, researchDir string)
+		topic       string
+		expectError bool
+		errorMsg    string
+	}{
+		{
+			name: "valid research file exists",
+			setupFunc: func(t *testing.T, researchDir string) {
+				content := `# Test Research
+
+This is valid markdown content.
+- Item 1
+- Item 2
+`
+				filePath := filepath.Join(researchDir, "test_topic.md")
+				if err := os.WriteFile(filePath, []byte(content), 0644); err != nil {
+					t.Fatalf("Failed to create test file: %v", err)
+				}
+			},
+			topic:       "test topic",
+			expectError: false,
+		},
+		{
+			name:        "file does not exist",
+			setupFunc:   func(t *testing.T, researchDir string) {},
+			topic:       "nonexistent topic",
+			expectError: true,
+			errorMsg:    "research result not found",
+		},
+		{
+			name: "empty file",
+			setupFunc: func(t *testing.T, researchDir string) {
+				filePath := filepath.Join(researchDir, "empty_topic.md")
+				if err := os.WriteFile(filePath, []byte(""), 0644); err != nil {
+					t.Fatalf("Failed to create empty file: %v", err)
+				}
+			},
+			topic:       "empty topic",
+			expectError: true,
+			errorMsg:    "research result file is empty",
+		},
+		{
+			name: "file with only whitespace",
+			setupFunc: func(t *testing.T, researchDir string) {
+				filePath := filepath.Join(researchDir, "whitespace_topic.md")
+				if err := os.WriteFile(filePath, []byte("   \n\t\n  "), 0644); err != nil {
+					t.Fatalf("Failed to create whitespace file: %v", err)
+				}
+			},
+			topic:       "whitespace topic",
+			expectError: true,
+			errorMsg:    "no meaningful content",
+		},
+		{
+			name: "complex topic with special chars",
+			setupFunc: func(t *testing.T, researchDir string) {
+				content := `# C++ Programming Research
+
+## Overview
+This research covers C++20 features.
+`
+				filePath := filepath.Join(researchDir, "c___programming.md")
+				if err := os.WriteFile(filePath, []byte(content), 0644); err != nil {
+					t.Fatalf("Failed to create test file: %v", err)
+				}
+			},
+			topic:       "C++ Programming",
+			expectError: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// Setup research directory
+			researchDir := filepath.Join(tmpDir, tt.name, "research")
+			if err := os.MkdirAll(researchDir, 0755); err != nil {
+				t.Fatalf("Failed to create research dir: %v", err)
+			}
+
+			// Run setup function
+			tt.setupFunc(t, researchDir)
+
+			// Create handler with custom work dir
+			cfg := &mockConfig{}
+			logger := &mockLogger{}
+			handler := NewResearchHandler(cfg, logger)
+			handler.paths.SetWorkDir(filepath.Join(tmpDir, tt.name))
+
+			// Call ValidateResearchResult
+			err := handler.ValidateResearchResult(tt.topic)
+
+			if tt.expectError {
+				if err == nil {
+					t.Errorf("Expected error containing '%s', got nil", tt.errorMsg)
+				} else if !strings.Contains(err.Error(), tt.errorMsg) {
+					t.Errorf("Expected error containing '%s', got '%s'", tt.errorMsg, err.Error())
+				}
+			} else {
+				if err != nil {
+					t.Errorf("Expected no error, got: %v", err)
+				}
+			}
+		})
+	}
+}
+
+// TestResearchHandler_getResearchFilePath tests the getResearchFilePath function.
+func TestResearchHandler_getResearchFilePath(t *testing.T) {
+	tmpDir := setupTestDir(t)
+
+	handler := NewResearchHandler(&mockConfig{}, &mockLogger{})
+	handler.paths.SetWorkDir(tmpDir)
+
+	tests := []struct {
+		name          string
+		topic         string
+		expectedSuffix string
+	}{
+		{
+			name:           "simple topic",
+			topic:          "golang",
+			expectedSuffix: "golang.md",
+		},
+		{
+			name:           "topic with spaces",
+			topic:          "golang concurrency",
+			expectedSuffix: "golang_concurrency.md",
+		},
+		{
+			name:           "topic with special chars",
+			topic:          "C++ Programming!",
+			expectedSuffix: "c___programming.md", // trailing underscore is trimmed by sanitizeFilename
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			path := handler.getResearchFilePath(tt.topic)
+
+			if !strings.HasSuffix(path, tt.expectedSuffix) {
+				t.Errorf("Expected path to end with '%s', got '%s'", tt.expectedSuffix, path)
+			}
+
+			if !filepath.IsAbs(path) {
+				t.Error("Expected absolute path")
+			}
+		})
+	}
+}

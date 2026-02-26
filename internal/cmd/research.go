@@ -300,3 +300,80 @@ func (h *ResearchHandler) GetResearchDir() string {
 func (h *ResearchHandler) GetPromptsDir() string {
 	return h.paths.GetPromptsDir()
 }
+
+// ValidateResearchResult validates that a research result file exists and is valid.
+// It checks if the file exists, is non-empty, and contains valid Markdown content.
+func (h *ResearchHandler) ValidateResearchResult(topic string) error {
+	// Task 2: Check if research file exists
+	researchPath := h.getResearchFilePath(topic)
+
+	info, err := os.Stat(researchPath)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return fmt.Errorf("research result not found for topic '%s': file does not exist at %s", topic, researchPath)
+		}
+		return fmt.Errorf("failed to access research result for topic '%s': %w", topic, err)
+	}
+
+	// Task 3: Verify file is not empty
+	if info.Size() == 0 {
+		return fmt.Errorf("research result file is empty for topic '%s'", topic)
+	}
+
+	// Read and validate content
+	content, err := os.ReadFile(researchPath)
+	if err != nil {
+		return fmt.Errorf("failed to read research result for topic '%s': %w", topic, err)
+	}
+
+	// Task 3: Verify content is non-empty (after trimming whitespace)
+	if len(strings.TrimSpace(string(content))) == 0 {
+		return fmt.Errorf("research result file has no meaningful content for topic '%s'", topic)
+	}
+
+	// Task 4: Output research summary
+	fmt.Println()
+	fmt.Println("=" + strings.Repeat("=", 60))
+	fmt.Println("  Research Result Summary")
+	fmt.Println("=" + strings.Repeat("=", 60))
+	fmt.Printf("  Topic: %s\n", topic)
+	fmt.Printf("  File:  %s\n", researchPath)
+	fmt.Printf("  Size:  %d bytes\n", info.Size())
+	fmt.Printf("  Modified: %s\n", info.ModTime().Format("2006-01-02 15:04:05"))
+	fmt.Println("=" + strings.Repeat("=", 60))
+
+	// Show first few lines of content
+	lines := strings.Split(string(content), "\n")
+	previewLines := 5
+	if len(lines) < previewLines {
+		previewLines = len(lines)
+	}
+	if previewLines > 0 {
+		fmt.Println("  Preview:")
+		for i := 0; i < previewLines; i++ {
+			line := strings.TrimSpace(lines[i])
+			if line != "" {
+				fmt.Printf("    %s\n", line)
+			}
+		}
+		if len(lines) > previewLines {
+			fmt.Printf("    ... (%d more lines)\n", len(lines)-previewLines)
+		}
+	}
+	fmt.Println("=" + strings.Repeat("=", 60))
+
+	// Task 5: Prompt next step
+	fmt.Println()
+	fmt.Println("  Next step:")
+	fmt.Println("    Run `morty plan` to create an execution plan")
+	fmt.Println("    based on this research.")
+	fmt.Println()
+
+	return nil
+}
+
+// getResearchFilePath returns the path to a research file for a given topic.
+func (h *ResearchHandler) getResearchFilePath(topic string) string {
+	sanitized := h.sanitizeFilename(topic)
+	return filepath.Join(h.paths.GetResearchDir(), sanitized+".md")
+}

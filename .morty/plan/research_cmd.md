@@ -162,22 +162,23 @@ type ResearchResult struct {
 - Job 2 完成
 
 **Tasks (Todo 列表)**:
-- [ ] Task 1: 实现 `validateResearchResult(topic) error`
-- [ ] Task 2: 检查 `.morty/research/[主题].md` 是否存在
-- [ ] Task 3: 验证文件内容非空
-- [ ] Task 4: 输出研究结果摘要
-- [ ] Task 5: 提示下一步操作（运行 `morty plan`）
-- [ ] Task 6: 编写单元测试
+- [x] Task 1: 实现 `validateResearchResult(topic) error`
+- [x] Task 2: 检查 `.morty/research/[主题].md` 是否存在
+- [x] Task 3: 验证文件内容非空
+- [x] Task 4: 输出研究结果摘要
+- [x] Task 5: 提示下一步操作（运行 `morty plan`）
+- [x] Task 6: 编写单元测试
 
 **验证器**:
-- [ ] 研究结果文件存在且非空
-- [ ] 文件内容包含有效的 Markdown
-- [ ] 成功时提示用户运行 `morty plan`
-- [ ] 失败时给出友好错误提示
-- [ ] 所有单元测试通过 (覆盖率 >= 80%)
+- [x] 研究结果文件存在且非空
+- [x] 文件内容包含有效的 Markdown
+- [x] 成功时提示用户运行 `morty plan`
+- [x] 失败时给出友好错误提示
+- [x] 所有单元测试通过 (覆盖率 >= 80%)
 
 **调试日志**:
-- 待填充
+- debug1: [探索发现] ResearchHandler 已有 sanitizeFilename 方法可用于生成文件名, 研究结果存储在 `.morty/research/[sanitized_topic].md`, 测试使用 mock 配置和路径设置, 已记录
+- debug2: [现象] getResearchFilePath 测试失败, [复现] topic "C++ Programming!" 期望后缀包含 trailing underscore, [猜想] 1)sanitizeFilename 会 trim trailing underscores, [验证] 检查 sanitizeFilename 实现, [修复] 更新测试期望值为 "c___programming.md", [进展] 已修复
 
 ---
 

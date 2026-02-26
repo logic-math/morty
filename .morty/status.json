@@ -3,16 +3,16 @@
   "state": "running",
   "current": {
     "module": "research_cmd",
-    "job": "job_2",
+    "job": "job_3",
     "status": "COMPLETED",
-    "start_time": "2026-02-26T03:50:10Z",
+    "start_time": "2026-02-26T04:24:09Z",
     "interrupted_at": "2026-02-24T16:51:59Z",
-    "completed_at": "2026-02-26T04:24:08Z"
+    "completed_at": "2026-02-26T04:59:13Z"
   },
   "session": {
     "start_time": "2026-02-24T12:51:47Z",
-    "last_update": "2026-02-26T04:24:08Z",
-    "total_loops": 51
+    "last_update": "2026-02-26T04:59:13Z",
+    "total_loops": 52
   },
   "modules": {
     "go_env_setup": {
@@ -2841,12 +2841,53 @@
           "completion_summary": "Job executed successfully"
         },
         "job_3": {
-          "status": "PENDING",
-          "loop_count": 0,
+          "status": "COMPLETED",
+          "loop_count": 1,
           "retry_count": 0,
           "tasks_total": 6,
-          "tasks_completed": 0,
-          "debug_logs": []
+          "tasks_completed": 6,
+          "debug_logs": [],
+          "started_at": "2026-02-26T04:24:09Z",
+          "tasks": {
+            "1": {
+              "index": 1,
+              "status": "COMPLETED",
+              "description": "Task 1: 实现 `validateResearchResult(topic) error`",
+              "updated_at": "2026-02-26T04:59:12Z"
+            },
+            "2": {
+              "index": 2,
+              "status": "COMPLETED",
+              "description": "Task 2: 检查 `.morty/research/[主题].md` 是否存在",
+              "updated_at": "2026-02-26T04:59:12Z"
+            },
+            "3": {
+              "index": 3,
+              "status": "COMPLETED",
+              "description": "Task 3: 验证文件内容非空",
+              "updated_at": "2026-02-26T04:59:13Z"
+            },
+            "4": {
+              "index": 4,
+              "status": "COMPLETED",
+              "description": "Task 4: 输出研究结果摘要",
+              "updated_at": "2026-02-26T04:59:13Z"
+            },
+            "5": {
+              "index": 5,
+              "status": "COMPLETED",
+              "description": "Task 5: 提示下一步操作（运行 `morty plan`）",
+              "updated_at": "2026-02-26T04:59:13Z"
+            },
+            "6": {
+              "index": 6,
+              "status": "COMPLETED",
+              "description": "Task 6: 编写单元测试",
+              "updated_at": "2026-02-26T04:59:13Z"
+            }
+          },
+          "completed_at": "2026-02-26T04:59:14Z",
+          "completion_summary": "Job executed successfully"
         }
       }
     },

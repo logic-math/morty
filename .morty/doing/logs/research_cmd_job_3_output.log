@@ -1,0 +1,16 @@
+所有 Tasks 完成。现在输出 RALPH_STATUS 执行结果。
+
+```json
+{
+  "module": "research_cmd",
+  "job": "job_3",
+  "status": "COMPLETED",
+  "tasks_completed": 6,
+  "tasks_total": 6,
+  "loop_count": 1,
+  "debug_issues": 1,
+  "debug_logs_in_plan": true,
+  "explore_subagent_used": true,
+  "summary": "research_cmd/job_3 完成: 实现了 ValidateResearchResult 函数，支持检查结果文件存在性、非空性，输出研究摘要并提示用户运行 `morty plan`。编写了完整单元测试，覆盖率 87.4% >= 80%。修复了测试预期值与 sanitizeFilename 行为不一致的问题。已在 Plan 文件更新调试日志。"
+}
+```
