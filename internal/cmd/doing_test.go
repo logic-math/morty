@@ -1964,3 +1964,387 @@ func TestDoingHandler_ExecutorIntegration(t *testing.T) {
 		t.Logf("executeJob() returned error (may be expected): %v", err)
 	}
 }
+
+// ============================================================================
+// Job 5: createGitCommit Tests
+// ============================================================================
+
+// Test generateCommitMessage with valid summary
+// Task 2: Test commit message generation
+func TestDoingHandler_generateCommitMessage(t *testing.T) {
+	handler := NewDoingHandler(&mockConfig{}, &mockLogger{})
+
+	tests := []struct {
+		name     string
+		summary  *CommitSummary
+		expected string
+	}{
+		{
+			name: "basic commit message",
+			summary: &CommitSummary{
+				Module: "doing_cmd",
+				Job:    "job_5",
+				Status: "COMPLETED",
+			},
+			expected: "morty: doing_cmd/job_5 - COMPLETED",
+		},
+		{
+			name: "commit message with loop count",
+			summary: &CommitSummary{
+				Module:    "doing_cmd",
+				Job:       "job_5",
+				Status:    "RUNNING",
+				LoopCount: 3,
+			},
+			expected: "morty: doing_cmd/job_5 - RUNNING (loop 3)",
+		},
+		{
+			name: "commit message with failed status",
+			summary: &CommitSummary{
+				Module: "test_module",
+				Job:    "test_job",
+				Status: "FAILED",
+			},
+			expected: "morty: test_module/test_job - FAILED",
+		},
+		{
+			name:     "nil summary",
+			summary:  nil,
+			expected: "morty: unknown - UNKNOWN",
+		},
+		{
+			name: "empty fields",
+			summary: &CommitSummary{
+				Module: "",
+				Job:    "",
+				Status: "",
+			},
+			expected: "morty: unknown/unknown - UNKNOWN",
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			result := handler.generateCommitMessage(tc.summary)
+			if result != tc.expected {
+				t.Errorf("generateCommitMessage() = %v, want %v", result, tc.expected)
+			}
+		})
+	}
+}
+
+// Test createGitCommit success
+// Task 1, 3, 4, 5, 6: Test full commit workflow
+func TestDoingHandler_createGitCommit_success(t *testing.T) {
+	tmpDir := setupTestDir(t)
+	workDir := filepath.Join(tmpDir, ".morty")
+
+	// Create .morty directory
+	if err := os.MkdirAll(workDir, 0755); err != nil {
+		t.Fatalf("Failed to create .morty dir: %v", err)
+	}
+
+	cfg := &mockConfig{
+		workDir: workDir,
+	}
+	handler := NewDoingHandler(cfg, &mockLogger{})
+
+	// Initialize git repository
+	gitMgr := git.NewManager()
+	handler.SetGitManager(gitMgr)
+
+	// Initialize git repo
+	err := gitMgr.InitIfNeeded(workDir)
+	if err != nil {
+		t.Fatalf("Failed to init git repo: %v", err)
+	}
+
+	// Configure git user
+	gitMgr.RunGitCommand(workDir, "config", "user.email", "test@test.com")
+	gitMgr.RunGitCommand(workDir, "config", "user.name", "Test User")
+
+	// Create initial commit
+	initialFile := filepath.Join(workDir, "initial.txt")
+	os.WriteFile(initialFile, []byte("initial"), 0644)
+	gitMgr.RunGitCommand(workDir, "add", "initial.txt")
+	gitMgr.RunGitCommand(workDir, "commit", "-m", "initial commit")
+
+	// Create a test file to commit
+	testFile := filepath.Join(workDir, "test.txt")
+	err = os.WriteFile(testFile, []byte("test content"), 0644)
+	if err != nil {
+		t.Fatalf("Failed to create test file: %v", err)
+	}
+
+	// Create commit
+	summary := &CommitSummary{
+		Module:    "doing_cmd",
+		Job:       "job_5",
+		Status:    "COMPLETED",
+		LoopCount: 1,
+	}
+
+	commitHash, err := handler.createGitCommit(summary)
+	if err != nil {
+		t.Errorf("createGitCommit() error = %v", err)
+	}
+
+	if commitHash == "" {
+		t.Error("createGitCommit() returned empty commit hash")
+	}
+
+	// Verify commit message
+	logOutput, err := gitMgr.RunGitCommand(workDir, "log", "-1", "--pretty=format:%s")
+	if err != nil {
+		t.Fatalf("Failed to get log: %v", err)
+	}
+
+	expectedMsg := "morty: doing_cmd/job_5 - COMPLETED (loop 1)"
+	if logOutput != expectedMsg {
+		t.Errorf("Commit message = %v, want %v", logOutput, expectedMsg)
+	}
+}
+
+// Test createGitCommit with no changes
+// Task 3: Test no changes scenario
+func TestDoingHandler_createGitCommit_noChanges(t *testing.T) {
+	tmpDir := setupTestDir(t)
+	workDir := filepath.Join(tmpDir, ".morty")
+
+	// Create .morty directory
+	if err := os.MkdirAll(workDir, 0755); err != nil {
+		t.Fatalf("Failed to create .morty dir: %v", err)
+	}
+
+	cfg := &mockConfig{
+		workDir: workDir,
+	}
+	handler := NewDoingHandler(cfg, &mockLogger{})
+
+	// Initialize git repository
+	gitMgr := git.NewManager()
+	handler.SetGitManager(gitMgr)
+
+	// Initialize git repo
+	err := gitMgr.InitIfNeeded(workDir)
+	if err != nil {
+		t.Fatalf("Failed to init git repo: %v", err)
+	}
+
+	// Configure git user
+	gitMgr.RunGitCommand(workDir, "config", "user.email", "test@test.com")
+	gitMgr.RunGitCommand(workDir, "config", "user.name", "Test User")
+
+	// Create initial commit (so repo is clean)
+	initialFile := filepath.Join(workDir, "initial.txt")
+	os.WriteFile(initialFile, []byte("initial"), 0644)
+	gitMgr.RunGitCommand(workDir, "add", "initial.txt")
+	gitMgr.RunGitCommand(workDir, "commit", "-m", "initial commit")
+
+	// Try to create commit with no changes
+	summary := &CommitSummary{
+		Module: "doing_cmd",
+		Job:    "job_5",
+		Status: "COMPLETED",
+	}
+
+	commitHash, err := handler.createGitCommit(summary)
+	if err != nil {
+		t.Errorf("createGitCommit() error = %v", err)
+	}
+
+	// Should return empty hash without error when no changes
+	if commitHash != "" {
+		t.Errorf("createGitCommit() = %v, want empty string when no changes", commitHash)
+	}
+}
+
+// Test createGitCommit stages all changes
+// Task 4: Test staging all changes
+func TestDoingHandler_createGitCommit_stagesAllChanges(t *testing.T) {
+	tmpDir := setupTestDir(t)
+	workDir := filepath.Join(tmpDir, ".morty")
+
+	// Create .morty directory
+	if err := os.MkdirAll(workDir, 0755); err != nil {
+		t.Fatalf("Failed to create .morty dir: %v", err)
+	}
+
+	cfg := &mockConfig{
+		workDir: workDir,
+	}
+	handler := NewDoingHandler(cfg, &mockLogger{})
+
+	// Initialize git repository
+	gitMgr := git.NewManager()
+	handler.SetGitManager(gitMgr)
+
+	// Initialize git repo
+	err := gitMgr.InitIfNeeded(workDir)
+	if err != nil {
+		t.Fatalf("Failed to init git repo: %v", err)
+	}
+
+	// Configure git user
+	gitMgr.RunGitCommand(workDir, "config", "user.email", "test@test.com")
+	gitMgr.RunGitCommand(workDir, "config", "user.name", "Test User")
+
+	// Create initial commit
+	initialFile := filepath.Join(workDir, "initial.txt")
+	os.WriteFile(initialFile, []byte("initial"), 0644)
+	gitMgr.RunGitCommand(workDir, "add", "initial.txt")
+	gitMgr.RunGitCommand(workDir, "commit", "-m", "initial commit")
+
+	// Create multiple files without staging
+	file1 := filepath.Join(workDir, "file1.txt")
+	file2 := filepath.Join(workDir, "file2.txt")
+	os.WriteFile(file1, []byte("content1"), 0644)
+	os.WriteFile(file2, []byte("content2"), 0644)
+
+	// Create commit (should auto-stage all files)
+	summary := &CommitSummary{
+		Module: "doing_cmd",
+		Job:    "job_5",
+		Status: "COMPLETED",
+	}
+
+	_, err = handler.createGitCommit(summary)
+	if err != nil {
+		t.Errorf("createGitCommit() error = %v", err)
+	}
+
+	// Verify all files were committed (no uncommitted changes)
+	status, err := gitMgr.RunGitCommand(workDir, "status", "--porcelain")
+	if err != nil {
+		t.Fatalf("Failed to get status: %v", err)
+	}
+
+	if strings.TrimSpace(status) != "" {
+		t.Errorf("Expected all files to be committed, but status shows: %s", status)
+	}
+}
+
+// Test createGitCommit error handling
+// Task 6: Test commit error handling
+func TestDoingHandler_createGitCommit_notARepo(t *testing.T) {
+	tmpDir := setupTestDir(t)
+	workDir := filepath.Join(tmpDir, ".morty")
+
+	cfg := &mockConfig{
+		workDir: workDir,
+	}
+	handler := NewDoingHandler(cfg, &mockLogger{})
+
+	// Don't initialize git repo - should fail
+	gitMgr := git.NewManager()
+	handler.SetGitManager(gitMgr)
+
+	summary := &CommitSummary{
+		Module: "doing_cmd",
+		Job:    "job_5",
+		Status: "COMPLETED",
+	}
+
+	// Create a file to have changes
+	testFile := filepath.Join(workDir, "test.txt")
+	os.WriteFile(testFile, []byte("test"), 0644)
+
+	_, err := handler.createGitCommit(summary)
+	if err == nil {
+		t.Error("createGitCommit() expected error for non-git directory")
+	}
+}
+
+// Test createGitCommit commit message format
+// Validator: Commit message format check
+func TestDoingHandler_createGitCommit_messageFormat(t *testing.T) {
+	tmpDir := setupTestDir(t)
+	workDir := filepath.Join(tmpDir, ".morty")
+
+	// Create .morty directory
+	if err := os.MkdirAll(workDir, 0755); err != nil {
+		t.Fatalf("Failed to create .morty dir: %v", err)
+	}
+
+	cfg := &mockConfig{
+		workDir: workDir,
+	}
+	handler := NewDoingHandler(cfg, &mockLogger{})
+
+	gitMgr := git.NewManager()
+	handler.SetGitManager(gitMgr)
+
+	err := gitMgr.InitIfNeeded(workDir)
+	if err != nil {
+		t.Fatalf("Failed to init git repo: %v", err)
+	}
+
+	gitMgr.RunGitCommand(workDir, "config", "user.email", "test@test.com")
+	gitMgr.RunGitCommand(workDir, "config", "user.name", "Test User")
+
+	initialFile := filepath.Join(workDir, "initial.txt")
+	os.WriteFile(initialFile, []byte("initial"), 0644)
+	gitMgr.RunGitCommand(workDir, "add", "initial.txt")
+	gitMgr.RunGitCommand(workDir, "commit", "-m", "initial commit")
+
+	// Test various commit message formats
+	tests := []struct {
+		name           string
+		summary        *CommitSummary
+		expectedPrefix string
+		contains       []string
+	}{
+		{
+			name: "module job status format",
+			summary: &CommitSummary{
+				Module: "test_module",
+				Job:    "test_job",
+				Status: "COMPLETED",
+			},
+			expectedPrefix: "morty: ",
+			contains:       []string{"test_module", "test_job", "COMPLETED"},
+		},
+		{
+			name: "with loop number",
+			summary: &CommitSummary{
+				Module:    "logging",
+				Job:       "job_1",
+				Status:    "RUNNING",
+				LoopCount: 5,
+			},
+			expectedPrefix: "morty: ",
+			contains:       []string{"logging", "job_1", "RUNNING", "loop 5"},
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			// Create a new file for each test
+			testFile := filepath.Join(workDir, tc.name+".txt")
+			os.WriteFile(testFile, []byte("test"), 0644)
+
+			_, err := handler.createGitCommit(tc.summary)
+			if err != nil {
+				t.Fatalf("createGitCommit() error = %v", err)
+			}
+
+			// Get commit message
+			msg, err := gitMgr.RunGitCommand(workDir, "log", "-1", "--pretty=format:%s")
+			if err != nil {
+				t.Fatalf("Failed to get log: %v", err)
+			}
+
+			// Check prefix
+			if !strings.HasPrefix(msg, tc.expectedPrefix) {
+				t.Errorf("Commit message %q does not start with %q", msg, tc.expectedPrefix)
+			}
+
+			// Check contains
+			for _, s := range tc.contains {
+				if !strings.Contains(msg, s) {
+					t.Errorf("Commit message %q does not contain %q", msg, s)
+				}
+			}
+		})
+	}
+}

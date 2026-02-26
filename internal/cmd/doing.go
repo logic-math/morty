@@ -749,6 +749,94 @@ func (h *DoingHandler) SetGitManager(gitMgr *git.Manager) {
 	h.gitManager = gitMgr
 }
 
+// CommitSummary represents the summary information for creating a git commit.
+type CommitSummary struct {
+	Module    string
+	Job       string
+	Status    string
+	LoopCount int
+}
+
+// createGitCommit creates a git commit with the job execution summary.
+// Task 1: Implement createGitCommit(summary)
+// It generates a commit message, stages all changes, and creates a commit.
+// The commit message format is: "morty: [module]/[job] - [STATUS]"
+func (h *DoingHandler) createGitCommit(summary *CommitSummary) (string, error) {
+	// Task 2: Generate commit message
+	commitMsg := h.generateCommitMessage(summary)
+
+	// Initialize git manager if needed
+	if h.gitManager == nil {
+		h.gitManager = git.NewManager()
+	}
+
+	workDir := h.getWorkDir()
+
+	// Task 3: Check if there are changes to commit
+	hasChanges, err := h.gitManager.HasUncommittedChanges(workDir)
+	if err != nil {
+		return "", fmt.Errorf("failed to check for uncommitted changes: %w", err)
+	}
+
+	// If no changes, return empty hash without error (no commit needed)
+	if !hasChanges {
+		return "", nil
+	}
+
+	// Task 4: Stage all changes
+	if _, err := h.gitManager.RunGitCommand(workDir, "add", "-A"); err != nil {
+		return "", fmt.Errorf("failed to stage changes: %w", err)
+	}
+
+	// Task 5: Create commit
+	if _, err := h.gitManager.RunGitCommand(workDir, "commit", "-m", commitMsg); err != nil {
+		// Task 6: Handle commit errors
+		return "", fmt.Errorf("failed to create commit: %w", err)
+	}
+
+	// Get the commit hash
+	commitHash, err := h.gitManager.RunGitCommand(workDir, "rev-parse", "HEAD")
+	if err != nil {
+		return "", fmt.Errorf("failed to get commit hash: %w", err)
+	}
+
+	return commitHash, nil
+}
+
+// generateCommitMessage generates a commit message from the summary.
+// Format: "morty: [module]/[job] - [STATUS]"
+// Includes loop count in the message if available.
+func (h *DoingHandler) generateCommitMessage(summary *CommitSummary) string {
+	if summary == nil {
+		return "morty: unknown - UNKNOWN"
+	}
+
+	module := summary.Module
+	if module == "" {
+		module = "unknown"
+	}
+
+	job := summary.Job
+	if job == "" {
+		job = "unknown"
+	}
+
+	status := summary.Status
+	if status == "" {
+		status = "UNKNOWN"
+	}
+
+	// Format: morty: module/job - STATUS
+	msg := fmt.Sprintf("morty: %s/%s - %s", module, job, status)
+
+	// Include loop count if greater than 0
+	if summary.LoopCount > 0 {
+		msg = fmt.Sprintf("morty: %s/%s - %s (loop %d)", module, job, status, summary.LoopCount)
+	}
+
+	return msg
+}
+
 // loadPlan loads and parses a Plan file for the specified module.
 // Task 1: Implement `loadPlan(module)` to load module Plan
 // Task 2: Use Markdown Parser to parse Plan file

@@ -197,6 +197,13 @@ func (m *Manager) GetChangeStats(dir string) (*ChangeStats, error) {
 	return stats, nil
 }
 
+// RunGitCommand runs an arbitrary git command in the specified directory.
+// It returns the command output and any error encountered.
+// This is a low-level method for executing custom git commands.
+func (m *Manager) RunGitCommand(dir string, args ...string) (string, error) {
+	return m.run(dir, args...)
+}
+
 // parseDiffStat parses the output of git diff --stat to extract line counts.
 // The format typically ends with "X insertions(+), Y deletions(-)" on the summary line.
 func (m *Manager) parseDiffStat(output string) (insertions, deletions int) {

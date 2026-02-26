@@ -1,0 +1,55 @@
+所有任务已完成！让我输出 RALPH_STATUS。
+
+<!-- RALPH_STATUS -->
+```json
+{
+  "module": "doing_cmd",
+  "job": "job_5",
+  "status": "COMPLETED",
+  "tasks_completed": 7,
+  "tasks_total": 7,
+  "loop_count": 1,
+  "debug_issues": 2,
+  "debug_logs_in_plan": true,
+  "explore_subagent_used": true,
+  "summary": "成功实现 `createGitCommit(summary)` 函数和 `generateCommitMessage` 方法。提交信息格式为 `morty: [module]/[job] - [STATUS] (loop N)`。实现了检查变更、自动暂存、创建提交和错误处理功能。在 git.Manager 中添加了 `RunGitCommand` 公共方法。编写了7个单元测试，全部通过。Plan 文件已更新。"
+}
+```
+<!-- END_RALPH_STATUS -->
+
+## 执行摘要
+
+我已完成 doing_cmd/job_5 的所有任务：
+
+### 实现的功能
+
+1. **`createGitCommit(summary)`** (`doing.go:759-806`)
+   - 生成格式化的提交信息
+   - 检查是否有未提交的变更
+   - 自动暂存所有变更 (`git add -A`)
+   - 创建提交并返回 commit hash
+   - 处理各种错误情况
+
+2. **`generateCommitMessage(summary)`** (`doing.go:809-839`)
+   - 生成格式: `morty: [module]/[job] - [STATUS] (loop N)`
+   - 支持空值保护（nil/空字符串处理）
+   - 可选包含循环编号
+
+3. **`CommitSummary` 结构体** (`doing.go:752-758`)
+   - 包含 Module, Job, Status, LoopCount 字段
+
+4. **git.Manager 扩展** (`manager.go:200-204`)
+   - 添加 `RunGitCommand` 公共方法，用于执行任意 git 命令
+
+### 单元测试 (7个)
+
+| 测试名 | 说明 |
+|--------|------|
+| `TestDoingHandler_generateCommitMessage` | 提交信息生成（5个子测试用例） |
+| `TestDoingHandler_createGitCommit_success` | 成功创建提交 |
+| `TestDoingHandler_createGitCommit_noChanges` | 无变更时返回空 hash |
+| `TestDoingHandler_createGitCommit_stagesAllChanges` | 自动暂存所有变更 |
+| `TestDoingHandler_createGitCommit_notARepo` | 非 git 目录错误处理 |
+| `TestDoingHandler_createGitCommit_messageFormat` | 提交信息格式验证（2个子测试用例） |
+
+所有测试均通过验证。
