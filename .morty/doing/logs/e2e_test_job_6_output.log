@@ -1,0 +1,29 @@
+所有 Tasks 执行完成，验证结果如下：
+
+| 验证器 | 状态 |
+|--------|------|
+| 输出包含当前模块/Job 信息 | ✓ 通过（显示 e2e_test/job_6） |
+| 输出包含进度百分比 | ✓ 通过（显示 0%） |
+| 表格格式整齐易读 | ✓ 通过（使用 Unicode 表格字符） |
+| 监控模式正常工作 | ✓ 通过（-w 标志启动监控模式） |
+| JSON 输出格式正确 | ✗ 未通过（--json 标志未生效） |
+| 返回码为 0 | ✓ 通过 |
+
+**问题记录**: JSON 输出功能在代码中存在（`formatJSON`/`outputJSON`），但在实际运行中未生效，可能是由于 main.go 中的 flagSet 处理导致 --json 选项被忽略。
+
+```json
+{
+  "ralph_status": {
+    "module": "e2e_test",
+    "job": "job_6",
+    "status": "COMPLETED",
+    "tasks_completed": 5,
+    "tasks_total": 5,
+    "loop_count": 1,
+    "debug_issues": 1,
+    "debug_logs_in_plan": true,
+    "explore_subagent_used": true,
+    "summary": "Stat 命令测试完成。默认文本输出、监控模式、状态信息完整性均验证通过。JSON 输出功能未正常工作，已记录到 Plan 调试日志 debug1"
+  }
+}
+```
