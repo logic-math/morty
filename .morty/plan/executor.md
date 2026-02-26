@@ -182,25 +182,29 @@ type TaskRunner struct {
 - Job 1 完成 (执行引擎核心)
 
 **Tasks (Todo 列表)**:
-- [ ] Task 1: 创建 `internal/executor/job_runner.go` 文件结构
-- [ ] Task 2: 实现 `JobRunner` 结构体
-- [ ] Task 3: 实现 `Run(ctx, module, job)` 方法
-- [ ] Task 4: 实现 Tasks 循环执行
-- [ ] Task 5: 实现 Task 完成状态更新
-- [ ] Task 6: 实现 Job 级别错误处理
-- [ ] Task 7: 实现跳过已完成的 Tasks
-- [ ] Task 8: 编写单元测试 `job_runner_test.go`
+- [x] Task 1: 创建 `internal/executor/job_runner.go` 文件结构
+- [x] Task 2: 实现 `JobRunner` 结构体
+- [x] Task 3: 实现 `Run(ctx, module, job)` 方法
+- [x] Task 4: 实现 Tasks 循环执行
+- [x] Task 5: 实现 Task 完成状态更新
+- [x] Task 6: 实现 Job 级别错误处理
+- [x] Task 7: 实现跳过已完成的 Tasks
+- [x] Task 8: 编写单元测试 `job_runner_test.go`
 
 **验证器**:
-- [ ] JobRunner 正确执行 Job 的所有 Tasks
-- [ ] 已完成的 Tasks 自动跳过
-- [ ] 每个 Task 完成后更新状态
-- [ ] Task 失败时停止并标记 Job 失败
-- [ ] 所有 Tasks 完成后标记 Job 完成
-- [ ] 所有单元测试通过 (覆盖率 >= 80%)
+- [x] JobRunner 正确执行 Job 的所有 Tasks
+- [x] 已完成的 Tasks 自动跳过
+- [x] 每个 Task 完成后更新状态
+- [x] Task 失败时停止并标记 Job 失败
+- [x] 所有 Tasks 完成后标记 Job 完成
+- [x] 所有单元测试通过 (覆盖率 81.8% >= 80%)
 
 **调试日志**:
-- 待填充
+- debug1: 文件路径问题，Go 实际使用的是 /home/sankuai/ 路径而非 /opt/meituan/，需要将文件复制到正确的位置, 使用 go env GOMOD 和 realpath 验证路径, 修复: 将文件复制到 Go 实际使用的目录, 已修复
+- debug2: 变量名 `state` 与包名冲突，导致 `state.StatusCompleted` 被解释为访问变量而非包常量, 编译错误: state.StatusCompleted undefined, 修复: 将变量重命名为 `statePtr`, 已修复
+- debug3: 测试文件编译错误，包括未使用的 import、变量和函数比较问题, 编译失败: imported and not used, declared and not used, cannot compare functions, 修复: 移除未使用的 import 和变量，修改函数比较逻辑, 已修复
+- debug4: setupJobRunnerTestEnv 只接受 *testing.T 但 benchmark 使用 *testing.B, 编译错误: cannot use b (variable of type *testing.B) as *testing.T, 修复: 修改参数类型为 testing.TB 接口，并在 benchmark 中直接使用独立设置, 已修复
+- debug5: TestJobRunner_Run_UpdatesTaskState 使用 partial-job，其中 task 0 已是 COMPLETED 状态，UpdatedAt 未被更新, 测试失败: Task 0 UpdatedAt should not be zero, 修复: 改用 pending-job 测试所有任务状态更新, 已修复
 
 ---
 
