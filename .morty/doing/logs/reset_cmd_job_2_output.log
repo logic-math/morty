@@ -1,0 +1,59 @@
+All tasks have been completed. Let me provide a summary of what was implemented:
+
+## Summary
+
+### Task 1: Implement `showLoopHistory(count)`
+- Added `LoopHistoryEntry` struct to represent loop history entries with parsed module/job info
+- Added `ShowLoopHistoryResult` struct for the function result
+- Implemented `showLoopHistory(count int)` method on `ResetHandler`
+
+### Task 2: Call Git to get commit history
+- Used `h.gitManager.ShowLoopHistory(count, workDir)` from the git package
+
+### Task 3: Filter morty loop commits
+- The filtering is handled by the git package's `ShowLoopHistory` method which uses regex to match morty loop commit messages
+
+### Task 4: Parse commit info to extract loop number, module, job, status
+- Implemented `parseCommitMessageForModuleJob()` method that parses commit messages for module/job patterns like "cli/job_1"
+- Extracts loop number and status from the git.LoopCommit structure
+
+### Task 5: Limit return quantity (default 10)
+- Implemented default count of 10 when count <= 0
+- Passes the count to the git package's ShowLoopHistory method
+
+### Task 6: Handle no loop commits case
+- Returns friendly message: "未找到 morty 循环提交记录" with hint about loop commit format
+- Returns empty history slice with ExitCode 0 (not an error, just empty)
+
+### Task 7: Write unit tests
+Added tests in `reset_test.go`:
+- `TestShowLoopHistory_NotGitRepo` - Tests error handling when not in git repo
+- `TestShowLoopHistory_DefaultCount` - Tests default count behavior
+- `TestShowLoopHistory_NoLoopCommits` - Tests empty history handling
+- `TestParseCommitMessageForModuleJob` - Tests parsing module/job from messages
+- `TestTruncateString` - Tests string truncation helper
+- `TestFormatLoopHistory` - Tests history formatting
+
+### Files Modified
+- `/opt/meituan/dolphinfs_sunquan20/ai_coding/Coding/morty/internal/cmd/reset.go` - Added showLoopHistory functionality
+- `/opt/meituan/dolphinfs_sunquan20/ai_coding/Coding/morty/internal/cmd/reset_test.go` - Added unit tests
+
+### Build Status
+The code compiles successfully (`go build ./...` passes).
+
+<!-- RALPH_STATUS -->
+```json
+{
+  "module": "reset_cmd",
+  "job": "job_2",
+  "status": "COMPLETED",
+  "tasks_completed": 7,
+  "tasks_total": 7,
+  "loop_count": 1,
+  "debug_issues": 0,
+  "debug_logs_in_plan": false,
+  "explore_subagent_used": true,
+  "summary": "Successfully implemented showLoopHistory(count) function in reset.go. The function retrieves git commit history, filters for morty loop commits, parses module/job information from commit messages, limits results (default 10), handles empty history gracefully, and includes comprehensive unit tests. All code compiles successfully."
+}
+```
+<!-- END_RALPH_STATUS -->

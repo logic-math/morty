@@ -5,6 +5,7 @@ import (
 	"context"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 
@@ -394,3 +395,227 @@ func findInStringReset(s, substr string) bool {
 var _ logging.Logger = (*mockResetLogger)(nil)
 var _ config.Manager = (*mockResetConfig)(nil)
 var _ GitChecker = (*mockGitChecker)(nil)
+
+// TestShowLoopHistory_NotGitRepo tests showLoopHistory when not in a git repo.
+func TestShowLoopHistory_NotGitRepo(t *testing.T) {
+	tmpDir := t.TempDir()
+
+	cfg := &mockResetConfig{workDir: tmpDir}
+	logger := &mockResetLogger{}
+	handler := NewResetHandler(cfg, logger)
+
+	// Use mock git checker that reports it's NOT a git repo
+	mockChecker := &mockGitChecker{isGitRepo: false}
+	handler.SetGitChecker(mockChecker)
+
+	result, err := handler.showLoopHistory(10)
+
+	if err == nil {
+		t.Error("showLoopHistory() expected error when not in git repo, got nil")
+	}
+
+	if result == nil {
+		t.Fatal("showLoopHistory() returned nil result")
+	}
+
+	if result.ExitCode != 1 {
+		t.Errorf("showLoopHistory() ExitCode = %d, want 1", result.ExitCode)
+	}
+
+	if result.Err == nil {
+		t.Error("showLoopHistory() result.Err should not be nil")
+	}
+}
+
+// TestShowLoopHistory_DefaultCount tests showLoopHistory with default count.
+func TestShowLoopHistory_DefaultCount(t *testing.T) {
+	tmpDir := t.TempDir()
+
+	cfg := &mockResetConfig{workDir: tmpDir}
+	logger := &mockResetLogger{}
+	handler := NewResetHandler(cfg, logger)
+
+	// Use mock git checker that reports it's a git repo
+	mockChecker := &mockGitChecker{isGitRepo: true, repoRoot: tmpDir}
+	handler.SetGitChecker(mockChecker)
+
+	// Test with count=0 (should use default of 10)
+	result, err := handler.showLoopHistory(0)
+
+	// Should not error (empty repo returns empty history)
+	if err != nil {
+		t.Errorf("showLoopHistory() unexpected error: %v", err)
+	}
+
+	if result == nil {
+		t.Fatal("showLoopHistory() returned nil result")
+	}
+
+	if result.ExitCode != 0 {
+		t.Errorf("showLoopHistory() ExitCode = %d, want 0", result.ExitCode)
+	}
+}
+
+// TestShowLoopHistory_NoLoopCommits tests showLoopHistory when there are no loop commits.
+func TestShowLoopHistory_NoLoopCommits(t *testing.T) {
+	tmpDir := t.TempDir()
+
+	cfg := &mockResetConfig{workDir: tmpDir}
+	logger := &mockResetLogger{}
+	handler := NewResetHandler(cfg, logger)
+
+	// Use mock git checker that reports it's a git repo
+	mockChecker := &mockGitChecker{isGitRepo: true, repoRoot: tmpDir}
+	handler.SetGitChecker(mockChecker)
+
+	result, err := handler.showLoopHistory(10)
+
+	if err != nil {
+		t.Errorf("showLoopHistory() unexpected error: %v", err)
+	}
+
+	if result == nil {
+		t.Fatal("showLoopHistory() returned nil result")
+	}
+
+	// Should have empty history but no error
+	if len(result.History) != 0 {
+		t.Errorf("showLoopHistory() expected empty history, got %d entries", len(result.History))
+	}
+
+	// Should have a friendly message
+	if result.Formatted == "" {
+		t.Error("showLoopHistory() should have a formatted message for empty history")
+	}
+}
+
+// TestParseCommitMessageForModuleJob tests parsing commit messages for module/job info.
+func TestParseCommitMessageForModuleJob(t *testing.T) {
+	handler := NewResetHandler(nil, &mockResetLogger{})
+
+	tests := []struct {
+		name           string
+		message        string
+		expectedModule string
+		expectedJob    string
+	}{
+		{
+			name:           "module/job format",
+			message:        "morty: cli/job_1 - COMPLETED",
+			expectedModule: "cli",
+			expectedJob:    "job_1",
+		},
+		{
+			name:           "module/job with hyphen",
+			message:        "morty: reset_cmd/job_2 - RUNNING",
+			expectedModule: "reset_cmd",
+			expectedJob:    "job_2",
+		},
+		{
+			name:           "loop format without module/job",
+			message:        "morty: loop 5 - COMPLETED",
+			expectedModule: "-",
+			expectedJob:    "-",
+		},
+		{
+			name:           "regular commit message",
+			message:        "initial commit",
+			expectedModule: "-",
+			expectedJob:    "-",
+		},
+		{
+			name:           "complex module/job",
+			message:        "morty: call_cli/job_3 - STATUS",
+			expectedModule: "call_cli",
+			expectedJob:    "job_3",
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			module, job := handler.parseCommitMessageForModuleJob(tc.message)
+
+			if module != tc.expectedModule {
+				t.Errorf("parseCommitMessageForModuleJob() module = %s, want %s", module, tc.expectedModule)
+			}
+
+			if job != tc.expectedJob {
+				t.Errorf("parseCommitMessageForModuleJob() job = %s, want %s", job, tc.expectedJob)
+			}
+		})
+	}
+}
+
+// TestTruncateString tests the truncateString helper function.
+func TestTruncateString(t *testing.T) {
+	tests := []struct {
+		input    string
+		maxLen   int
+		expected string
+	}{
+		{"hello", 10, "hello"},
+		{"hello world", 5, "he..."},
+		{"hello", 3, "hel"},
+		{"", 5, ""},
+		{"test", 0, ""},
+	}
+
+	for _, tc := range tests {
+		result := truncateString(tc.input, tc.maxLen)
+		if result != tc.expected {
+			t.Errorf("truncateString(%q, %d) = %q, want %q", tc.input, tc.maxLen, result, tc.expected)
+		}
+	}
+}
+
+// TestFormatLoopHistory tests the formatLoopHistory function.
+func TestFormatLoopHistory(t *testing.T) {
+	handler := NewResetHandler(nil, &mockResetLogger{})
+
+	// Test with empty entries
+	emptyResult := handler.formatLoopHistory([]LoopHistoryEntry{})
+	if emptyResult != "未找到 morty 循环提交记录。" {
+		t.Errorf("formatLoopHistory([]) = %q, want '未找到 morty 循环提交记录。'", emptyResult)
+	}
+
+	// Test with entries
+	entries := []LoopHistoryEntry{
+		{
+			LoopNumber: 5,
+			Status:     "COMPLETED",
+			Module:     "cli",
+			Job:        "job_1",
+			ShortHash:  "abc1234",
+			Author:     "Test User",
+			Timestamp:  time.Date(2024, 1, 15, 10, 30, 0, 0, time.UTC),
+		},
+		{
+			LoopNumber: 4,
+			Status:     "RUNNING",
+			Module:     "config",
+			Job:        "job_2",
+			ShortHash:  "def5678",
+			Author:     "Test User",
+			Timestamp:  time.Date(2024, 1, 15, 10, 25, 0, 0, time.UTC),
+		},
+	}
+
+	result := handler.formatLoopHistory(entries)
+
+	// Check that result contains expected elements
+	if !strings.Contains(result, "循环历史") {
+		t.Error("formatLoopHistory() should contain '循环历史'")
+	}
+
+	if !strings.Contains(result, "COMPLETED") {
+		t.Error("formatLoopHistory() should contain 'COMPLETED'")
+	}
+
+	if !strings.Contains(result, "RUNNING") {
+		t.Error("formatLoopHistory() should contain 'RUNNING'")
+	}
+
+	if !strings.Contains(result, "abc1234") {
+		t.Error("formatLoopHistory() should contain short hash 'abc1234'")
+	}
+}
