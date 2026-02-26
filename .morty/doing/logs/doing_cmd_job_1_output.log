@@ -1,0 +1,41 @@
+## Job 执行完成
+
+`doing_cmd/job_1` 已成功完成。
+
+### 完成内容
+
+**创建的文件**:
+- `internal/cmd/doing.go` (250+ 行) - doing 命令实现
+- `internal/cmd/doing_test.go` (500+ 行) - 单元测试
+
+**实现的功能**:
+1. `DoingHandler` 结构体 - 包含 cfg, logger, paths, cliCaller
+2. `NewDoingHandler()` 构造函数
+3. 参数解析 - 支持 `--restart/-r`, `--module/-m`, `--job/-j`
+4. 前置检查 - 检查 Plan 目录存在性
+5. 友好的错误提示 - "请先运行 morty init", "请先运行 morty plan", "--job 选项需要配合 --module 使用"
+6. 完整的单元测试覆盖
+
+**验证器全部通过**:
+- ✅ 无 Plan 文件时提示 "请先运行 morty plan"
+- ✅ 正确解析所有选项
+- ✅ `--job` 单独使用时提示需要 `--module`
+- ✅ 返回码正确 (0=成功, 1=失败)
+- ✅ 所有单元测试通过
+
+<!-- RALPH_STATUS -->
+```json
+{
+  "module": "doing_cmd",
+  "job": "job_1",
+  "status": "COMPLETED",
+  "tasks_completed": 7,
+  "tasks_total": 7,
+  "loop_count": 1,
+  "debug_issues": 3,
+  "debug_logs_in_plan": true,
+  "explore_subagent_used": true,
+  "summary": "完成 doing 命令基础框架实现。创建了 internal/cmd/doing.go 和 doing_test.go，实现了 DoingHandler 结构体、参数解析（--restart/--module/--job）、Plan 目录前置检查、友好的错误提示。所有 12 个单元测试通过，验证了无 Plan 文件时提示、参数解析、--job 需要 --module、返回码正确等验证器要求。"
+}
+```
+<!-- END_RALPH_STATUS -->

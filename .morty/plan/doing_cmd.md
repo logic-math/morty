@@ -153,23 +153,26 @@ type ExecutionSummary struct {
 - Config, Logging 模块完成
 
 **Tasks (Todo 列表)**:
-- [ ] Task 1: 创建 `internal/cmd/doing.go` 文件
-- [ ] Task 2: 实现 `DoingHandler` 结构体
-- [ ] Task 3: 实现 `NewDoingHandler()` 构造函数
-- [ ] Task 4: 实现参数解析 (`--restart`, `--module`, `--job`)
-- [ ] Task 5: 实现前置检查（Plan 目录存在性）
-- [ ] Task 6: 友好的错误提示
-- [ ] Task 7: 编写单元测试
+- [x] Task 1: 创建 `internal/cmd/doing.go` 文件
+- [x] Task 2: 实现 `DoingHandler` 结构体
+- [x] Task 3: 实现 `NewDoingHandler()` 构造函数
+- [x] Task 4: 实现参数解析 (`--restart`, `--module`, `--job`)
+- [x] Task 5: 实现前置检查（Plan 目录存在性）
+- [x] Task 6: 友好的错误提示
+- [x] Task 7: 编写单元测试
 
 **验证器**:
-- [ ] 无 Plan 文件时提示 "请先运行 morty plan"
-- [ ] 正确解析所有选项
-- [ ] `--job` 单独使用时提示需要 `--module`
-- [ ] 返回码正确 (0=成功, 1=失败)
-- [ ] 所有单元测试通过
+- [x] 无 Plan 文件时提示 "请先运行 morty plan"
+- [x] 正确解析所有选项
+- [x] `--job` 单独使用时提示需要 `--module`
+- [x] 返回码正确 (0=成功, 1=失败)
+- [x] 所有单元测试通过
 
 **调试日志**:
-- 待填充
+- explore1: [探索发现] 项目使用标准 cmd handler 模式, internal/cmd/plan.go 和 research.go 为参考实现, handler 包含 cfg/logger/paths/cliCaller 字段, Execute 方法返回 Result 和 error, 已记录
+- debug1: TestDoingHandler_SetPlanDir 测试失败, 期望 GetPlanDir() 返回自定义路径, 实际返回默认路径, 猜想: 1)SetPlanDir 设置 paths.workDir 但 getPlanDir 优先使用 cfg.GetPlanDir() 2)mockConfig 返回默认路径, 验证: 检查 plan_test.go 发现应使用 cfg.SetWorkDir(), 修复: 修改测试使用 cfg.SetWorkDir(tmpDir), 已修复
+- debug2: doing_test.go:178 语法错误 illegal character U+005C, 行尾有非法制表符, 猜想: 编辑时意外插入的字符, 验证: 读取文件发现 \t 字符, 修复: 删除非法字符并正确格式化代码, 已修复
+- debug3: doing.go:8 编译错误 imported and not used path/filepath, 猜想: 导入的包未被使用, 验证: 检查代码发现 filepath 未使用, 修复: 删除未使用的导入, 已修复
 
 ---
 
