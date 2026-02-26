@@ -3,16 +3,16 @@
   "state": "running",
   "current": {
     "module": "e2e_test",
-    "job": "job_3",
+    "job": "job_4",
     "status": "COMPLETED",
-    "start_time": "2026-02-26T16:46:11Z",
+    "start_time": "2026-02-26T17:04:17Z",
     "interrupted_at": "2026-02-24T16:51:59Z",
-    "completed_at": "2026-02-26T17:04:16Z"
+    "completed_at": "2026-02-26T17:23:41Z"
   },
   "session": {
     "start_time": "2026-02-24T12:51:47Z",
-    "last_update": "2026-02-26T17:04:16Z",
-    "total_loops": 76
+    "last_update": "2026-02-26T17:23:41Z",
+    "total_loops": 77
   },
   "modules": {
     "go_env_setup": {
@@ -4217,12 +4217,53 @@
           "completion_summary": "Job executed successfully"
         },
         "job_4": {
-          "status": "PENDING",
-          "loop_count": 0,
+          "status": "COMPLETED",
+          "loop_count": 1,
           "retry_count": 0,
           "tasks_total": 6,
-          "tasks_completed": 0,
-          "debug_logs": []
+          "tasks_completed": 6,
+          "debug_logs": [],
+          "started_at": "2026-02-26T17:04:17Z",
+          "tasks": {
+            "1": {
+              "index": 1,
+              "status": "COMPLETED",
+              "description": "Task 1: 启动 plan 模式",
+              "updated_at": "2026-02-26T17:23:40Z"
+            },
+            "2": {
+              "index": 2,
+              "status": "COMPLETED",
+              "description": "Task 2: 验证研究文件加载",
+              "updated_at": "2026-02-26T17:23:40Z"
+            },
+            "3": {
+              "index": 3,
+              "status": "COMPLETED",
+              "description": "Task 3: 验证交互式规划流程",
+              "updated_at": "2026-02-26T17:23:40Z"
+            },
+            "4": {
+              "index": 4,
+              "status": "COMPLETED",
+              "description": "Task 4: 验证 Plan 目录创建",
+              "updated_at": "2026-02-26T17:23:41Z"
+            },
+            "5": {
+              "index": 5,
+              "status": "COMPLETED",
+              "description": "Task 5: 验证 Plan 文件生成",
+              "updated_at": "2026-02-26T17:23:41Z"
+            },
+            "6": {
+              "index": 6,
+              "status": "COMPLETED",
+              "description": "Task 6: 验证 Plan 文件格式",
+              "updated_at": "2026-02-26T17:23:41Z"
+            }
+          },
+          "completed_at": "2026-02-26T17:23:41Z",
+          "completion_summary": "Job executed successfully"
         },
         "job_5": {
           "status": "PENDING",
