@@ -5,12 +5,15 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"path/filepath"
 	"strings"
 	"time"
 
 	"github.com/morty/morty/internal/callcli"
 	"github.com/morty/morty/internal/config"
 	"github.com/morty/morty/internal/logging"
+	"github.com/morty/morty/internal/parser/plan"
+	"github.com/morty/morty/internal/state"
 )
 
 // DoingResult represents the result of a doing operation.
@@ -26,10 +29,11 @@ type DoingResult struct {
 
 // DoingHandler handles the doing command.
 type DoingHandler struct {
-	cfg       config.Manager
-	logger    logging.Logger
-	paths     *config.Paths
-	cliCaller callcli.AICliCaller
+	cfg          config.Manager
+	logger       logging.Logger
+	paths        *config.Paths
+	cliCaller    callcli.AICliCaller
+	stateManager *state.Manager
 }
 
 // NewDoingHandler creates a new DoingHandler instance.
@@ -89,9 +93,56 @@ func (h *DoingHandler) Execute(ctx context.Context, args []string) (*DoingResult
 		return result, err
 	}
 
-	// Store module and job names
-	result.ModuleName = moduleName
-	result.JobName = jobName
+	// Step 1: Load status
+	if err := h.loadStatus(); err != nil {
+		result.Err = fmt.Errorf("加载状态失败: %w", err)
+		result.ExitCode = 1
+		result.Duration = time.Since(startTime)
+		logger.Error("Failed to load status", logging.String("error", err.Error()))
+		return result, result.Err
+	}
+
+	// Step 2: Handle --restart flag
+	if restart {
+		if err := h.handleRestart(moduleName, jobName); err != nil {
+			result.Err = fmt.Errorf("重置状态失败: %w", err)
+			result.ExitCode = 1
+			result.Duration = time.Since(startTime)
+			logger.Error("Failed to handle restart", logging.String("error", err.Error()))
+			return result, result.Err
+		}
+		logger.Info("State reset completed",
+			logging.String("module", moduleName),
+			logging.String("job", jobName),
+		)
+	}
+
+	// Step 3: Select target job
+	targetModule, targetJob, err := h.selectTargetJob(moduleName, jobName)
+	if err != nil {
+		result.Err = err
+		result.ExitCode = 1
+		result.Duration = time.Since(startTime)
+		logger.Error("Failed to select target job", logging.String("error", err.Error()))
+		return result, result.Err
+	}
+
+	result.ModuleName = targetModule
+	result.JobName = targetJob
+
+	logger.Info("Target job selected",
+		logging.String("module", targetModule),
+		logging.String("job", targetJob),
+	)
+
+	// Step 4: Check prerequisites
+	if err := h.checkPrerequisites(targetModule, targetJob); err != nil {
+		result.Err = err
+		result.ExitCode = 1
+		result.Duration = time.Since(startTime)
+		logger.Error("Prerequisites check failed", logging.String("error", err.Error()))
+		return result, result.Err
+	}
 
 	// Log remaining args (for future use)
 	if len(remainingArgs) > 0 {
@@ -102,8 +153,8 @@ func (h *DoingHandler) Execute(ctx context.Context, args []string) (*DoingResult
 	result.ExitCode = 0
 
 	logger.Info("Doing command completed",
-		logging.String("module", moduleName),
-		logging.String("job", jobName),
+		logging.String("module", targetModule),
+		logging.String("job", targetJob),
 		logging.Int("exit_code", result.ExitCode),
 		logging.Any("duration", result.Duration),
 	)
@@ -259,4 +310,302 @@ func (h *DoingHandler) PrintDoingSummary(result *DoingResult) {
 	fmt.Println()
 	fmt.Println("✅ Ready to execute jobs")
 	fmt.Println(strings.Repeat("=", 50))
+}
+
+// loadStatus loads the state from the status file.
+// Task 1: Implement loadStatus() to load state from file
+func (h *DoingHandler) loadStatus() error {
+	statusFile := h.getStatusFilePath()
+	h.stateManager = state.NewManager(statusFile)
+
+	if err := h.stateManager.Load(); err != nil {
+		return fmt.Errorf("failed to load state from %s: %w", statusFile, err)
+	}
+
+	return nil
+}
+
+// getStatusFilePath returns the path to the status file.
+func (h *DoingHandler) getStatusFilePath() string {
+	if h.cfg != nil {
+		return h.cfg.GetStatusFile()
+	}
+	return filepath.Join(h.getWorkDir(), "status.json")
+}
+
+// handleRestart resets the state for the specified range.
+// Task 2: Implement --restart status reset logic
+// - If no module specified: reset all jobs to PENDING
+// - If module specified but no job: reset all jobs in that module to PENDING
+// - If both module and job specified: reset only that job to PENDING
+func (h *DoingHandler) handleRestart(moduleName, jobName string) error {
+	if h.stateManager == nil {
+		return fmt.Errorf("state manager not initialized")
+	}
+
+	stateData := h.stateManager.GetState()
+	if stateData == nil {
+		return fmt.Errorf("state not loaded")
+	}
+
+	now := time.Now()
+
+	// Case 1: No module specified - reset all jobs
+	if moduleName == "" {
+		for _, module := range stateData.Modules {
+			for _, job := range module.Jobs {
+				job.Status = state.StatusPending
+				job.LoopCount = 0
+				job.RetryCount = 0
+				job.TasksCompleted = 0
+				job.UpdatedAt = now
+			}
+			module.Status = state.StatusPending
+			module.UpdatedAt = now
+		}
+		stateData.Global.Status = state.StatusPending
+		stateData.Global.CurrentModule = ""
+		stateData.Global.CurrentJob = ""
+		stateData.Global.LastUpdate = now
+		return h.stateManager.Save()
+	}
+
+	// Case 2: Module specified
+	module, ok := stateData.Modules[moduleName]
+	if !ok {
+		// Module doesn't exist yet, nothing to reset
+		return nil
+	}
+
+	// Case 2a: Only module specified - reset all jobs in this module
+	if jobName == "" {
+		for _, job := range module.Jobs {
+			job.Status = state.StatusPending
+			job.LoopCount = 0
+			job.RetryCount = 0
+			job.TasksCompleted = 0
+			job.UpdatedAt = now
+		}
+		module.Status = state.StatusPending
+		module.UpdatedAt = now
+	} else {
+		// Case 2b: Both module and job specified - reset only this job
+		job, ok := module.Jobs[jobName]
+		if !ok {
+			// Job doesn't exist yet, nothing to reset
+			return nil
+		}
+		job.Status = state.StatusPending
+		job.LoopCount = 0
+		job.RetryCount = 0
+		job.TasksCompleted = 0
+		job.UpdatedAt = now
+
+		// Recalculate module status
+		module.Status = h.calculateModuleStatus(module)
+		module.UpdatedAt = now
+	}
+
+	stateData.Global.LastUpdate = now
+	return h.stateManager.Save()
+}
+
+// calculateModuleStatus calculates the overall module status based on its jobs.
+func (h *DoingHandler) calculateModuleStatus(module *state.ModuleState) state.Status {
+	if len(module.Jobs) == 0 {
+		return state.StatusPending
+	}
+
+	hasRunning := false
+	hasFailed := false
+	hasBlocked := false
+	allCompleted := true
+
+	for _, job := range module.Jobs {
+		switch job.Status {
+		case state.StatusRunning:
+			hasRunning = true
+			allCompleted = false
+		case state.StatusFailed:
+			hasFailed = true
+			allCompleted = false
+		case state.StatusBlocked:
+			hasBlocked = true
+			allCompleted = false
+		case state.StatusPending:
+			allCompleted = false
+		case state.StatusCompleted:
+			// Continue checking
+		}
+	}
+
+	if allCompleted {
+		return state.StatusCompleted
+	}
+	if hasRunning {
+		return state.StatusRunning
+	}
+	if hasFailed {
+		return state.StatusFailed
+	}
+	if hasBlocked {
+		return state.StatusBlocked
+	}
+	return state.StatusPending
+}
+
+// selectTargetJob selects the target job to execute.
+// Task 3: Implement selectTargetJob() to select target Job
+// - If no params: find first PENDING job across all modules
+// - If module specified: find first PENDING job in that module
+// - If both module and job specified: use the specified job
+func (h *DoingHandler) selectTargetJob(moduleName, jobName string) (string, string, error) {
+	if h.stateManager == nil {
+		return "", "", fmt.Errorf("state manager not initialized")
+	}
+
+	stateData := h.stateManager.GetState()
+	if stateData == nil {
+		return "", "", fmt.Errorf("state not loaded")
+	}
+
+	// Case 1: Both module and job specified - use them directly
+	if moduleName != "" && jobName != "" {
+		// Validate that the module and job exist
+		module, ok := stateData.Modules[moduleName]
+		if !ok {
+			return "", "", fmt.Errorf("模块不存在: %s", moduleName)
+		}
+		if _, ok := module.Jobs[jobName]; !ok {
+			return "", "", fmt.Errorf("Job 不存在: %s/%s", moduleName, jobName)
+		}
+		return moduleName, jobName, nil
+	}
+
+	// Case 2: Only module specified - find first PENDING job in that module
+	if moduleName != "" {
+		module, ok := stateData.Modules[moduleName]
+		if !ok {
+			return "", "", fmt.Errorf("模块不存在: %s", moduleName)
+		}
+
+		// Find first PENDING job in the module
+		for jobName, job := range module.Jobs {
+			if job.Status == state.StatusPending {
+				return moduleName, jobName, nil
+			}
+		}
+
+		return "", "", fmt.Errorf("模块 %s 没有待执行的 Job", moduleName)
+	}
+
+	// Case 3: No params - find first PENDING job across all modules
+	for moduleName, module := range stateData.Modules {
+		for jobName, job := range module.Jobs {
+			if job.Status == state.StatusPending {
+				return moduleName, jobName, nil
+			}
+		}
+	}
+
+	return "", "", fmt.Errorf("没有待执行的 Job")
+}
+
+// checkPrerequisites checks if all prerequisite jobs are completed.
+// Task 4: Implement prerequisite checking
+// It reads the plan file for the module and checks if all jobs listed
+// in the job's Prerequisites are in COMPLETED status.
+func (h *DoingHandler) checkPrerequisites(moduleName, jobName string) error {
+	// Load the plan file for this module
+	planFile := filepath.Join(h.getPlanDir(), moduleName+".md")
+	content, err := os.ReadFile(planFile)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return fmt.Errorf("计划文件不存在: %s", planFile)
+		}
+		return fmt.Errorf("读取计划文件失败: %w", err)
+	}
+
+	// Parse the plan file
+	planData, err := plan.ParsePlan(string(content))
+	if err != nil {
+		return fmt.Errorf("解析计划文件失败: %w", err)
+	}
+
+	// Find the job definition
+	var targetJob *plan.Job
+	for i := range planData.Jobs {
+		if planData.Jobs[i].Name == jobName {
+			targetJob = &planData.Jobs[i]
+			break
+		}
+	}
+
+	if targetJob == nil {
+		// Job not found in plan, but this might be a dynamic job
+		// Return success to allow execution
+		return nil
+	}
+
+	// Check prerequisites
+	if len(targetJob.Prerequisites) == 0 {
+		return nil
+	}
+
+	stateData := h.stateManager.GetState()
+	module, ok := stateData.Modules[moduleName]
+	if !ok {
+		return fmt.Errorf("模块不存在: %s", moduleName)
+	}
+
+	var unmetPrereqs []string
+	for _, prereq := range targetJob.Prerequisites {
+		// Parse prerequisite format: "module/job" or just "job" (same module)
+		var prereqModule, prereqJob string
+		if strings.Contains(prereq, "/") {
+			parts := strings.SplitN(prereq, "/", 2)
+			prereqModule = parts[0]
+			prereqJob = parts[1]
+		} else {
+			prereqModule = moduleName
+			prereqJob = prereq
+		}
+
+		// Check if prerequisite job is completed
+		var jobState *state.JobState
+		if prereqModule == moduleName {
+			jobState = module.Jobs[prereqJob]
+		} else {
+			// Check in another module
+			otherModule, ok := stateData.Modules[prereqModule]
+			if ok {
+				jobState = otherModule.Jobs[prereqJob]
+			}
+		}
+
+		if jobState == nil || jobState.Status != state.StatusCompleted {
+			unmetPrereqs = append(unmetPrereqs, prereq)
+		}
+	}
+
+	if len(unmetPrereqs) > 0 {
+		return fmt.Errorf("前置条件不满足: %s", strings.Join(unmetPrereqs, ", "))
+	}
+
+	return nil
+}
+
+// updateStatus updates the status of a job and persists it to file.
+// Task 5 & 6: Implement updateStatus() and state persistence
+func (h *DoingHandler) updateStatus(moduleName, jobName string, status state.Status) error {
+	if h.stateManager == nil {
+		return fmt.Errorf("state manager not initialized")
+	}
+
+	return h.stateManager.UpdateJobStatus(moduleName, jobName, status)
+}
+
+// GetStateManager returns the state manager (useful for testing).
+func (h *DoingHandler) GetStateManager() *state.Manager {
+	return h.stateManager
 }

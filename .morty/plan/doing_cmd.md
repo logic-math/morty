@@ -185,24 +185,24 @@ type ExecutionSummary struct {
 - State 模块完成
 
 **Tasks (Todo 列表)**:
-- [ ] Task 1: 实现 `loadStatus()` 加载状态
-- [ ] Task 2: 实现 `--restart` 状态重置逻辑
-- [ ] Task 3: 实现 `selectTargetJob()` 选择目标 Job
-- [ ] Task 4: 实现前置条件检查
-- [ ] Task 5: 实现 `updateStatus()` 更新状态
-- [ ] Task 6: 状态持久化到文件
-- [ ] Task 7: 编写单元测试
+- [x] Task 1: 实现 `loadStatus()` 加载状态
+- [x] Task 2: 实现 `--restart` 状态重置逻辑
+- [x] Task 3: 实现 `selectTargetJob()` 选择目标 Job
+- [x] Task 4: 实现前置条件检查
+- [x] Task 5: 实现 `updateStatus()` 更新状态
+- [x] Task 6: 状态持久化到文件
+- [x] Task 7: 编写单元测试
 
 **验证器**:
-- [ ] 正确加载现有状态
-- [ ] `--restart` 正确重置状态
-- [ ] 正确选择下一个 PENDING Job
-- [ ] 前置条件不满足时报错
-- [ ] 状态更新后正确持久化
-- [ ] 所有单元测试通过
+- [x] 正确加载现有状态
+- [x] `--restart` 正确重置状态
+- [x] 正确选择下一个 PENDING Job
+- [x] 前置条件不满足时报错
+- [x] 状态更新后正确持久化
+- [x] 所有单元测试通过
 
 **调试日志**:
-- 待填充
+- debug1: TestDoingHandler_Execute_success 测试失败, 执行时返回错误"模块不存在", 猜想: 1)测试未设置状态模块 2)测试未创建计划文件, 验证: 添加setupTestState和setupTestPlanFile调用, 修复: 更新测试以正确设置状态和计划文件, 已修复
 
 ---
 
