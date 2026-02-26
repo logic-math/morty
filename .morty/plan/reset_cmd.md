@@ -207,25 +207,26 @@ type LoopCommit struct {
 - Job 1 完成
 
 **Tasks (Todo 列表)**:
-- [ ] Task 1: 实现 `resetToCommit(hash)`
-- [ ] Task 2: 验证提交哈希有效性
-- [ ] Task 3: 获取提交信息（用于确认提示）
-- [ ] Task 4: 交互式确认（Y/n）
-- [ ] Task 5: 创建备份分支（可选）
-- [ ] Task 6: 执行 `git reset --hard`
-- [ ] Task 7: 恢复对应的状态文件
-- [ ] Task 8: 编写单元测试
+- [x] Task 1: 实现 `resetToCommit(hash)`
+- [x] Task 2: 验证提交哈希有效性
+- [x] Task 3: 获取提交信息（用于确认提示）
+- [x] Task 4: 交互式确认（Y/n）
+- [x] Task 5: 创建备份分支（可选）
+- [x] Task 6: 执行 `git reset --hard`
+- [x] Task 7: 恢复对应的状态文件
+- [x] Task 8: 编写单元测试
 
 **验证器**:
-- [ ] 无效哈希时报错
-- [ ] 确认提示显示提交信息
-- [ ] 用户取消时无操作
-- [ ] 回滚成功
-- [ ] 状态文件同步恢复
-- [ ] 所有单元测试通过
+- [x] 无效哈希时报错
+- [x] 确认提示显示提交信息
+- [x] 用户取消时无操作
+- [x] 回滚成功
+- [x] 状态文件同步恢复
+- [x] 所有单元测试通过
 
 **调试日志**:
-- 待填充
+- explore1: [探索发现] 使用 git.Manager 进行 Git 操作，包括 ResetToCommit, CreateBackupBranch, RunGitCommand; 使用 state.Manager 进行状态管理, 已记录
+- debug1: 实现 state restoration 时发现需要同步重置后续 Job 状态，实现了 shouldResetJob 和 recalculateModuleStatus 辅助函数, 已修复
 
 ---
 

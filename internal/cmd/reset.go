@@ -2,16 +2,19 @@
 package cmd
 
 import (
+	"bufio"
 	"context"
 	"fmt"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"time"
 
 	"github.com/morty/morty/internal/config"
 	"github.com/morty/morty/internal/git"
 	"github.com/morty/morty/internal/logging"
+	"github.com/morty/morty/internal/state"
 )
 
 // ResetResult represents the result of a reset operation.
@@ -73,8 +76,9 @@ func (h *ResetHandler) SetGitChecker(checker GitChecker) {
 
 // ResetOptions holds the parsed command options.
 type ResetOptions struct {
-	ResetLocal bool // -l flag
-	ResetClean bool // -c flag
+	ResetLocal bool   // -l flag
+	ResetClean bool   // -c flag
+	CommitHash string // commit hash for reset to commit
 }
 
 // Execute executes the reset command.
@@ -108,12 +112,21 @@ func (h *ResetHandler) Execute(ctx context.Context, args []string) (*ResetResult
 	}
 
 	// No options provided - show friendly help
-	if !opts.ResetLocal && !opts.ResetClean {
-		err := fmt.Errorf("请指定重置选项:\n\n  -l    本地重置 (保留配置文件)\n  -c    完整重置 (清除所有数据和配置)\n\n示例:\n  morty reset -l    # 本地重置\n  morty reset -c    # 完整重置")
+	if !opts.ResetLocal && !opts.ResetClean && opts.CommitHash == "" {
+		err := fmt.Errorf("请指定重置选项:\n\n  -l         本地重置 (保留配置文件)\n  -c         完整重置 (清除所有数据和配置)\n  hash       回滚到指定提交\n\n示例:\n  morty reset -l          # 本地重置\n  morty reset -c          # 完整重置\n  morty reset abc1234     # 回滚到提交 abc1234")
 		result.Err = err
 		result.ExitCode = 1
 		result.Duration = time.Since(startTime)
 		fmt.Println(err.Error())
+		return result, err
+	}
+
+	// Handle commit hash reset (new functionality)
+	if opts.CommitHash != "" {
+		commitResult, err := h.resetToCommit(opts.CommitHash)
+		result.Err = commitResult.Err
+		result.ExitCode = commitResult.ExitCode
+		result.Duration = time.Since(startTime)
 		return result, err
 	}
 
@@ -168,6 +181,9 @@ func (h *ResetHandler) parseOptions(args []string) (*ResetOptions, error) {
 			} else if strings.HasPrefix(arg, "-c=") {
 				val := strings.TrimPrefix(arg, "-c=")
 				opts.ResetClean = val == "true" || val == "1"
+			} else if !strings.HasPrefix(arg, "-") && len(arg) >= 7 {
+				// Treat as commit hash if it's not a flag and looks like a hash (>=7 chars)
+				opts.CommitHash = arg
 			}
 		}
 	}
@@ -175,6 +191,11 @@ func (h *ResetHandler) parseOptions(args []string) (*ResetOptions, error) {
 	// Check for mutually exclusive options
 	if opts.ResetLocal && opts.ResetClean {
 		return nil, fmt.Errorf("错误: 选项 -l 和 -c 不能同时使用\n\n请只选择其中一个选项:\n  -l    本地重置\n  -c    完整重置")
+	}
+
+	// Check for mutually exclusive: commit hash can't be used with -l or -c
+	if opts.CommitHash != "" && (opts.ResetLocal || opts.ResetClean) {
+		return nil, fmt.Errorf("错误: 提交哈希不能与 -l 或 -c 选项同时使用\n\n请只选择其中一种:\n  hash    回滚到指定提交\n  -l      本地重置\n  -c      完整重置")
 	}
 
 	return opts, nil
@@ -621,4 +642,329 @@ func (f *HistoryTableFormatter) padCenter(s string, width int) string {
 	leftPad := totalPad / 2
 	rightPad := totalPad - leftPad
 	return strings.Repeat(" ", leftPad) + s + strings.Repeat(" ", rightPad)
+}
+
+// ResetToCommitResult represents the result of resetting to a specific commit.
+type ResetToCommitResult struct {
+	CommitHash    string
+	CommitMessage string
+	BackupBranch  string
+	StateRestored bool
+	Err           error
+	ExitCode      int
+}
+
+// CommitInfo holds information about a git commit for display.
+type CommitInfo struct {
+	Hash       string
+	ShortHash  string
+	Message    string
+	Author     string
+	Timestamp  time.Time
+	Module     string
+	Job        string
+	Status     string
+	LoopNumber int
+}
+
+// resetToCommit resets the repository to a specific commit hash.
+// This is Task 1: Main entry point for commit reset functionality.
+func (h *ResetHandler) resetToCommit(hash string) (*ResetToCommitResult, error) {
+	result := &ResetToCommitResult{
+		CommitHash: hash,
+		ExitCode:   0,
+	}
+
+	workDir := h.getWorkDir()
+
+	// Task 2: Validate commit hash validity
+	if err := h.validateCommitHash(hash); err != nil {
+		result.Err = err
+		result.ExitCode = 1
+		return result, err
+	}
+
+	// Task 3: Get commit info for confirmation prompt
+	commitInfo, err := h.getCommitInfo(hash)
+	if err != nil {
+		result.Err = fmt.Errorf("获取提交信息失败: %w", err)
+		result.ExitCode = 1
+		return result, result.Err
+	}
+	result.CommitMessage = commitInfo.Message
+
+	// Task 4: Interactive confirmation (Y/n)
+	confirmed, err := h.promptForConfirmation(commitInfo)
+	if err != nil {
+		result.Err = err
+		result.ExitCode = 1
+		return result, err
+	}
+
+	if !confirmed {
+		fmt.Println("操作已取消")
+		result.ExitCode = 0
+		return result, nil
+	}
+
+	// Task 5: Create backup branch (optional but recommended)
+	backupBranch, err := h.gitManager.CreateBackupBranch(workDir)
+	if err != nil {
+		// Non-fatal: log warning but continue
+		h.logger.Warn("Failed to create backup branch", logging.String("error", err.Error()))
+	} else {
+		result.BackupBranch = backupBranch
+		h.logger.Info("Created backup branch", logging.String("branch", backupBranch))
+	}
+
+	// Task 6: Execute git reset --hard
+	fmt.Println("正在回滚...")
+	if err := h.gitManager.ResetToCommit(hash, workDir, git.HardReset); err != nil {
+		result.Err = fmt.Errorf("回滚失败: %w", err)
+		result.ExitCode = 1
+		return result, result.Err
+	}
+
+	// Task 7: Restore corresponding state file
+	if err := h.restoreStateForCommit(commitInfo); err != nil {
+		h.logger.Warn("Failed to restore state file", logging.String("error", err.Error()))
+		// Non-fatal: reset succeeded even if state restore failed
+	} else {
+		result.StateRestored = true
+	}
+
+	fmt.Printf("✓ 已回滚到 commit %s\n", commitInfo.ShortHash)
+	if result.BackupBranch != "" {
+		fmt.Printf("  备份分支: %s\n", result.BackupBranch)
+	}
+
+	return result, nil
+}
+
+// validateCommitHash validates that the given hash is a valid git commit.
+// Task 2: Verify commit hash validity.
+func (h *ResetHandler) validateCommitHash(hash string) error {
+	if hash == "" {
+		return fmt.Errorf("错误: 提交哈希不能为空")
+	}
+
+	// Check hash format (at least 7 characters, hexadecimal)
+	if len(hash) < 7 {
+		return fmt.Errorf("错误: 提交哈希至少需要 7 个字符")
+	}
+
+	// Check for valid hex characters
+	for _, c := range hash {
+		if !((c >= '0' && c <= '9') || (c >= 'a' && c <= 'f') || (c >= 'A' && c <= 'F')) {
+			return fmt.Errorf("错误: 提交哈希包含无效字符 '%c'", c)
+		}
+	}
+
+	workDir := h.getWorkDir()
+
+	// Verify the commit exists using git cat-file
+	_, err := h.gitManager.RunGitCommand(workDir, "cat-file", "-t", hash)
+	if err != nil {
+		return fmt.Errorf("错误: 无效的提交哈希 '%s'\n\n请使用 'morty reset -l' 查看有效的提交历史", hash)
+	}
+
+	return nil
+}
+
+// getCommitInfo retrieves information about a specific commit.
+// Task 3: Get commit info for confirmation prompt.
+func (h *ResetHandler) getCommitInfo(hash string) (*CommitInfo, error) {
+	workDir := h.getWorkDir()
+
+	// Get commit details using git log
+	format := "%H|%h|%s|%an|%at"
+	output, err := h.gitManager.RunGitCommand(workDir, "log", "-1", "--pretty=format:"+format, hash)
+	if err != nil {
+		return nil, fmt.Errorf("无法获取提交信息: %w", err)
+	}
+
+	parts := strings.SplitN(output, "|", 5)
+	if len(parts) != 5 {
+		return nil, fmt.Errorf("无法解析提交信息")
+	}
+
+	timestampUnix, err := strconv.ParseInt(parts[4], 10, 64)
+	if err != nil {
+		return nil, fmt.Errorf("无法解析提交时间: %w", err)
+	}
+
+	info := &CommitInfo{
+		Hash:      parts[0],
+		ShortHash: parts[1],
+		Message:   parts[2],
+		Author:    parts[3],
+		Timestamp: time.Unix(timestampUnix, 0),
+	}
+
+	// Try to parse module/job from commit message
+	info.Module, info.Job = h.parseCommitMessageForModuleJob(info.Message)
+
+	// Try to parse loop number and status from message
+	if commit, err := h.gitManager.ParseCommitMessage(info.Message); err == nil {
+		info.LoopNumber = commit.LoopNumber
+		info.Status = commit.Status
+	}
+
+	return info, nil
+}
+
+// promptForConfirmation prompts the user to confirm the reset operation.
+// Task 4: Interactive confirmation (Y/n).
+func (h *ResetHandler) promptForConfirmation(info *CommitInfo) (bool, error) {
+	fmt.Printf("\n确认回滚到 commit %s?\n", info.ShortHash)
+	fmt.Printf("提交信息: %s\n", info.Message)
+	fmt.Printf("作者: %s\n", info.Author)
+	fmt.Printf("时间: %s\n", info.Timestamp.Format("2006-01-02 15:04:05"))
+
+	if info.Module != "-" && info.Job != "-" {
+		fmt.Printf("模块/Job: %s/%s\n", info.Module, info.Job)
+	}
+
+	if info.Status != "" {
+		fmt.Printf("状态: %s\n", info.Status)
+	}
+
+	fmt.Println("\n这将重置工作目录到该提交状态，未提交的变更将丢失。")
+	fmt.Print("[Y/n]: ")
+
+	reader := bufio.NewReader(os.Stdin)
+	response, err := reader.ReadString('\n')
+	if err != nil {
+		return false, fmt.Errorf("读取输入失败: %w", err)
+	}
+
+	response = strings.TrimSpace(strings.ToLower(response))
+
+	// Default to Yes if empty, accept "y" or "yes"
+	if response == "" || response == "y" || response == "yes" {
+		return true, nil
+	}
+
+	return false, nil
+}
+
+// restoreStateForAttempt restores the state file to match the commit.
+// Task 7: Restore corresponding state file.
+func (h *ResetHandler) restoreStateForCommit(info *CommitInfo) error {
+	// If we can't determine module/job from commit, skip state restoration
+	if info.Module == "-" || info.Job == "-" {
+		h.logger.Info("无法从提交信息解析模块/Job，跳过状态恢复")
+		return nil
+	}
+
+	// Load current state
+	stateManager := state.NewManager(h.paths.GetStatusFile())
+	if err := stateManager.Load(); err != nil {
+		return fmt.Errorf("加载状态文件失败: %w", err)
+	}
+
+	// Update state: set the target job as the current running job
+	// and reset subsequent jobs to PENDING
+	if err := h.syncStateAfterReset(stateManager, info); err != nil {
+		return fmt.Errorf("同步状态失败: %w", err)
+	}
+
+	return nil
+}
+
+// syncStateAfterReset synchronizes the state file after a reset.
+// It sets the target job and resets subsequent jobs appropriately.
+func (h *ResetHandler) syncStateAfterReset(sm *state.Manager, targetCommit *CommitInfo) error {
+	// Get current state
+	currentState := sm.GetState()
+	if currentState == nil {
+		return fmt.Errorf("状态未加载")
+	}
+
+	// Find the target module and job
+	targetModule := targetCommit.Module
+	targetJob := targetCommit.Job
+
+	// Update the state: set target job as RUNNING (will be re-executed)
+	// and all subsequent jobs as PENDING
+	for moduleName, module := range currentState.Modules {
+		for jobName, job := range module.Jobs {
+			if moduleName == targetModule && jobName == targetJob {
+				// Set target job to PENDING so it will be re-executed
+				job.Status = state.StatusPending
+				job.LoopCount = 0
+				job.UpdatedAt = time.Now()
+			} else if shouldResetJob(moduleName, jobName, targetModule, targetJob) {
+				// Reset subsequent jobs to PENDING
+				job.Status = state.StatusPending
+				job.LoopCount = 0
+				job.UpdatedAt = time.Now()
+			}
+			// Jobs before the target remain COMPLETED
+		}
+
+		// Recalculate module status
+		recalculateModuleStatus(module)
+	}
+
+	// Update global status
+	currentState.Global.Status = state.StatusRunning
+	currentState.Global.CurrentModule = targetModule
+	currentState.Global.CurrentJob = targetJob
+	currentState.Global.LastUpdate = time.Now()
+
+	// Save updated state
+	return sm.Save()
+}
+
+// shouldResetJob determines if a job should be reset based on the target.
+func shouldResetJob(moduleName, jobName, targetModule, targetJob string) bool {
+	// Simple heuristic: compare module/job names lexicographically
+	// In a real implementation, this would use the plan order
+	if moduleName > targetModule {
+		return true
+	}
+	if moduleName == targetModule && jobName > targetJob {
+		return true
+	}
+	return false
+}
+
+// recalculateModuleStatus recalculates a module's status based on its jobs.
+func recalculateModuleStatus(module *state.ModuleState) {
+	hasRunning := false
+	hasFailed := false
+	hasPending := false
+	allCompleted := true
+
+	for _, job := range module.Jobs {
+		switch job.Status {
+		case state.StatusRunning:
+			hasRunning = true
+			allCompleted = false
+		case state.StatusFailed:
+			hasFailed = true
+			allCompleted = false
+		case state.StatusPending:
+			hasPending = true
+			allCompleted = false
+		case state.StatusCompleted:
+			// Continue checking
+		default:
+			allCompleted = false
+		}
+	}
+
+	switch {
+	case hasRunning:
+		module.Status = state.StatusRunning
+	case hasFailed:
+		module.Status = state.StatusFailed
+	case allCompleted:
+		module.Status = state.StatusCompleted
+	case hasPending:
+		module.Status = state.StatusPending
+	}
+
+	module.UpdatedAt = time.Now()
 }

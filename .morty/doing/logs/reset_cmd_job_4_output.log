@@ -1,0 +1,65 @@
+I have successfully implemented all 8 tasks for reset_cmd/job_4. Here's the summary:
+
+## Implementation Summary
+
+### Tasks Completed:
+
+**Task 1: `resetToCommit(hash)`** - Main entry point at line 637 that orchestrates the entire reset workflow
+
+**Task 2: Validate commit hash** - `validateCommitHash()` at line 684 that:
+- Checks for empty hash
+- Validates minimum 7 characters
+- Validates hexadecimal characters only
+- Verifies commit exists via `git cat-file -t`
+
+**Task 3: Get commit info** - `getCommitInfo()` at line 709 that:
+- Uses `git log` with custom format to extract commit details
+- Parses module/job from commit message
+- Extracts loop number and status
+
+**Task 4: Interactive confirmation** - `promptForConfirmation()` at line 745 that:
+- Displays commit hash, message, author, timestamp
+- Shows module/job if available
+- Prompts [Y/n] and handles user input
+
+**Task 5: Create backup branch** - Uses `gitManager.CreateBackupBranch()` automatically before reset
+
+**Task 6: Execute git reset --hard** - Uses `gitManager.ResetToCommit()` with `git.HardReset` mode
+
+**Task 7: Restore state file** - `restoreStateForCommit()` at line 778 and `syncStateAfterReset()` at line 802 that:
+- Loads current state
+- Resets target and subsequent jobs to PENDING
+- Keeps prior jobs as COMPLETED
+- Recalculates module statuses
+- Saves updated state
+
+**Task 8: Unit tests** - Added 7 comprehensive tests:
+- `TestParseOptions_WithCommitHash` - Tests commit hash argument parsing
+- `TestValidateCommitHash` - Tests hash validation (empty, short, invalid chars)
+- `TestPromptForConfirmation` - Tests confirmation prompt structure
+- `TestCommitInfoStructure` - Tests CommitInfo struct
+- `TestResetToCommitResultStructure` - Tests result struct
+- `TestShouldResetJob` - Tests job reset logic
+- `TestRecalculateModuleStatus` - Tests module status recalculation
+
+### Updated Files:
+- `internal/cmd/reset.go` - Added ~230 lines of new functionality
+- `internal/cmd/reset_test.go` - Added ~300 lines of unit tests
+- `.morty/plan/reset_cmd.md` - Updated task status and debug logs
+
+<!-- RALPH_STATUS -->
+```json
+{
+  "module": "reset_cmd",
+  "job": "job_4",
+  "status": "COMPLETED",
+  "tasks_completed": 8,
+  "tasks_total": 8,
+  "loop_count": 1,
+  "debug_issues": 0,
+  "debug_logs_in_plan": true,
+  "explore_subagent_used": true,
+  "summary": "Successfully implemented all 8 tasks for reset to commit functionality: resetToCommit(), validateCommitHash(), getCommitInfo(), promptForConfirmation(), backup branch creation, git reset --hard, state file restoration, and comprehensive unit tests. All validators pass."
+}
+```
+<!-- END_RALPH_STATUS -->

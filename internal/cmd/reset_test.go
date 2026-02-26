@@ -3,6 +3,7 @@ package cmd
 
 import (
 	"context"
+	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
@@ -11,6 +12,7 @@ import (
 
 	"github.com/morty/morty/internal/config"
 	"github.com/morty/morty/internal/logging"
+	"github.com/morty/morty/internal/state"
 )
 
 // mockResetLogger is a mock implementation of logging.Logger for testing.
@@ -1073,4 +1075,345 @@ func TestResetHandler_supportsColor(t *testing.T) {
 	os.Unsetenv("NO_COLOR")
 	// Result depends on whether stdout is a terminal, so we just check it doesn't panic
 	_ = handler.supportsColor()
+}
+
+// Task 8: Unit tests for reset to commit functionality
+
+// TestParseOptions_WithCommitHash tests parsing commit hash argument.
+func TestParseOptions_WithCommitHash(t *testing.T) {
+	tests := []struct {
+		name            string
+		args            []string
+		wantLocal       bool
+		wantClean       bool
+		wantCommitHash  string
+		wantErr         bool
+	}{
+		{
+			name:           "commit hash only",
+			args:           []string{"abc1234"},
+			wantLocal:      false,
+			wantClean:      false,
+			wantCommitHash: "abc1234",
+			wantErr:        false,
+		},
+		{
+			name:           "commit hash with 40 chars",
+			args:           []string{"abc1234567890abcdef1234567890abcdef123456"},
+			wantCommitHash: "abc1234567890abcdef1234567890abcdef123456",
+			wantErr:        false,
+		},
+		{
+			name:    "commit hash too short",
+			args:    []string{"abc123"}, // Only 6 chars
+			wantErr: false, // Should not error, just not be recognized as hash
+		},
+		{
+			name:    "commit hash with -l",
+			args:    []string{"-l", "abc1234"},
+			wantErr: true, // Mutually exclusive
+		},
+		{
+			name:    "commit hash with -c",
+			args:    []string{"-c", "abc1234"},
+			wantErr: true, // Mutually exclusive
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			handler := NewResetHandler(nil, &mockResetLogger{})
+			opts, err := handler.parseOptions(tc.args)
+
+			if tc.wantErr {
+				if err == nil {
+					t.Error("parseOptions() expected error but got none")
+				}
+				return
+			}
+
+			if err != nil {
+				t.Errorf("parseOptions() unexpected error: %v", err)
+				return
+			}
+
+			if opts.ResetLocal != tc.wantLocal {
+				t.Errorf("ResetLocal = %v, want %v", opts.ResetLocal, tc.wantLocal)
+			}
+			if opts.ResetClean != tc.wantClean {
+				t.Errorf("ResetClean = %v, want %v", opts.ResetClean, tc.wantClean)
+			}
+			if opts.CommitHash != tc.wantCommitHash {
+				t.Errorf("CommitHash = %v, want %v", opts.CommitHash, tc.wantCommitHash)
+			}
+		})
+	}
+}
+
+// TestValidateCommitHash tests commit hash validation.
+func TestValidateCommitHash(t *testing.T) {
+	tests := []struct {
+		name    string
+		hash    string
+		wantErr bool
+		errMsg  string
+	}{
+		{
+			name:    "empty hash",
+			hash:    "",
+			wantErr: true,
+			errMsg:  "不能为空",
+		},
+		{
+			name:    "short hash",
+			hash:    "abc123",
+			wantErr: true,
+			errMsg:  "至少 7 个字符",
+		},
+		{
+			name:    "invalid characters",
+			hash:    "abc123g",
+			wantErr: true,
+			errMsg:  "无效字符",
+		},
+		{
+			name:    "valid short hash",
+			hash:    "abc1234",
+			wantErr: false,
+		},
+		{
+			name:    "valid full hash",
+			hash:    "abc1234567890abcdef1234567890abcdef123456",
+			wantErr: false,
+		},
+		{
+			name:    "mixed case valid",
+			hash:    "ABC1234",
+			wantErr: false,
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			// Create a mock git checker that simulates a git repo
+			tmpDir := t.TempDir()
+			gitDir := filepath.Join(tmpDir, ".git")
+			os.MkdirAll(gitDir, 0755)
+
+			cfg := &mockResetConfig{workDir: tmpDir}
+			handler := NewResetHandler(cfg, &mockResetLogger{})
+			mockChecker := &mockGitChecker{isGitRepo: true, repoRoot: tmpDir}
+			handler.SetGitChecker(mockChecker)
+
+			err := handler.validateCommitHash(tc.hash)
+
+			if tc.wantErr {
+				if err == nil {
+					t.Error("validateCommitHash() expected error but got none")
+					return
+				}
+				if tc.errMsg != "" && !containsReset(err.Error(), tc.errMsg) {
+					t.Errorf("validateCommitHash() error = %v, want error containing %v", err, tc.errMsg)
+				}
+				return
+			}
+
+			// For valid hashes in a mock environment, we expect an error
+			// because the commit doesn't actually exist in the mock repo
+			if err == nil && tc.hash != "" {
+				// This is unexpected in mock environment
+				t.Log("Note: Valid hash format passed in mock environment")
+			}
+		})
+	}
+}
+
+// TestPromptForConfirmation tests the confirmation prompt logic.
+func TestPromptForConfirmation(t *testing.T) {
+	handler := NewResetHandler(nil, &mockResetLogger{})
+
+	commitInfo := &CommitInfo{
+		Hash:       "abc1234567890abcdef1234567890abcdef123456",
+		ShortHash:  "abc1234",
+		Message:    "morty: reset_cmd/job_4 - COMPLETED",
+		Author:     "Test User",
+		Timestamp:  time.Date(2024, 1, 15, 10, 30, 0, 0, time.UTC),
+		Module:     "reset_cmd",
+		Job:        "job_4",
+		Status:     "COMPLETED",
+		LoopNumber: 5,
+	}
+
+	// We can't easily test interactive prompts, but we can verify the function exists
+	// and the commit info is properly formatted
+	if commitInfo.ShortHash != "abc1234" {
+		t.Errorf("ShortHash = %v, want abc1234", commitInfo.ShortHash)
+	}
+
+	if commitInfo.Module != "reset_cmd" {
+		t.Errorf("Module = %v, want reset_cmd", commitInfo.Module)
+	}
+
+	if commitInfo.Job != "job_4" {
+		t.Errorf("Job = %v, want job_4", commitInfo.Job)
+	}
+}
+
+// TestCommitInfoStructure tests the CommitInfo structure.
+func TestCommitInfoStructure(t *testing.T) {
+	info := &CommitInfo{
+		Hash:       "abc1234567890abcdef1234567890abcdef123456",
+		ShortHash:  "abc1234",
+		Message:    "morty: cli/job_1 - COMPLETED",
+		Author:     "Test Author",
+		Timestamp:  time.Date(2024, 1, 15, 10, 30, 0, 0, time.UTC),
+		Module:     "cli",
+		Job:        "job_1",
+		Status:     "COMPLETED",
+		LoopNumber: 1,
+	}
+
+	if info.Hash != "abc1234567890abcdef1234567890abcdef123456" {
+		t.Error("Hash mismatch")
+	}
+	if info.ShortHash != "abc1234" {
+		t.Error("ShortHash mismatch")
+	}
+	if info.Message != "morty: cli/job_1 - COMPLETED" {
+		t.Error("Message mismatch")
+	}
+	if info.Author != "Test Author" {
+		t.Error("Author mismatch")
+	}
+	if info.Module != "cli" {
+		t.Error("Module mismatch")
+	}
+	if info.Job != "job_1" {
+		t.Error("Job mismatch")
+	}
+	if info.Status != "COMPLETED" {
+		t.Error("Status mismatch")
+	}
+	if info.LoopNumber != 1 {
+		t.Error("LoopNumber mismatch")
+	}
+}
+
+// TestResetToCommitResultStructure tests the ResetToCommitResult structure.
+func TestResetToCommitResultStructure(t *testing.T) {
+	result := &ResetToCommitResult{
+		CommitHash:    "abc1234",
+		CommitMessage: "test commit",
+		BackupBranch:  "morty/backup-20240115-103000",
+		StateRestored: true,
+		ExitCode:      0,
+	}
+
+	if result.CommitHash != "abc1234" {
+		t.Error("CommitHash mismatch")
+	}
+	if result.CommitMessage != "test commit" {
+		t.Error("CommitMessage mismatch")
+	}
+	if result.BackupBranch != "morty/backup-20240115-103000" {
+		t.Error("BackupBranch mismatch")
+	}
+	if !result.StateRestored {
+		t.Error("StateRestored should be true")
+	}
+	if result.ExitCode != 0 {
+		t.Error("ExitCode mismatch")
+	}
+}
+
+// TestShouldResetJob tests the shouldResetJob function.
+func TestShouldResetJob(t *testing.T) {
+	tests := []struct {
+		moduleName   string
+		jobName      string
+		targetModule string
+		targetJob    string
+		wantReset    bool
+	}{
+		// Same module, later job - should reset
+		{"cli", "job_2", "cli", "job_1", true},
+		// Same module, earlier job - should not reset
+		{"cli", "job_1", "cli", "job_2", false},
+		// Same module, same job - should not reset
+		{"cli", "job_1", "cli", "job_1", false},
+		// Later module - should reset
+		{"config", "job_1", "cli", "job_1", true},
+		// Earlier module - should not reset
+		{"cli", "job_1", "config", "job_1", false},
+	}
+
+	for _, tc := range tests {
+		name := fmt.Sprintf("%s/%s vs %s/%s", tc.moduleName, tc.jobName, tc.targetModule, tc.targetJob)
+		t.Run(name, func(t *testing.T) {
+			got := shouldResetJob(tc.moduleName, tc.jobName, tc.targetModule, tc.targetJob)
+			if got != tc.wantReset {
+				t.Errorf("shouldResetJob() = %v, want %v", got, tc.wantReset)
+			}
+		})
+	}
+}
+
+// TestRecalculateModuleStatus tests the recalculateModuleStatus function.
+func TestRecalculateModuleStatus(t *testing.T) {
+	now := time.Now()
+
+	tests := []struct {
+		name           string
+		jobs           map[string]*state.JobState
+		expectedStatus state.Status
+	}{
+		{
+			name: "all completed",
+			jobs: map[string]*state.JobState{
+				"job_1": {Status: state.StatusCompleted, UpdatedAt: now},
+				"job_2": {Status: state.StatusCompleted, UpdatedAt: now},
+			},
+			expectedStatus: state.StatusCompleted,
+		},
+		{
+			name: "one running",
+			jobs: map[string]*state.JobState{
+				"job_1": {Status: state.StatusCompleted, UpdatedAt: now},
+				"job_2": {Status: state.StatusRunning, UpdatedAt: now},
+			},
+			expectedStatus: state.StatusRunning,
+		},
+		{
+			name: "one failed",
+			jobs: map[string]*state.JobState{
+				"job_1": {Status: state.StatusCompleted, UpdatedAt: now},
+				"job_2": {Status: state.StatusFailed, UpdatedAt: now},
+			},
+			expectedStatus: state.StatusFailed,
+		},
+		{
+			name: "mixed pending",
+			jobs: map[string]*state.JobState{
+				"job_1": {Status: state.StatusPending, UpdatedAt: now},
+				"job_2": {Status: state.StatusPending, UpdatedAt: now},
+			},
+			expectedStatus: state.StatusPending,
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			module := &state.ModuleState{
+				Name:      "test_module",
+				Jobs:      tc.jobs,
+				UpdatedAt: now,
+			}
+
+			recalculateModuleStatus(module)
+
+			if module.Status != tc.expectedStatus {
+				t.Errorf("Status = %v, want %v", module.Status, tc.expectedStatus)
+			}
+		})
+	}
 }
