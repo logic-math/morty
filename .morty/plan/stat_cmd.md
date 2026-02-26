@@ -167,21 +167,22 @@ type ProgressInfo struct {
 - Config, Logging, State 模块完成
 
 **Tasks (Todo 列表)**:
-- [ ] Task 1: 创建 `internal/cmd/stat.go` 文件
-- [ ] Task 2: 实现 `StatHandler` 结构体
-- [ ] Task 3: 实现参数解析 (`--watch`, `--json`)
-- [ ] Task 4: 检查 `.morty/status.json` 存在性
-- [ ] Task 5: 无状态时的友好提示
-- [ ] Task 6: 编写单元测试
+- [x] Task 1: 创建 `internal/cmd/stat.go` 文件
+- [x] Task 2: 实现 `StatHandler` 结构体
+- [x] Task 3: 实现参数解析 (`--watch`, `--json`)
+- [x] Task 4: 检查 `.morty/status.json` 存在性
+- [x] Task 5: 无状态时的友好提示
+- [x] Task 6: 编写单元测试
 
 **验证器**:
-- [ ] 正确解析 `--watch` 和 `--json`
-- [ ] 无状态文件时提示 "请先运行 morty doing"
-- [ ] 返回码正确
-- [ ] 所有单元测试通过
+- [x] 正确解析 `--watch` 和 `--json`
+- [x] 无状态文件时提示 "请先运行 morty doing"
+- [x] 返回码正确
+- [x] 所有单元测试通过
 
 **调试日志**:
-- 待填充
+- explore1: [探索发现] 项目使用标准Handler模式, 参考research.go实现, 使用state.Manager访问status.json, 测试使用mockConfig/mockLogger模式, 已记录
+- debug1: strings.Builder没有ReadFrom方法导致测试编译失败, 运行测试时发现, 猜想: strings.Builder API与其他Writer不同, 验证: 查阅Go文档确认, 修复: 使用io.ReadAll替代, 已修复
 
 ---
 

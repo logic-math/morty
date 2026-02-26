@@ -2,17 +2,17 @@
   "version": "2.0",
   "state": "running",
   "current": {
-    "module": "doing_cmd",
-    "job": "job_7",
+    "module": "stat_cmd",
+    "job": "job_1",
     "status": "COMPLETED",
-    "start_time": "2026-02-26T10:18:48Z",
+    "start_time": "2026-02-26T10:45:15Z",
     "interrupted_at": "2026-02-24T16:51:59Z",
-    "completed_at": "2026-02-26T10:45:14Z"
+    "completed_at": "2026-02-26T11:01:57Z"
   },
   "session": {
     "start_time": "2026-02-24T12:51:47Z",
-    "last_update": "2026-02-26T10:45:14Z",
-    "total_loops": 63
+    "last_update": "2026-02-26T11:01:57Z",
+    "total_loops": 64
   },
   "modules": {
     "go_env_setup": {
@@ -3528,12 +3528,53 @@
       "status": "pending",
       "jobs": {
         "job_1": {
-          "status": "PENDING",
-          "loop_count": 0,
+          "status": "COMPLETED",
+          "loop_count": 1,
           "retry_count": 0,
           "tasks_total": 6,
-          "tasks_completed": 0,
-          "debug_logs": []
+          "tasks_completed": 6,
+          "debug_logs": [],
+          "started_at": "2026-02-26T10:45:15Z",
+          "tasks": {
+            "1": {
+              "index": 1,
+              "status": "COMPLETED",
+              "description": "Task 1: 创建 `internal/cmd/stat.go` 文件",
+              "updated_at": "2026-02-26T11:01:55Z"
+            },
+            "2": {
+              "index": 2,
+              "status": "COMPLETED",
+              "description": "Task 2: 实现 `StatHandler` 结构体",
+              "updated_at": "2026-02-26T11:01:56Z"
+            },
+            "3": {
+              "index": 3,
+              "status": "COMPLETED",
+              "description": "Task 3: 实现参数解析 (`--watch`, `--json`)",
+              "updated_at": "2026-02-26T11:01:56Z"
+            },
+            "4": {
+              "index": 4,
+              "status": "COMPLETED",
+              "description": "Task 4: 检查 `.morty/status.json` 存在性",
+              "updated_at": "2026-02-26T11:01:56Z"
+            },
+            "5": {
+              "index": 5,
+              "status": "COMPLETED",
+              "description": "Task 5: 无状态时的友好提示",
+              "updated_at": "2026-02-26T11:01:56Z"
+            },
+            "6": {
+              "index": 6,
+              "status": "COMPLETED",
+              "description": "Task 6: 编写单元测试",
+              "updated_at": "2026-02-26T11:01:56Z"
+            }
+          },
+          "completed_at": "2026-02-26T11:01:57Z",
+          "completion_summary": "Job executed successfully"
         },
         "job_2": {
           "status": "PENDING",

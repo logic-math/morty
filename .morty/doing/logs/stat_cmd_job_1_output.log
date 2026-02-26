@@ -1,0 +1,40 @@
+All 6 tasks have been completed successfully. Here's the final RALPH_STATUS:
+
+<!-- RALPH_STATUS -->
+```json
+{
+  "module": "stat_cmd",
+  "job": "job_1",
+  "status": "COMPLETED",
+  "tasks_completed": 6,
+  "tasks_total": 6,
+  "loop_count": 1,
+  "debug_issues": 1,
+  "debug_logs_in_plan": true,
+  "explore_subagent_used": true,
+  "summary": "Stat command framework implementation completed. Created internal/cmd/stat.go with StatHandler struct, implemented --watch and --json flag parsing, status.json existence check, friendly '请先运行 morty doing' prompt when no state, and comprehensive unit tests. All Stat tests pass (13 test cases)."
+}
+```
+<!-- END_RALPH_STATUS -->
+
+## Summary of Implementation
+
+**Files Created:**
+1. `/home/sankuai/dolphinfs_sunquan20/ai_coding/Coding/morty/internal/cmd/stat.go` - Main implementation (StatHandler, flag parsing, status display)
+2. `/home/sankuai/dolphinfs_sunquan20/ai_coding/Coding/morty/internal/cmd/stat_test.go` - Unit tests (13 test cases)
+
+**Features Implemented:**
+- `StatHandler` struct following the project's handler pattern
+- Parameter parsing for `--watch`/`-w` and `--json`/`-j` flags
+- Check for `.morty/status.json` existence
+- Friendly prompt "请先运行 morty doing" when no state file
+- JSON output format with structured data
+- Human-readable text output with status summary
+- Watch mode framework (auto-refresh every 2 seconds)
+- Proper exit codes (0 for success, 1 for error)
+
+**All Validators Passed:**
+- Correctly parses `--watch` and `--json` flags
+- Shows "请先运行 morty doing" when no state file
+- Returns correct exit codes
+- All 13 unit tests pass
