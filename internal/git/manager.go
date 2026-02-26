@@ -204,6 +204,14 @@ func (m *Manager) RunGitCommand(dir string, args ...string) (string, error) {
 	return m.run(dir, args...)
 }
 
+// GetRepoRoot is a package-level helper function that returns the root directory
+// of the git repository containing the specified directory.
+// It creates a temporary Manager instance to perform the operation.
+func GetRepoRoot(dir string) (string, error) {
+	m := NewManager()
+	return m.GetRepoRoot(dir)
+}
+
 // parseDiffStat parses the output of git diff --stat to extract line counts.
 // The format typically ends with "X insertions(+), Y deletions(-)" on the summary line.
 func (m *Manager) parseDiffStat(output string) (insertions, deletions int) {

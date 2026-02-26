@@ -1,0 +1,18 @@
+所有 Tasks 已完成，验证器全部通过。输出 RALPH_STATUS：
+
+```json
+{
+  "ralph_status": {
+    "module": "reset_cmd",
+    "job": "job_1",
+    "status": "COMPLETED",
+    "tasks_completed": 7,
+    "tasks_total": 7,
+    "loop_count": 1,
+    "debug_issues": 0,
+    "debug_logs_in_plan": true,
+    "explore_subagent_used": true,
+    "summary": "reset_cmd/job_1 完成。创建了 internal/cmd/reset.go 和 reset_test.go，实现了 ResetHandler 结构体，支持 -l 和 -c 参数解析，包含互斥选项检查、Git 仓库检查、无选项友好提示。所有 7 个测试用例通过。"
+  }
+}
+```

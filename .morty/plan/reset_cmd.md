@@ -119,23 +119,24 @@ type LoopCommit struct {
 - Config, Logging, Git 模块完成
 
 **Tasks (Todo 列表)**:
-- [ ] Task 1: 创建 `internal/cmd/reset.go` 文件
-- [ ] Task 2: 实现 `ResetHandler` 结构体
-- [ ] Task 3: 实现参数解析 (`-l`, `-c`)
-- [ ] Task 4: 检查 Git 仓库存在性
-- [ ] Task 5: 检查互斥选项（-l 和 -c 不能同时用）
-- [ ] Task 6: 无选项时的友好提示
-- [ ] Task 7: 编写单元测试
+- [x] Task 1: 创建 `internal/cmd/reset.go` 文件
+- [x] Task 2: 实现 `ResetHandler` 结构体
+- [x] Task 3: 实现参数解析 (`-l`, `-c`)
+- [x] Task 4: 检查 Git 仓库存在性
+- [x] Task 5: 检查互斥选项（-l 和 -c 不能同时用）
+- [x] Task 6: 无选项时的友好提示
+- [x] Task 7: 编写单元测试
 
 **验证器**:
-- [ ] 正确解析 `-l` 和 `-c`
-- [ ] `-l` 和 `-c` 同时使用时报错
-- [ ] 无选项时提示使用 `-l` 或 `-c`
-- [ ] 非 Git 仓库时友好报错
-- [ ] 所有单元测试通过
+- [x] 正确解析 `-l` 和 `-c`
+- [x] `-l` 和 `-c` 同时使用时报错
+- [x] 无选项时提示使用 `-l` 或 `-c`
+- [x] 非 Git 仓库时友好报错
+- [x] 所有单元测试通过
 
 **调试日志**:
-- 待填充
+- explore1: [探索发现] 项目使用标准 handler 模式, 参考 stat.go/doing.go 实现, 配置使用 config.Manager 接口, 日志使用 logging.Logger 接口, 已记录
+- debug1: git 包缺少 GetRepoRoot 包级别函数, 在 reset.go 中引用时发现未定义, 修复: 在 git/manager.go 中添加 GetRepoRoot 函数, 已修复
 
 ---
 

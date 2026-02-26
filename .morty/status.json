@@ -2,17 +2,17 @@
   "version": "2.0",
   "state": "running",
   "current": {
-    "module": "stat_cmd",
-    "job": "job_5",
+    "module": "reset_cmd",
+    "job": "job_1",
     "status": "COMPLETED",
-    "start_time": "2026-02-26T13:00:12Z",
+    "start_time": "2026-02-26T13:24:29Z",
     "interrupted_at": "2026-02-24T16:51:59Z",
-    "completed_at": "2026-02-26T13:24:28Z"
+    "completed_at": "2026-02-26T13:41:11Z"
   },
   "session": {
     "start_time": "2026-02-24T12:51:47Z",
-    "last_update": "2026-02-26T13:24:28Z",
-    "total_loops": 68
+    "last_update": "2026-02-26T13:41:11Z",
+    "total_loops": 69
   },
   "modules": {
     "go_env_setup": {
@@ -3790,12 +3790,59 @@
       "status": "pending",
       "jobs": {
         "job_1": {
-          "status": "PENDING",
-          "loop_count": 0,
+          "status": "COMPLETED",
+          "loop_count": 1,
           "retry_count": 0,
           "tasks_total": 7,
-          "tasks_completed": 0,
-          "debug_logs": []
+          "tasks_completed": 7,
+          "debug_logs": [],
+          "started_at": "2026-02-26T13:24:29Z",
+          "tasks": {
+            "1": {
+              "index": 1,
+              "status": "COMPLETED",
+              "description": "Task 1: 创建 `internal/cmd/reset.go` 文件",
+              "updated_at": "2026-02-26T13:41:09Z"
+            },
+            "2": {
+              "index": 2,
+              "status": "COMPLETED",
+              "description": "Task 2: 实现 `ResetHandler` 结构体",
+              "updated_at": "2026-02-26T13:41:09Z"
+            },
+            "3": {
+              "index": 3,
+              "status": "COMPLETED",
+              "description": "Task 3: 实现参数解析 (`-l`, `-c`)",
+              "updated_at": "2026-02-26T13:41:10Z"
+            },
+            "4": {
+              "index": 4,
+              "status": "COMPLETED",
+              "description": "Task 4: 检查 Git 仓库存在性",
+              "updated_at": "2026-02-26T13:41:10Z"
+            },
+            "5": {
+              "index": 5,
+              "status": "COMPLETED",
+              "description": "Task 5: 检查互斥选项（-l 和 -c 不能同时用）",
+              "updated_at": "2026-02-26T13:41:10Z"
+            },
+            "6": {
+              "index": 6,
+              "status": "COMPLETED",
+              "description": "Task 6: 无选项时的友好提示",
+              "updated_at": "2026-02-26T13:41:10Z"
+            },
+            "7": {
+              "index": 7,
+              "status": "COMPLETED",
+              "description": "Task 7: 编写单元测试",
+              "updated_at": "2026-02-26T13:41:10Z"
+            }
+          },
+          "completed_at": "2026-02-26T13:41:11Z",
+          "completion_summary": "Job executed successfully"
         },
         "job_2": {
           "status": "PENDING",
