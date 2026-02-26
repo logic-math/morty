@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"sort"
 	"strings"
 	"time"
 
@@ -332,4 +333,62 @@ func (h *PlanHandler) GetPlanDir() string {
 // SetPlanDir sets a custom plan directory (useful for testing).
 func (h *PlanHandler) SetPlanDir(dir string) {
 	h.paths.SetWorkDir(dir)
+}
+
+// getResearchDir returns the research directory path.
+func (h *PlanHandler) getResearchDir() string {
+	if h.cfg != nil {
+		return h.cfg.GetResearchDir()
+	}
+	return h.paths.GetResearchDir()
+}
+
+// loadResearchFacts scans the .morty/research/ directory, reads all .md files,
+// sorts them by filename, and formats them for prompt input.
+// Returns an empty slice if no research files exist.
+func (h *PlanHandler) loadResearchFacts() ([]string, error) {
+	researchDir := h.getResearchDir()
+
+	// Check if directory exists
+	if _, err := os.Stat(researchDir); os.IsNotExist(err) {
+		return []string{}, nil
+	}
+
+	// Read directory contents
+	entries, err := os.ReadDir(researchDir)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read research directory: %w", err)
+	}
+
+	// Collect all .md files
+	var mdFiles []string
+	for _, entry := range entries {
+		if entry.IsDir() {
+			continue
+		}
+		name := entry.Name()
+		if strings.HasSuffix(name, ".md") {
+			mdFiles = append(mdFiles, name)
+		}
+	}
+
+	// Sort by filename
+	sort.Strings(mdFiles)
+
+	// Read and format each file
+	// Initialize as empty slice to avoid returning nil
+	facts := make([]string, 0, len(mdFiles))
+	for _, filename := range mdFiles {
+		filePath := filepath.Join(researchDir, filename)
+		content, err := os.ReadFile(filePath)
+		if err != nil {
+			return nil, fmt.Errorf("failed to read research file %s: %w", filename, err)
+		}
+
+		// Format as: --- [filename] ---\n[content]
+		formatted := fmt.Sprintf("--- %s ---\n%s", filename, string(content))
+		facts = append(facts, formatted)
+	}
+
+	return facts, nil
 }

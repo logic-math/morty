@@ -3,16 +3,16 @@
   "state": "running",
   "current": {
     "module": "plan_cmd",
-    "job": "job_1",
+    "job": "job_2",
     "status": "COMPLETED",
-    "start_time": "2026-02-26T04:59:14Z",
+    "start_time": "2026-02-26T05:27:24Z",
     "interrupted_at": "2026-02-24T16:51:59Z",
-    "completed_at": "2026-02-26T05:27:23Z"
+    "completed_at": "2026-02-26T05:51:22Z"
   },
   "session": {
     "start_time": "2026-02-24T12:51:47Z",
-    "last_update": "2026-02-26T05:27:23Z",
-    "total_loops": 53
+    "last_update": "2026-02-26T05:51:22Z",
+    "total_loops": 54
   },
   "modules": {
     "go_env_setup": {
@@ -2956,12 +2956,59 @@
           "completion_summary": "Job executed successfully"
         },
         "job_2": {
-          "status": "PENDING",
-          "loop_count": 0,
+          "status": "COMPLETED",
+          "loop_count": 1,
           "retry_count": 0,
           "tasks_total": 7,
-          "tasks_completed": 0,
-          "debug_logs": []
+          "tasks_completed": 7,
+          "debug_logs": [],
+          "started_at": "2026-02-26T05:27:24Z",
+          "tasks": {
+            "1": {
+              "index": 1,
+              "status": "COMPLETED",
+              "description": "Task 1: 实现 `loadResearchFacts() ([]string, error)`",
+              "updated_at": "2026-02-26T05:51:20Z"
+            },
+            "2": {
+              "index": 2,
+              "status": "COMPLETED",
+              "description": "Task 2: 扫描 `.morty/research/` 目录",
+              "updated_at": "2026-02-26T05:51:21Z"
+            },
+            "3": {
+              "index": 3,
+              "status": "COMPLETED",
+              "description": "Task 3: 读取所有 `.md` 文件内容",
+              "updated_at": "2026-02-26T05:51:21Z"
+            },
+            "4": {
+              "index": 4,
+              "status": "COMPLETED",
+              "description": "Task 4: 按文件名排序",
+              "updated_at": "2026-02-26T05:51:21Z"
+            },
+            "5": {
+              "index": 5,
+              "status": "COMPLETED",
+              "description": "Task 5: 无研究文件时给出提示",
+              "updated_at": "2026-02-26T05:51:21Z"
+            },
+            "6": {
+              "index": 6,
+              "status": "COMPLETED",
+              "description": "Task 6: 将研究内容格式化为提示词输入",
+              "updated_at": "2026-02-26T05:51:21Z"
+            },
+            "7": {
+              "index": 7,
+              "status": "COMPLETED",
+              "description": "Task 7: 编写单元测试",
+              "updated_at": "2026-02-26T05:51:22Z"
+            }
+          },
+          "completed_at": "2026-02-26T05:51:22Z",
+          "completion_summary": "Job executed successfully"
         },
         "job_3": {
           "status": "PENDING",

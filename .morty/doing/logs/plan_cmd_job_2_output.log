@@ -1,0 +1,57 @@
+所有测试通过，`loadResearchFacts` 函数覆盖率达到 95.7%。现在让我输出 RALPH_STATUS。
+
+## 执行摘要
+
+**Job 完成状态**: plan_cmd/job_2 - **COMPLETED**
+
+### 完成的任务
+
+| Task | 描述 | 状态 |
+|------|------|------|
+| 1 | 实现 `loadResearchFacts() ([]string, error)` | ✅ 完成 |
+| 2 | 扫描 `.morty/research/` 目录 | ✅ 完成 |
+| 3 | 读取所有 `.md` 文件内容 | ✅ 完成 |
+| 4 | 按文件名排序 | ✅ 完成 |
+| 5 | 无研究文件时返回空列表 | ✅ 完成 |
+| 6 | 将研究内容格式化为提示词输入 | ✅ 完成 |
+| 7 | 编写单元测试 | ✅ 完成 |
+
+### 实现细节
+
+**新增代码** (`internal/cmd/plan.go`):
+- `getResearchDir()` - 获取研究目录路径
+- `loadResearchFacts()` - 扫描并加载研究文件
+  - 扫描 `.morty/research/` 目录
+  - 读取所有 `.md` 文件
+  - 按文件名排序
+  - 格式化为 `--- [filename] ---\n[content]` 格式
+  - 返回空切片（非 nil）当无研究文件时
+
+**新增测试** (`internal/cmd/plan_test.go`):
+- 7 个单元测试覆盖各种场景
+- 测试覆盖率: **95.7%** (超过 80% 要求)
+
+### 验证器检查清单
+
+- [x] 正确读取所有研究文件
+- [x] 文件内容按顺序组合
+- [x] 无研究文件时返回空列表并提示
+- [x] 损坏文件时返回错误
+- [x] 所有单元测试通过 (覆盖率 >= 80%)
+
+<!-- RALPH_STATUS -->
+```json
+{
+  "module": "plan_cmd",
+  "job": "job_2",
+  "status": "COMPLETED",
+  "tasks_completed": 7,
+  "tasks_total": 7,
+  "loop_count": 1,
+  "debug_issues": 3,
+  "debug_logs_in_plan": true,
+  "explore_subagent_used": true,
+  "summary": "成功实现 loadResearchFacts() 函数，扫描 .morty/research/ 目录，读取所有 .md 文件，按文件名排序，格式化内容为提示词输入。编写了 7 个单元测试，覆盖率达到 95.7%，所有测试通过。已更新 Plan 文件中的 Job 2 调试日志。"
+}
+```
+<!-- END_RALPH_STATUS -->

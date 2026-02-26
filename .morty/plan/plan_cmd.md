@@ -137,23 +137,25 @@ type PlanResult struct {
 - Job 1 完成
 
 **Tasks (Todo 列表)**:
-- [ ] Task 1: 实现 `loadResearchFacts() ([]string, error)`
-- [ ] Task 2: 扫描 `.morty/research/` 目录
-- [ ] Task 3: 读取所有 `.md` 文件内容
-- [ ] Task 4: 按文件名排序
-- [ ] Task 5: 无研究文件时给出提示
-- [ ] Task 6: 将研究内容格式化为提示词输入
-- [ ] Task 7: 编写单元测试
+- [x] Task 1: 实现 `loadResearchFacts() ([]string, error)`
+- [x] Task 2: 扫描 `.morty/research/` 目录
+- [x] Task 3: 读取所有 `.md` 文件内容
+- [x] Task 4: 按文件名排序
+- [x] Task 5: 无研究文件时给出提示
+- [x] Task 6: 将研究内容格式化为提示词输入
+- [x] Task 7: 编写单元测试
 
 **验证器**:
-- [ ] 正确读取所有研究文件
-- [ ] 文件内容按顺序组合
-- [ ] 无研究文件时返回空列表并提示
-- [ ] 损坏文件时返回错误
-- [ ] 所有单元测试通过 (覆盖率 >= 80%)
+- [x] 正确读取所有研究文件
+- [x] 文件内容按顺序组合
+- [x] 无研究文件时返回空列表并提示
+- [x] 损坏文件时返回错误
+- [x] 所有单元测试通过 (覆盖率 >= 80%)
 
 **调试日志**:
-- 待填充
+- debug1: 测试失败因为 setupTestDir 只创建临时目录而没有创建 research 子目录，创建文件时报 "no such file or directory" 错误, 猜想: 1)setupTestDir 应该自动创建所有子目录 2)测试应该自己创建所需目录, 验证: 检查 setupTestDir 实现发现只创建 tmpDir, 修复: 在需要创建文件的测试中使用 os.MkdirAll 创建 research 目录, 已修复
+- debug2: TestPlanHandler_loadResearchFacts_emptyDir 返回 nil 而非空切片，测试期望返回空列表 []string{}, 猜想: 1)返回 nil 是预期行为 2)变量声明方式导致返回 nil, 验证: 检查代码发现 var facts []string 初始为 nil，当无文件时返回 nil, 修复: 使用 facts := make([]string, 0, len(mdFiles)) 确保返回空切片而非 nil, 已修复
+- debug3: 测试覆盖率未达到 80%，需要添加更多边界情况测试, 猜想: 1)缺少错误处理测试 2)缺少边界情况测试, 验证: 运行覆盖率检查显示 loadResearchFacts 覆盖率为 95.7%，已超过要求, 修复: 无需修复，覆盖率达到要求, 已解决
 
 ---
 

@@ -603,3 +603,211 @@ func TestPlanHandler_Execute_withJobArgs(t *testing.T) {
 		t.Error("Plan file missing test job")
 	}
 }
+
+func TestPlanHandler_loadResearchFacts_emptyDir(t *testing.T) {
+	tmpDir := setupTestDir(t)
+
+	// Create empty research directory
+	researchDir := filepath.Join(tmpDir, "research")
+	os.MkdirAll(researchDir, 0755)
+
+	cfg := &mockConfig{}
+	cfg.SetWorkDir(tmpDir)
+	handler := NewPlanHandler(cfg, &mockLogger{}, nil)
+
+	facts, err := handler.loadResearchFacts()
+
+	if err != nil {
+		t.Errorf("loadResearchFacts() error = %v", err)
+	}
+
+	if facts == nil {
+		t.Error("loadResearchFacts() returned nil, expected empty slice")
+	}
+
+	if len(facts) != 0 {
+		t.Errorf("loadResearchFacts() returned %d facts, expected 0", len(facts))
+	}
+}
+
+func TestPlanHandler_loadResearchFacts_noResearchDir(t *testing.T) {
+	tmpDir := setupTestDir(t)
+
+	// Remove the research directory
+	researchDir := filepath.Join(tmpDir, "research")
+	os.RemoveAll(researchDir)
+
+	cfg := &mockConfig{}
+	cfg.SetWorkDir(tmpDir)
+	handler := NewPlanHandler(cfg, &mockLogger{}, nil)
+
+	facts, err := handler.loadResearchFacts()
+
+	if err != nil {
+		t.Errorf("loadResearchFacts() error = %v", err)
+	}
+
+	if facts == nil {
+		t.Error("loadResearchFacts() returned nil, expected empty slice")
+	}
+
+	if len(facts) != 0 {
+		t.Errorf("loadResearchFacts() returned %d facts, expected 0", len(facts))
+	}
+}
+
+func TestPlanHandler_loadResearchFacts_singleFile(t *testing.T) {
+	tmpDir := setupTestDir(t)
+
+	// Create research directory and a research file
+	researchDir := filepath.Join(tmpDir, "research")
+	os.MkdirAll(researchDir, 0755)
+	content := "# Research Content\nThis is test research content."
+	os.WriteFile(filepath.Join(researchDir, "test-research.md"), []byte(content), 0644)
+
+	cfg := &mockConfig{}
+	cfg.SetWorkDir(tmpDir)
+	handler := NewPlanHandler(cfg, &mockLogger{}, nil)
+
+	facts, err := handler.loadResearchFacts()
+
+	if err != nil {
+		t.Fatalf("loadResearchFacts() error = %v", err)
+	}
+
+	if len(facts) != 1 {
+		t.Fatalf("loadResearchFacts() returned %d facts, expected 1", len(facts))
+	}
+
+	// Check formatted content
+	expected := "--- test-research.md ---\n" + content
+	if facts[0] != expected {
+		t.Errorf("loadResearchFacts() fact = %v, want %v", facts[0], expected)
+	}
+}
+
+func TestPlanHandler_loadResearchFacts_multipleFilesSorted(t *testing.T) {
+	tmpDir := setupTestDir(t)
+
+	// Create research directory and multiple research files in non-alphabetical order
+	researchDir := filepath.Join(tmpDir, "research")
+	os.MkdirAll(researchDir, 0755)
+	os.WriteFile(filepath.Join(researchDir, "zebra.md"), []byte("Zebra content"), 0644)
+	os.WriteFile(filepath.Join(researchDir, "alpha.md"), []byte("Alpha content"), 0644)
+	os.WriteFile(filepath.Join(researchDir, "beta.md"), []byte("Beta content"), 0644)
+
+	cfg := &mockConfig{}
+	cfg.SetWorkDir(tmpDir)
+	handler := NewPlanHandler(cfg, &mockLogger{}, nil)
+
+	facts, err := handler.loadResearchFacts()
+
+	if err != nil {
+		t.Fatalf("loadResearchFacts() error = %v", err)
+	}
+
+	if len(facts) != 3 {
+		t.Fatalf("loadResearchFacts() returned %d facts, expected 3", len(facts))
+	}
+
+	// Check that files are sorted alphabetically
+	expectedOrder := []string{
+		"--- alpha.md ---\nAlpha content",
+		"--- beta.md ---\nBeta content",
+		"--- zebra.md ---\nZebra content",
+	}
+
+	for i, expected := range expectedOrder {
+		if facts[i] != expected {
+			t.Errorf("loadResearchFacts() fact[%d] = %v, want %v", i, facts[i], expected)
+		}
+	}
+}
+
+func TestPlanHandler_loadResearchFacts_ignoresNonMdFiles(t *testing.T) {
+	tmpDir := setupTestDir(t)
+
+	// Create research directory and files
+	researchDir := filepath.Join(tmpDir, "research")
+	os.MkdirAll(researchDir, 0755)
+	os.WriteFile(filepath.Join(researchDir, "valid.md"), []byte("Valid content"), 0644)
+	os.WriteFile(filepath.Join(researchDir, "invalid.txt"), []byte("Invalid content"), 0644)
+	os.WriteFile(filepath.Join(researchDir, "another.json"), []byte(`{"key": "value"}`), 0644)
+
+	cfg := &mockConfig{}
+	cfg.SetWorkDir(tmpDir)
+	handler := NewPlanHandler(cfg, &mockLogger{}, nil)
+
+	facts, err := handler.loadResearchFacts()
+
+	if err != nil {
+		t.Fatalf("loadResearchFacts() error = %v", err)
+	}
+
+	if len(facts) != 1 {
+		t.Fatalf("loadResearchFacts() returned %d facts, expected 1", len(facts))
+	}
+
+	// Should only contain the .md file
+	expected := "--- valid.md ---\nValid content"
+	if facts[0] != expected {
+		t.Errorf("loadResearchFacts() fact = %v, want %v", facts[0], expected)
+	}
+}
+
+func TestPlanHandler_loadResearchFacts_ignoresSubdirectories(t *testing.T) {
+	tmpDir := setupTestDir(t)
+
+	// Create research directory with subdirectory
+	researchDir := filepath.Join(tmpDir, "research")
+	os.MkdirAll(researchDir, 0755)
+	os.WriteFile(filepath.Join(researchDir, "valid.md"), []byte("Valid content"), 0644)
+	os.MkdirAll(filepath.Join(researchDir, "subdir"), 0755)
+	os.WriteFile(filepath.Join(researchDir, "subdir", "nested.md"), []byte("Nested content"), 0644)
+
+	cfg := &mockConfig{}
+	cfg.SetWorkDir(tmpDir)
+	handler := NewPlanHandler(cfg, &mockLogger{}, nil)
+
+	facts, err := handler.loadResearchFacts()
+
+	if err != nil {
+		t.Fatalf("loadResearchFacts() error = %v", err)
+	}
+
+	if len(facts) != 1 {
+		t.Fatalf("loadResearchFacts() returned %d facts, expected 1", len(facts))
+	}
+
+	// Should only contain files in root, not subdirectories
+	expected := "--- valid.md ---\nValid content"
+	if facts[0] != expected {
+		t.Errorf("loadResearchFacts() fact = %v, want %v", facts[0], expected)
+	}
+}
+
+func TestPlanHandler_loadResearchFacts_returnsErrorForUnreadableFile(t *testing.T) {
+	if os.Getuid() == 0 {
+		t.Skip("Skipping test when running as root (can read unreadable files)")
+	}
+
+	tmpDir := setupTestDir(t)
+
+	// Create unreadable research file
+	researchDir := filepath.Join(tmpDir, "research")
+	os.MkdirAll(researchDir, 0755)
+	filePath := filepath.Join(researchDir, "unreadable.md")
+	os.WriteFile(filePath, []byte("Content"), 0644)
+	os.Chmod(filePath, 0000)
+	defer os.Chmod(filePath, 0644) // Restore permissions for cleanup
+
+	cfg := &mockConfig{}
+	cfg.SetWorkDir(tmpDir)
+	handler := NewPlanHandler(cfg, &mockLogger{}, nil)
+
+	_, err := handler.loadResearchFacts()
+
+	if err == nil {
+		t.Error("loadResearchFacts() expected error for unreadable file, got nil")
+	}
+}
