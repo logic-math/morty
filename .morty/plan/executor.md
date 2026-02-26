@@ -315,25 +315,30 @@ type TaskRunner struct {
 - Call CLI 模块完成
 
 **Tasks (Todo 列表)**:
-- [ ] Task 1: 更新 `TaskRunner` 使用 `callcli.AICliCaller`
-- [ ] Task 2: 实现 `ExecuteTask` 调用 Call CLI 执行 AI 命令
-- [ ] Task 3: 传递提示词文件路径给 Call CLI
-- [ ] Task 4: 配置超时参数（默认 10 分钟）
-- [ ] Task 5: 处理 Call CLI 返回结果（退出码、输出文件）
-- [ ] Task 6: 集成结果解析器解析输出
-- [ ] Task 7: 实现执行中断处理（转发信号给 Call CLI）
-- [ ] Task 8: 编写集成测试 `executor_integration_test.go`
+- [x] Task 1: 更新 `TaskRunner` 使用 `callcli.AICliCaller`
+- [x] Task 2: 实现 `ExecuteTask` 调用 Call CLI 执行 AI 命令
+- [x] Task 3: 传递提示词文件路径给 Call CLI
+- [x] Task 4: 配置超时参数（默认 10 分钟）
+- [x] Task 5: 处理 Call CLI 返回结果（退出码、输出文件）
+- [x] Task 6: 集成结果解析器解析输出
+- [x] Task 7: 实现执行中断处理（转发信号给 Call CLI）
+- [x] Task 8: 编写集成测试 `executor_integration_test.go`
 
 **验证器**:
-- [ ] TaskRunner 正确调用 Call CLI 执行 AI 命令
-- [ ] 提示词正确传递给 AI CLI
-- [ ] 超时配置生效（默认 10 分钟）
-- [ ] 执行结果正确解析
-- [ ] 中断信号正确转发给子进程
-- [ ] 集成测试通过 (覆盖率 >= 80%)
+- [x] TaskRunner 正确调用 Call CLI 执行 AI 命令
+- [x] 提示词正确传递给 AI CLI
+- [x] 超时配置生效（默认 10 分钟）
+- [x] 执行结果正确解析
+- [x] 中断信号正确转发给子进程
+- [x] 集成测试通过 (覆盖率 84.5% >= 80%)
 
 **调试日志**:
-- 待填充
+- explore1: [探索发现] TaskRunner 已实现使用 AICliCaller, 通过 mock 测试验证调用流程, 已记录
+- debug1: 两个工作目录问题, 代码在 /opt/meituan/ 但 Go 使用 /home/sankuai/, 文件需要同步, 修复: 复制文件到正确位置, 已修复
+- debug2: git.NewManager 签名不匹配, 测试调用 git.NewManager(logger) 但函数不需要参数, 验证: 检查 git/manager.go 定义, 修复: 改为 git.NewManager(), 已修复
+- debug3: 状态文件 JSON 格式问题, 缺少 global 字段导致验证失败, 错误: invalid global status, 验证: 检查 state/status_json.go 验证逻辑, 修复: 添加 global 字段到测试状态 JSON, 已修复
+- debug4: 任务状态为 RUNNING 导致先决条件检查失败, Engine.ExecuteJob 要求状态为 PENDING 或 FAILED, 错误: prerequisite check failed: job already running, 修复: 将测试状态改为 PENDING, 已修复
+- debug5: 集成测试覆盖率达到 84.5%, 所有验证器通过, 测试包含 TaskRunner、JobRunner、Engine 全流程, 已修复
 
 ---
 

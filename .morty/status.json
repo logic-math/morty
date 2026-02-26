@@ -3,16 +3,16 @@
   "state": "running",
   "current": {
     "module": "executor",
-    "job": "job_5",
+    "job": "job_6",
     "status": "COMPLETED",
-    "start_time": "2026-02-26T01:54:14Z",
+    "start_time": "2026-02-26T02:24:43Z",
     "interrupted_at": "2026-02-24T16:51:59Z",
-    "completed_at": "2026-02-26T02:24:41Z"
+    "completed_at": "2026-02-26T02:58:32Z"
   },
   "session": {
     "start_time": "2026-02-24T12:51:47Z",
-    "last_update": "2026-02-26T02:24:41Z",
-    "total_loops": 48
+    "last_update": "2026-02-26T02:58:32Z",
+    "total_loops": 49
   },
   "modules": {
     "go_env_setup": {
@@ -2665,12 +2665,65 @@
           "completion_summary": "Job executed successfully"
         },
         "job_6": {
-          "status": "PENDING",
-          "loop_count": 0,
+          "status": "COMPLETED",
+          "loop_count": 1,
           "retry_count": 0,
           "tasks_total": 8,
-          "tasks_completed": 0,
-          "debug_logs": []
+          "tasks_completed": 8,
+          "debug_logs": [],
+          "started_at": "2026-02-26T02:24:43Z",
+          "tasks": {
+            "1": {
+              "index": 1,
+              "status": "COMPLETED",
+              "description": "Task 1: 更新 `TaskRunner` 使用 `callcli.AICliCaller`",
+              "updated_at": "2026-02-26T02:58:28Z"
+            },
+            "2": {
+              "index": 2,
+              "status": "COMPLETED",
+              "description": "Task 2: 实现 `ExecuteTask` 调用 Call CLI 执行 AI 命令",
+              "updated_at": "2026-02-26T02:58:29Z"
+            },
+            "3": {
+              "index": 3,
+              "status": "COMPLETED",
+              "description": "Task 3: 传递提示词文件路径给 Call CLI",
+              "updated_at": "2026-02-26T02:58:29Z"
+            },
+            "4": {
+              "index": 4,
+              "status": "COMPLETED",
+              "description": "Task 4: 配置超时参数（默认 10 分钟）",
+              "updated_at": "2026-02-26T02:58:30Z"
+            },
+            "5": {
+              "index": 5,
+              "status": "COMPLETED",
+              "description": "Task 5: 处理 Call CLI 返回结果（退出码、输出文件）",
+              "updated_at": "2026-02-26T02:58:30Z"
+            },
+            "6": {
+              "index": 6,
+              "status": "COMPLETED",
+              "description": "Task 6: 集成结果解析器解析输出",
+              "updated_at": "2026-02-26T02:58:31Z"
+            },
+            "7": {
+              "index": 7,
+              "status": "COMPLETED",
+              "description": "Task 7: 实现执行中断处理（转发信号给 Call CLI）",
+              "updated_at": "2026-02-26T02:58:31Z"
+            },
+            "8": {
+              "index": 8,
+              "status": "COMPLETED",
+              "description": "Task 8: 编写集成测试 `executor_integration_test.go`",
+              "updated_at": "2026-02-26T02:58:32Z"
+            }
+          },
+          "completed_at": "2026-02-26T02:58:33Z",
+          "completion_summary": "Job executed successfully"
         }
       }
     },
