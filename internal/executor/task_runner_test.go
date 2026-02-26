@@ -1,0 +1,417 @@
+// Package executor provides job execution engine for Morty.
+package executor
+
+import (
+	"context"
+	"errors"
+	"testing"
+	"time"
+
+	"github.com/morty/morty/internal/callcli"
+	"github.com/morty/morty/internal/logging"
+)
+
+// mockAICaller is a mock implementation of AICliCaller for testing.
+type mockAICaller struct {
+	callResult *callcli.Result
+	callError  error
+	delay      time.Duration
+	called     bool
+	lastPrompt string
+}
+
+func (m *mockAICaller) CallWithPrompt(ctx context.Context, promptFile string) (*callcli.Result, error) {
+	return nil, errors.New("not implemented")
+}
+
+func (m *mockAICaller) CallWithPromptContent(ctx context.Context, content string) (*callcli.Result, error) {
+	m.called = true
+	m.lastPrompt = content
+
+	// Simulate delay if specified
+	if m.delay > 0 {
+		select {
+		case <-time.After(m.delay):
+		case <-ctx.Done():
+			return &callcli.Result{
+				ExitCode: -1,
+				TimedOut: true,
+			}, ctx.Err()
+		}
+	}
+
+	return m.callResult, m.callError
+}
+
+func (m *mockAICaller) GetCLIPath() string {
+	return "mock-cli"
+}
+
+func (m *mockAICaller) BuildArgs() []string {
+	return []string{"--mock"}
+}
+
+// mockLogger for testing
+type mockTaskRunnerLogger struct {
+	logs []string
+}
+
+func (m *mockTaskRunnerLogger) Debug(msg string, attrs ...logging.Attr) {}
+func (m *mockTaskRunnerLogger) Info(msg string, attrs ...logging.Attr)  {}
+func (m *mockTaskRunnerLogger) Warn(msg string, attrs ...logging.Attr)  {}
+func (m *mockTaskRunnerLogger) Error(msg string, attrs ...logging.Attr) {}
+func (m *mockTaskRunnerLogger) Success(msg string, attrs ...logging.Attr) {}
+func (m *mockTaskRunnerLogger) Loop(msg string, attrs ...logging.Attr)  {}
+func (m *mockTaskRunnerLogger) WithContext(ctx context.Context) logging.Logger { return m }
+func (m *mockTaskRunnerLogger) WithJob(module, job string) logging.Logger      { return m }
+func (m *mockTaskRunnerLogger) WithAttrs(attrs ...logging.Attr) logging.Logger { return m }
+func (m *mockTaskRunnerLogger) SetLevel(level logging.Level)                   {}
+func (m *mockTaskRunnerLogger) GetLevel() logging.Level                        { return logging.InfoLevel }
+func (m *mockTaskRunnerLogger) IsEnabled(level logging.Level) bool             { return true }
+
+func TestNewTaskRunner(t *testing.T) {
+	logger := &mockTaskRunnerLogger{}
+	caller := &mockAICaller{}
+
+	t.Run("with nil caller", func(t *testing.T) {
+		tr := NewTaskRunner(logger, nil)
+		if tr == nil {
+			t.Fatal("expected TaskRunner, got nil")
+		}
+		if tr.logger != logger {
+			t.Error("expected logger to be set")
+		}
+		if tr.aiCliCaller == nil {
+			t.Error("expected aiCliCaller to be created when nil")
+		}
+		if tr.timeout != DefaultTaskTimeout {
+			t.Errorf("expected timeout %v, got %v", DefaultTaskTimeout, tr.timeout)
+		}
+	})
+
+	t.Run("with custom caller", func(t *testing.T) {
+		tr := NewTaskRunner(logger, caller)
+		if tr == nil {
+			t.Fatal("expected TaskRunner, got nil")
+		}
+		if tr.aiCliCaller != caller {
+			t.Error("expected custom caller to be set")
+		}
+	})
+}
+
+func TestNewTaskRunnerWithTimeout(t *testing.T) {
+	logger := &mockTaskRunnerLogger{}
+	caller := &mockAICaller{}
+	customTimeout := 5 * time.Minute
+
+	tr := NewTaskRunnerWithTimeout(logger, caller, customTimeout)
+	if tr == nil {
+		t.Fatal("expected TaskRunner, got nil")
+	}
+	if tr.timeout != customTimeout {
+		t.Errorf("expected timeout %v, got %v", customTimeout, tr.timeout)
+	}
+}
+
+func TestTaskRunner_Run_Success(t *testing.T) {
+	logger := &mockTaskRunnerLogger{}
+	mockCaller := &mockAICaller{
+		callResult: &callcli.Result{
+			Stdout:   "test output",
+			Stderr:   "",
+			ExitCode: 0,
+			Duration: 100 * time.Millisecond,
+		},
+		callError: nil,
+	}
+
+	tr := NewTaskRunner(logger, mockCaller)
+
+	result, err := tr.Run(context.Background(), "Test Task", "test prompt")
+
+	if err != nil {
+		t.Errorf("expected no error, got %v", err)
+	}
+	if result == nil {
+		t.Fatal("expected result, got nil")
+	}
+	if !result.Success {
+		t.Error("expected success to be true")
+	}
+	if result.ExitCode != 0 {
+		t.Errorf("expected exit code 0, got %d", result.ExitCode)
+	}
+	if result.Stdout != "test output" {
+		t.Errorf("expected stdout 'test output', got %s", result.Stdout)
+	}
+	if !mockCaller.called {
+		t.Error("expected caller to be invoked")
+	}
+	if mockCaller.lastPrompt != "test prompt" {
+		t.Errorf("expected prompt 'test prompt', got %s", mockCaller.lastPrompt)
+	}
+}
+
+func TestTaskRunner_Run_NonZeroExitCode(t *testing.T) {
+	logger := &mockTaskRunnerLogger{}
+	mockCaller := &mockAICaller{
+		callResult: &callcli.Result{
+			Stdout:   "",
+			Stderr:   "error message",
+			ExitCode: 1,
+			Duration: 50 * time.Millisecond,
+		},
+		callError: nil,
+	}
+
+	tr := NewTaskRunner(logger, mockCaller)
+
+	result, err := tr.Run(context.Background(), "Failing Task", "test prompt")
+
+	if err == nil {
+		t.Error("expected error for non-zero exit code")
+	}
+	if result == nil {
+		t.Fatal("expected result, got nil")
+	}
+	if result.Success {
+		t.Error("expected success to be false")
+	}
+	if result.ExitCode != 1 {
+		t.Errorf("expected exit code 1, got %d", result.ExitCode)
+	}
+	if result.Stderr != "error message" {
+		t.Errorf("expected stderr 'error message', got %s", result.Stderr)
+	}
+}
+
+func TestTaskRunner_Run_Timeout(t *testing.T) {
+	logger := &mockTaskRunnerLogger{}
+	mockCaller := &mockAICaller{
+		callResult: &callcli.Result{
+			ExitCode: -1,
+			TimedOut: true,
+		},
+		callError: context.DeadlineExceeded,
+		delay:     200 * time.Millisecond,
+	}
+
+	tr := NewTaskRunnerWithTimeout(logger, mockCaller, 50*time.Millisecond)
+
+	result, err := tr.Run(context.Background(), "Slow Task", "test prompt")
+
+	if err == nil {
+		t.Error("expected timeout error")
+	}
+	if result == nil {
+		t.Fatal("expected result, got nil")
+	}
+	if result.Success {
+		t.Error("expected success to be false")
+	}
+	if !result.TimedOut {
+		t.Error("expected TimedOut to be true")
+	}
+	if result.ExitCode != -1 {
+		t.Errorf("expected exit code -1, got %d", result.ExitCode)
+	}
+}
+
+func TestTaskRunner_Run_ExecutionError(t *testing.T) {
+	logger := &mockTaskRunnerLogger{}
+	mockCaller := &mockAICaller{
+		callResult: nil,
+		callError:  errors.New("execution failed"),
+	}
+
+	tr := NewTaskRunner(logger, mockCaller)
+
+	result, err := tr.Run(context.Background(), "Error Task", "test prompt")
+
+	if err == nil {
+		t.Error("expected error")
+	}
+	if result == nil {
+		t.Fatal("expected result, got nil")
+	}
+	if result.Success {
+		t.Error("expected success to be false")
+	}
+	if result.Error == nil {
+		t.Error("expected Error field to be set")
+	}
+}
+
+func TestTaskRunner_SetTimeout(t *testing.T) {
+	logger := &mockTaskRunnerLogger{}
+	tr := NewTaskRunner(logger, nil)
+
+	newTimeout := 30 * time.Second
+	tr.SetTimeout(newTimeout)
+
+	if tr.GetTimeout() != newTimeout {
+		t.Errorf("expected timeout %v, got %v", newTimeout, tr.GetTimeout())
+	}
+}
+
+func TestTaskRunner_SetAICaller(t *testing.T) {
+	logger := &mockTaskRunnerLogger{}
+	initialCaller := &mockAICaller{}
+	newCaller := &mockAICaller{}
+
+	tr := NewTaskRunner(logger, initialCaller)
+	tr.SetAICaller(newCaller)
+
+	if tr.GetAICaller() != newCaller {
+		t.Error("expected new caller to be set")
+	}
+}
+
+func TestTaskRunner_SetAICaller_Nil(t *testing.T) {
+	logger := &mockTaskRunnerLogger{}
+	initialCaller := &mockAICaller{}
+
+	tr := NewTaskRunner(logger, initialCaller)
+	tr.SetAICaller(nil)
+
+	if tr.GetAICaller() != initialCaller {
+		t.Error("expected initial caller to remain when setting nil")
+	}
+}
+
+func TestIsCommandNotFound(t *testing.T) {
+	tests := []struct {
+		name     string
+		err      error
+		expected bool
+	}{
+		{
+			name:     "nil error",
+			err:      nil,
+			expected: false,
+		},
+		{
+			name:     "exec error",
+			err:      &execError{},
+			expected: true,
+		},
+		{
+			name:     "executable file not found in PATH",
+			err:      errors.New("executable file not found in $PATH"),
+			expected: true,
+		},
+		{
+			name:     "command not found",
+			err:      errors.New("command not found: claude"),
+			expected: true,
+		},
+		{
+			name:     "M5001 error code",
+			err:      errors.New("[M5001] AI CLI command not found"),
+			expected: true,
+		},
+		{
+			name:     "other error",
+			err:      errors.New("some other error"),
+			expected: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := isCommandNotFound(tt.err)
+			if result != tt.expected {
+				t.Errorf("expected %v, got %v", tt.expected, result)
+			}
+		})
+	}
+}
+
+// execError simulates the exec.Error type
+type execError struct{}
+
+func (e *execError) Error() string {
+	return "executable file not found in $PATH"
+}
+
+func TestTaskResult_Fields(t *testing.T) {
+	// Test that TaskResult has all required fields
+	result := &TaskResult{
+		Success:  true,
+		ExitCode: 0,
+		Stdout:   "output",
+		Stderr:   "error",
+		Duration: 1 * time.Second,
+		TimedOut: false,
+		Error:    nil,
+	}
+
+	if !result.Success {
+		t.Error("Success field not working")
+	}
+	if result.ExitCode != 0 {
+		t.Error("ExitCode field not working")
+	}
+	if result.Stdout != "output" {
+		t.Error("Stdout field not working")
+	}
+	if result.Stderr != "error" {
+		t.Error("Stderr field not working")
+	}
+	if result.Duration != 1*time.Second {
+		t.Error("Duration field not working")
+	}
+	if result.TimedOut {
+		t.Error("TimedOut field not working")
+	}
+	if result.Error != nil {
+		t.Error("Error field not working")
+	}
+}
+
+func TestTaskRunner_ContextCancellation(t *testing.T) {
+	logger := &mockTaskRunnerLogger{}
+	mockCaller := &mockAICaller{
+		callResult: nil,
+		callError:  context.Canceled,
+	}
+
+	tr := NewTaskRunner(logger, mockCaller)
+
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel() // Cancel immediately
+
+	result, err := tr.Run(ctx, "Cancelled Task", "test prompt")
+
+	if err == nil {
+		t.Error("expected error for cancelled context")
+	}
+	if result == nil {
+		t.Fatal("expected result, got nil")
+	}
+	if result.Success {
+		t.Error("expected success to be false")
+	}
+}
+
+func TestStringContains(t *testing.T) {
+	tests := []struct {
+		s        string
+		substr   string
+		expected bool
+	}{
+		{"hello world", "world", true},
+		{"hello world", "foo", false},
+		{"", "foo", false},
+		{"foo", "foo", true},
+		{"foo", "foobar", false},
+	}
+
+	for _, tt := range tests {
+		result := stringContains(tt.s, tt.substr)
+		if result != tt.expected {
+			t.Errorf("stringContains(%q, %q) = %v, expected %v", tt.s, tt.substr, result, tt.expected)
+		}
+	}
+}

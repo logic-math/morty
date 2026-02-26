@@ -216,25 +216,28 @@ type TaskRunner struct {
 - Job 2 完成 (Job 执行器)
 
 **Tasks (Todo 列表)**:
-- [ ] Task 1: 创建 `internal/executor/task_runner.go` 文件结构
-- [ ] Task 2: 实现 `TaskRunner` 结构体
-- [ ] Task 3: 实现 `Run(ctx, taskDesc, prompt)` 方法
-- [ ] Task 4: 实现 AI CLI 调用 (使用 `os/exec`)
-- [ ] Task 5: 实现超时控制
-- [ ] Task 6: 实现输出捕获和记录
-- [ ] Task 7: 实现退出码处理
-- [ ] Task 8: 编写单元测试 `task_runner_test.go`
+- [x] Task 1: 创建 `internal/executor/task_runner.go` 文件结构
+- [x] Task 2: 实现 `TaskRunner` 结构体
+- [x] Task 3: 实现 `Run(ctx, taskDesc, prompt)` 方法
+- [x] Task 4: 实现 AI CLI 调用 (使用 `os/exec`)
+- [x] Task 5: 实现超时控制
+- [x] Task 6: 实现输出捕获和记录
+- [x] Task 7: 实现退出码处理
+- [x] Task 8: 编写单元测试 `task_runner_test.go`
 
 **验证器**:
-- [ ] TaskRunner 正确执行单个 Task
-- [ ] AI CLI 调用成功并返回结果
-- [ ] 超时后终止进程并返回错误
-- [ ] 输出正确捕获并记录到日志
-- [ ] 退出码 0 表示成功，非 0 表示失败
-- [ ] 所有单元测试通过 (覆盖率 >= 80%)
+- [x] TaskRunner 正确执行单个 Task
+- [x] AI CLI 调用成功并返回结果
+- [x] 超时后终止进程并返回错误
+- [x] 输出正确捕获并记录到日志
+- [x] 退出码 0 表示成功，非 0 表示失败
+- [x] 所有单元测试通过 (覆盖率 83.9% >= 80%)
 
 **调试日志**:
-- 待填充
+- debug1: [探索发现] 项目架构已明确, Engine 和 JobRunner 已完成, 使用 callcli.AICliCaller 进行 AI CLI 调用, 已记录
+- debug2: 测试文件未被编译执行, 发现 Go 实际工作目录是 /home/sankuai/ 而非 /opt/meituan/, 验证: 使用 pwd 和 go test -c 确认路径, 修复: 将文件复制到正确位置, 已修复
+- debug3: contains 函数重定义冲突, task_runner.go 和 engine_test.go 都定义了 contains 函数, 验证: 编译错误显示 redeclared, 修复: 将 task_runner.go 的 contains 重命名为 stringContains, 已修复
+- debug4: logging.Duration 函数不存在, 使用了未定义的 logging.Duration, 验证: 编译错误 undefined, 修复: 改用 logging.Any 传递 duration 值, 已修复
 
 ---
 
