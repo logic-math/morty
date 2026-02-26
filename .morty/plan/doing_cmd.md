@@ -215,24 +215,25 @@ type ExecutionSummary struct {
 - Markdown Parser 模块完成
 
 **Tasks (Todo 列表)**:
-- [ ] Task 1: 实现 `loadPlan(module)` 加载模块 Plan
-- [ ] Task 2: 使用 Markdown Parser 解析 Plan 文件
-- [ ] Task 3: 提取目标 Job 的定义
-- [ ] Task 4: 提取 Job 的 Tasks 列表
-- [ ] Task 5: 提取验证器定义
-- [ ] Task 6: 处理 Plan 文件不存在错误
-- [ ] Task 7: 编写单元测试
+- [x] Task 1: 实现 `loadPlan(module)` 加载模块 Plan
+- [x] Task 2: 使用 Markdown Parser 解析 Plan 文件
+- [x] Task 3: 提取目标 Job 的定义
+- [x] Task 4: 提取 Job 的 Tasks 列表
+- [x] Task 5: 提取验证器定义
+- [x] Task 6: 处理 Plan 文件不存在错误
+- [x] Task 7: 编写单元测试
 
 **验证器**:
-- [ ] 正确加载指定模块的 Plan 文件
-- [ ] 正确解析 Job 定义
-- [ ] 正确提取 Tasks 列表
-- [ ] 正确提取验证器
-- [ ] Plan 不存在时友好报错
-- [ ] 所有单元测试通过
+- [x] 正确加载指定模块的 Plan 文件
+- [x] 正确解析 Job 定义
+- [x] 正确提取 Tasks 列表
+- [x] 正确提取验证器
+- [x] Plan 不存在时友好报错
+- [x] 所有单元测试通过
 
 **调试日志**:
-- 待填充
+- explore1: [探索发现] 项目已存在 plan parser 在 internal/parser/plan/parser.go, 实现了 ParsePlan 函数和相关数据结构 (Plan, Job, TaskItem, DebugLog), 使用 markdown parser 解析内容, 已记录
+- debug1: 实现 loadPlan 函数, 使用现有 plan.ParsePlan 解析, 添加错误处理支持 Plan 不存在情况, 已修复
 
 ---
 

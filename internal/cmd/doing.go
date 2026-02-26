@@ -609,3 +609,48 @@ func (h *DoingHandler) updateStatus(moduleName, jobName string, status state.Sta
 func (h *DoingHandler) GetStateManager() *state.Manager {
 	return h.stateManager
 }
+
+// loadPlan loads and parses a Plan file for the specified module.
+// Task 1: Implement `loadPlan(module)` to load module Plan
+// Task 2: Use Markdown Parser to parse Plan file
+// It returns the parsed Plan struct or an error if the file doesn't exist or can't be parsed.
+func (h *DoingHandler) loadPlan(module string) (*plan.Plan, error) {
+	planFile := filepath.Join(h.getPlanDir(), module+".md")
+
+	content, err := os.ReadFile(planFile)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return nil, fmt.Errorf("计划文件不存在: %s", planFile)
+		}
+		return nil, fmt.Errorf("读取计划文件失败: %w", err)
+	}
+
+	planData, err := plan.ParsePlan(string(content))
+	if err != nil {
+		return nil, fmt.Errorf("解析计划文件失败: %w", err)
+	}
+
+	return planData, nil
+}
+
+// getJobFromPlan retrieves a specific Job from the parsed Plan.
+// Task 3: Extract target Job definition
+// Task 4: Extract Job's Tasks list
+// Task 5: Extract validator definition
+func (h *DoingHandler) getJobFromPlan(planData *plan.Plan, jobName string) (*plan.Job, error) {
+	for i := range planData.Jobs {
+		if planData.Jobs[i].Name == jobName {
+			return &planData.Jobs[i], nil
+		}
+	}
+	return nil, fmt.Errorf("job %q not found in plan", jobName)
+}
+
+// PlanNotFoundError represents an error when a Plan file is not found.
+// Task 6: Handle Plan file not found error
+func (h *DoingHandler) IsPlanNotFoundError(err error) bool {
+	if err == nil {
+		return false
+	}
+	return os.IsNotExist(err) || strings.Contains(err.Error(), "计划文件不存在")
+}
