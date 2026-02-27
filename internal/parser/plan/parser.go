@@ -340,20 +340,40 @@ func extractTasksFromContent(content string) []TaskItem {
 		taskContent = content
 	}
 
-	// Extract task items: "- [ ] Task N: description" or "- [x] Task N: description"
-	// Support "Task N:" or "TaskN:" formats
-	taskPattern := regexp.MustCompile(`(?im)^\s*[-*]\s*\[([ xX])\]\s*task\s*(\d+)[:：]\s*(.+)$`)
-	matches := taskPattern.FindAllStringSubmatch(taskContent, -1)
+	// Extract task items in two formats:
+	// 1. "- [ ] Task N: description" or "- [x] Task N: description" (with explicit index)
+	// 2. "- [ ] description" or "- [x] description" (auto-assign index)
 
-	for _, match := range matches {
-		if len(match) >= 4 {
-			var index int
-			fmt.Sscanf(match[2], "%d", &index)
-			tasks = append(tasks, TaskItem{
-				Index:       index,
-				Description: strings.TrimSpace(match[3]),
-				Completed:   strings.ToLower(match[1]) == "x",
-			})
+	// First try to match tasks with explicit index
+	taskWithIndexPattern := regexp.MustCompile(`(?im)^\s*[-*]\s*\[([ xX])\]\s*task\s*(\d+)[:：]\s*(.+)$`)
+	indexedMatches := taskWithIndexPattern.FindAllStringSubmatch(taskContent, -1)
+
+	if len(indexedMatches) > 0 {
+		// Use explicitly indexed tasks
+		for _, match := range indexedMatches {
+			if len(match) >= 4 {
+				var index int
+				fmt.Sscanf(match[2], "%d", &index)
+				tasks = append(tasks, TaskItem{
+					Index:       index,
+					Description: strings.TrimSpace(match[3]),
+					Completed:   strings.ToLower(match[1]) == "x",
+				})
+			}
+		}
+	} else {
+		// No explicitly indexed tasks found, try simple checkbox format
+		simpleTaskPattern := regexp.MustCompile(`(?im)^\s*[-*]\s*\[([ xX])\]\s*(.+)$`)
+		simpleMatches := simpleTaskPattern.FindAllStringSubmatch(taskContent, -1)
+
+		for i, match := range simpleMatches {
+			if len(match) >= 3 {
+				tasks = append(tasks, TaskItem{
+					Index:       i + 1, // Auto-assign 1-based index
+					Description: strings.TrimSpace(match[2]),
+					Completed:   strings.ToLower(match[1]) == "x",
+				})
+			}
 		}
 	}
 

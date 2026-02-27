@@ -36,10 +36,24 @@ type ResearchHandler struct {
 
 // NewResearchHandler creates a new ResearchHandler instance.
 func NewResearchHandler(cfg config.Manager, logger logging.Logger) *ResearchHandler {
+	// Create paths with config loader if available
+	var paths *config.Paths
+	if loader, ok := cfg.(*config.Loader); ok {
+		paths = config.NewPathsWithLoader(loader)
+		if os.Getenv("MORTY_DEBUG") != "" {
+			fmt.Fprintf(os.Stderr, "DEBUG: NewResearchHandler using Loader\n")
+		}
+	} else {
+		paths = config.NewPaths()
+		if os.Getenv("MORTY_DEBUG") != "" {
+			fmt.Fprintf(os.Stderr, "DEBUG: NewResearchHandler using NewPaths (cfg type: %T)\n", cfg)
+		}
+	}
+
 	return &ResearchHandler{
 		cfg:       cfg,
 		logger:    logger,
-		paths:     config.NewPaths(),
+		paths:     paths,
 		cliCaller: callcli.NewAICliCallerWithLoader(cfg),
 	}
 }
@@ -132,7 +146,15 @@ func (h *ResearchHandler) Execute(ctx context.Context, args []string) (*Research
 
 // loadResearchPrompt loads the research prompt from prompts/research.md.
 func (h *ResearchHandler) loadResearchPrompt() (string, error) {
+	if os.Getenv("MORTY_DEBUG") != "" {
+		fmt.Printf("DEBUG: loadResearchPrompt called\n")
+	}
+
 	promptPath := h.getResearchPromptPath()
+
+	if os.Getenv("MORTY_DEBUG") != "" {
+		fmt.Printf("DEBUG: loadResearchPrompt got path: %s\n", promptPath)
+	}
 
 	// Read the prompt file
 	content, err := os.ReadFile(promptPath)
@@ -145,15 +167,23 @@ func (h *ResearchHandler) loadResearchPrompt() (string, error) {
 
 // getResearchPromptPath returns the path to the research prompt file.
 func (h *ResearchHandler) getResearchPromptPath() string {
-	// First check if there's a config override
+	// Get prompts directory first
+	promptsDir := h.paths.GetPromptsDir()
+
+	// Check if there's a specific research prompt path configured
 	if h.cfg != nil {
 		if promptPath := h.cfg.GetString("prompts.research"); promptPath != "" {
-			return h.paths.GetAbsolutePath(promptPath)
+			// If it's an absolute path, use it directly
+			if filepath.IsAbs(promptPath) {
+				return promptPath
+			}
+			// If it's a relative path, resolve it relative to prompts dir
+			return filepath.Join(promptsDir, filepath.Base(promptPath))
 		}
 	}
 
-	// Default to prompts/research.md relative to prompts dir
-	return filepath.Join(h.paths.GetPromptsDir(), "research.md")
+	// Default to research.md in prompts directory
+	return filepath.Join(promptsDir, "research.md")
 }
 
 // buildClaudeCommand builds the Claude Code command arguments.
@@ -179,32 +209,34 @@ func (h *ResearchHandler) executeClaudeCode(ctx context.Context, topic, prompt s
 	// Build the full prompt with topic context
 	fullPrompt := fmt.Sprintf("# Research Topic: %s\n\n%s", topic, prompt)
 
-	logger.Info("Executing Claude Code",
+	logger.Info("Executing Claude Code in interactive mode",
 		logging.String("topic", topic),
 		logging.String("cli_path", h.cliCaller.GetCLIPath()),
 	)
 
-	// Create options for the call
+	// Research mode: use interactive mode (launch Claude Code UI)
+	// Pass prompt via stdin to avoid shell parsing issues
 	opts := callcli.Options{
-		Timeout: 0, // No timeout for interactive research
+		Timeout: 0,
+		Stdin:   fullPrompt, // Pass via stdin
 		Output: callcli.OutputConfig{
-			Mode: callcli.OutputStream, // Stream output for interactive mode
+			Mode: callcli.OutputStream, // Stream to terminal for interactive mode
 		},
 	}
 
-	// Build base args
+	// Build args for interactive mode: just --permission-mode plan
+	// Don't use -p flag (that's for non-interactive mode)
 	baseArgs := h.cliCaller.BuildArgs()
-
-	// Add permission mode plan
 	args := append([]string{"--permission-mode", "plan"}, baseArgs...)
-
-	// Add the prompt content
-	args = append(args, "-p", fullPrompt)
 
 	// Execute the command using the base caller
 	result, err := h.cliCaller.GetBaseCaller().CallWithOptions(ctx, h.cliCaller.GetCLIPath(), args, opts)
 
 	if err != nil {
+		// If result is nil, return error with exit code 1
+		if result == nil {
+			return 1, err
+		}
 		return result.ExitCode, err
 	}
 

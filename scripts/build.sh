@@ -218,6 +218,39 @@ verify_build() {
     fi
 }
 
+# Task 6.5: Copy prompts directory
+copy_prompts() {
+    log_info "Task 6.5: Copying prompt templates..."
+
+    # Determine prompts destination (next to binary)
+    local OUTPUT_DIR=$(dirname "$OUTPUT")
+    local PROMPTS_DEST="${OUTPUT_DIR}/prompts"
+
+    # Check if prompts source exists
+    if [ ! -d "./prompts" ]; then
+        log_warn "Prompts directory not found, skipping..."
+        return 0
+    fi
+
+    # Create prompts directory and copy files
+    mkdir -p "$PROMPTS_DEST"
+    cp -r ./prompts/* "$PROMPTS_DEST/" 2>/dev/null || true
+
+    # Verify key prompt files
+    local prompt_count=0
+    for prompt in research.md plan.md doing.md; do
+        if [ -f "${PROMPTS_DEST}/${prompt}" ]; then
+            ((prompt_count++))
+        fi
+    done
+
+    if [ $prompt_count -gt 0 ]; then
+        log_success "Copied ${prompt_count} prompt templates to ${PROMPTS_DEST}"
+    else
+        log_warn "No prompt files copied"
+    fi
+}
+
 # Task 7: Output build information
 output_info() {
     log_info "Task 7: Build information..."
@@ -254,6 +287,7 @@ main() {
     tidy_deps
     build_binary
     verify_build
+    copy_prompts
     output_info
 }
 

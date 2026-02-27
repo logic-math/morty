@@ -6,6 +6,7 @@ import (
 	"flag"
 	"fmt"
 	"os"
+	"path/filepath"
 	"runtime"
 	"time"
 
@@ -51,6 +52,47 @@ func main() {
 	// Get the command
 	command := os.Args[1]
 
+	// Load global configuration
+	// Try to load from multiple locations:
+	// 1) ~/.morty/config.json (user home)
+	// 2) <binary_dir>/../config.json (installation directory)
+	// 3) ./.morty/config.json (project local)
+	var cfgLoader *config.Loader
+
+	configPaths := []string{
+		os.ExpandEnv("${HOME}/.morty/config.json"),
+	}
+
+	// Add binary directory config path
+	if execPath, err := os.Executable(); err == nil {
+		binDir := filepath.Dir(execPath)
+		installDir := filepath.Dir(binDir)
+		configPaths = append(configPaths, filepath.Join(installDir, "config.json"))
+	}
+
+	configPaths = append(configPaths, "./.morty/config.json")
+
+	for _, configPath := range configPaths {
+		if _, err := os.Stat(configPath); err == nil {
+			cfgLoader = config.NewLoader()
+			if err := cfgLoader.Load(configPath); err == nil {
+				// Successfully loaded
+				// Debug: print loaded config path and prompts dir
+				if os.Getenv("MORTY_DEBUG") != "" {
+					fmt.Fprintf(os.Stderr, "DEBUG: Loaded config from: %s\n", configPath)
+					cfg := cfgLoader.Config()
+					if cfg != nil {
+						fmt.Fprintf(os.Stderr, "DEBUG: Config.Prompts.Dir = %q\n", cfg.Prompts.Dir)
+					} else {
+						fmt.Fprintf(os.Stderr, "DEBUG: Config is nil!\n")
+					}
+				}
+				break
+			}
+			cfgLoader = nil
+		}
+	}
+
 	// Setup logging
 	logger, _, err := logging.NewLoggerFromConfig(&config.LoggingConfig{
 		Level:  "info",
@@ -62,16 +104,22 @@ func main() {
 		os.Exit(1)
 	}
 
-	cfg := config.NewPaths()
+	// Create paths with config loader
+	var cfg *config.Paths
+	if cfgLoader != nil {
+		cfg = config.NewPathsWithLoader(cfgLoader)
+	} else {
+		cfg = config.NewPaths()
+	}
 
 	// Route to appropriate handler
 	switch command {
 	case "research":
-		handleResearch(cfg, logger, os.Args[2:])
+		handleResearch(cfg, cfgLoader, logger, os.Args[2:])
 	case "plan":
-		handlePlan(cfg, logger, os.Args[2:])
+		handlePlan(cfg, cfgLoader, logger, os.Args[2:])
 	case "doing":
-		handleDoing(cfg, logger, os.Args[2:])
+		handleDoing(cfg, cfgLoader, logger, os.Args[2:])
 	case "stat", "status":
 		handleStat(cfg, logger, os.Args[2:])
 	case "reset":
@@ -119,7 +167,7 @@ func printVersion() {
 	fmt.Println(string(data))
 }
 
-func handleResearch(cfg *config.Paths, logger logging.Logger, args []string) {
+func handleResearch(cfg *config.Paths, cfgLoader *config.Loader, logger logging.Logger, args []string) {
 	fs := flag.NewFlagSet("research", flag.ExitOnError)
 	help := fs.Bool("help", false, "Show help")
 	fs.Parse(args)
@@ -134,8 +182,14 @@ func handleResearch(cfg *config.Paths, logger logging.Logger, args []string) {
 		os.Exit(0)
 	}
 
-	// Create a simple config manager wrapper
-	cfgMgr := &pathsConfigManager{paths: cfg}
+	// Use loader if available, otherwise use paths wrapper
+	var cfgMgr config.Manager
+	if cfgLoader != nil {
+		cfgMgr = cfgLoader
+	} else {
+		cfgMgr = &pathsConfigManager{paths: cfg}
+	}
+
 	handler := cmd.NewResearchHandler(cfgMgr, logger)
 	ctx := context.Background()
 
@@ -148,7 +202,7 @@ func handleResearch(cfg *config.Paths, logger logging.Logger, args []string) {
 	fmt.Println("✓ Research completed")
 }
 
-func handlePlan(cfg *config.Paths, logger logging.Logger, args []string) {
+func handlePlan(cfg *config.Paths, cfgLoader *config.Loader, logger logging.Logger, args []string) {
 	fs := flag.NewFlagSet("plan", flag.ExitOnError)
 	help := fs.Bool("help", false, "Show help")
 	_ = fs.String("module", "", "Target module name") // reserved for future use
@@ -164,7 +218,13 @@ func handlePlan(cfg *config.Paths, logger logging.Logger, args []string) {
 		os.Exit(0)
 	}
 
-	cfgMgr := &pathsConfigManager{paths: cfg}
+	// Use loader if available, otherwise use paths wrapper
+	var cfgMgr config.Manager
+	if cfgLoader != nil {
+		cfgMgr = cfgLoader
+	} else {
+		cfgMgr = &pathsConfigManager{paths: cfg}
+	}
 
 	// Plan handler requires an executor parameter
 	var executor interface{} // TODO: create actual executor if needed
@@ -180,7 +240,7 @@ func handlePlan(cfg *config.Paths, logger logging.Logger, args []string) {
 	fmt.Println("✓ Plan completed")
 }
 
-func handleDoing(cfg *config.Paths, logger logging.Logger, args []string) {
+func handleDoing(cfg *config.Paths, cfgLoader *config.Loader, logger logging.Logger, args []string) {
 	fs := flag.NewFlagSet("doing", flag.ExitOnError)
 	help := fs.Bool("help", false, "Show help")
 	restart := fs.Bool("restart", false, "Restart mode")
@@ -200,7 +260,14 @@ func handleDoing(cfg *config.Paths, logger logging.Logger, args []string) {
 		os.Exit(0)
 	}
 
-	cfgMgr := &pathsConfigManager{paths: cfg}
+	// Use loader if available, otherwise use paths wrapper
+	var cfgMgr config.Manager
+	if cfgLoader != nil {
+		cfgMgr = cfgLoader
+	} else {
+		cfgMgr = &pathsConfigManager{paths: cfg}
+	}
+
 	handler := cmd.NewDoingHandler(cfgMgr, logger)
 	ctx := context.Background()
 

@@ -276,3 +276,87 @@ func (m *Manager) GetPendingJobs() []JobRef {
 
 	return pending
 }
+
+// UpdateTaskStatus updates the status of a specific task within a job.
+func (m *Manager) UpdateTaskStatus(module, job string, taskIndex int, status Status) error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	if m.state == nil {
+		return errors.New("M2001", "state not loaded")
+	}
+
+	// Get the module
+	moduleState, ok := m.state.Modules[module]
+	if !ok {
+		return errors.New("M2002", "module not found").
+			WithDetail("module", module)
+	}
+
+	// Get the job
+	jobState, ok := moduleState.Jobs[job]
+	if !ok {
+		return errors.New("M2003", "job not found").
+			WithDetail("module", module).
+			WithDetail("job", job)
+	}
+
+	// Validate task index (array index, 0-based)
+	if taskIndex < 0 || taskIndex >= len(jobState.Tasks) {
+		return errors.New("M2004", "task index out of range").
+			WithDetail("module", module).
+			WithDetail("job", job).
+			WithDetail("task_index", taskIndex).
+			WithDetail("tasks_total", len(jobState.Tasks))
+	}
+
+	// Update the task (taskIndex is array index, 0-based)
+	jobState.Tasks[taskIndex].Status = status
+	jobState.Tasks[taskIndex].UpdatedAt = time.Now()
+
+	// Update job's updated_at timestamp
+	jobState.UpdatedAt = time.Now()
+
+	// Save the state
+	m.mu.Unlock()
+	err := m.Save()
+	m.mu.Lock()
+
+	return err
+}
+
+// UpdateTasksCompleted updates the tasks_completed count for a job.
+func (m *Manager) UpdateTasksCompleted(module, job string, count int) error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	if m.state == nil {
+		return errors.New("M2001", "state not loaded")
+	}
+
+	// Get the module
+	moduleState, ok := m.state.Modules[module]
+	if !ok {
+		return errors.New("M2002", "module not found").
+			WithDetail("module", module)
+	}
+
+	// Get the job
+	jobState, ok := moduleState.Jobs[job]
+	if !ok {
+		return errors.New("M2003", "job not found").
+			WithDetail("module", module).
+			WithDetail("job", job)
+	}
+
+	// Update tasks_completed count
+	jobState.TasksCompleted = count
+	jobState.UpdatedAt = time.Now()
+
+	// Save the state
+	m.mu.Unlock()
+	err := m.Save()
+	m.mu.Lock()
+
+	return err
+}

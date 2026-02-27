@@ -221,14 +221,43 @@ func (p *Paths) SanitizePath(path string) string {
 
 // GetPromptsDir returns the prompts directory path.
 func (p *Paths) GetPromptsDir() string {
+	if os.Getenv("MORTY_DEBUG") != "" {
+		fmt.Printf("DEBUG: GetPromptsDir called, loader=%v, promptsDir=%q\n", p.loader != nil, p.promptsDir)
+		if p.loader != nil {
+			cfg := p.loader.Config()
+			fmt.Printf("DEBUG:   loader.Config()=%v\n", cfg != nil)
+			if cfg != nil {
+				fmt.Printf("DEBUG:   Config().Prompts.Dir=%q\n", cfg.Prompts.Dir)
+			}
+		}
+	}
+
 	// If custom prompts dir is set, use it
 	if p.promptsDir != "" {
-		return p.resolvePath(p.promptsDir)
+		result := p.resolvePath(p.promptsDir)
+		if os.Getenv("MORTY_DEBUG") != "" {
+			fmt.Printf("DEBUG: GetPromptsDir from promptsDir: %s\n", result)
+		}
+		return result
 	}
-	if p.loader != nil && p.loader.config != nil && p.loader.config.Prompts.Dir != "" {
-		return p.resolvePath(p.loader.config.Prompts.Dir)
+
+	// Use loader.Config() method instead of accessing field directly
+	if p.loader != nil {
+		cfg := p.loader.Config()
+		if cfg != nil && cfg.Prompts.Dir != "" {
+			result := p.resolvePath(cfg.Prompts.Dir)
+			if os.Getenv("MORTY_DEBUG") != "" {
+				fmt.Printf("DEBUG: GetPromptsDir from config: %s (original: %s)\n", result, cfg.Prompts.Dir)
+			}
+			return result
+		}
 	}
-	return p.resolvePath(DefaultPromptsDir)
+
+	result := p.resolvePath(DefaultPromptsDir)
+	if os.Getenv("MORTY_DEBUG") != "" {
+		fmt.Printf("DEBUG: GetPromptsDir from default: %s\n", result)
+	}
+	return result
 }
 
 // SetPromptsDir sets a custom prompts directory.

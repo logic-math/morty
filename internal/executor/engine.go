@@ -6,8 +6,10 @@ package executor
 import (
 	"context"
 	"fmt"
+	"os"
 	"path/filepath"
 
+	"github.com/morty/morty/internal/callcli"
 	"github.com/morty/morty/internal/git"
 	"github.com/morty/morty/internal/logging"
 	"github.com/morty/morty/internal/state"
@@ -39,6 +41,10 @@ type Config struct {
 	CommitPrefix string
 	// WorkingDir is the working directory for Git operations.
 	WorkingDir string
+	// PromptsDir is the directory containing prompt templates.
+	PromptsDir string
+	// PlanDir is the directory containing plan files.
+	PlanDir string
 }
 
 // DefaultConfig returns the default executor configuration.
@@ -77,6 +83,7 @@ type engine struct {
 	gitManager   *git.Manager
 	logger       logging.Logger
 	config       *Config
+	cliCaller    callcli.AICliCaller
 }
 
 // NewEngine creates a new execution engine with the given dependencies.
@@ -85,6 +92,7 @@ func NewEngine(
 	gitManager *git.Manager,
 	logger logging.Logger,
 	config *Config,
+	cliCaller callcli.AICliCaller,
 ) Engine {
 	if config == nil {
 		config = DefaultConfig()
@@ -94,6 +102,7 @@ func NewEngine(
 		gitManager:   gitManager,
 		logger:       logger,
 		config:       config,
+		cliCaller:    cliCaller,
 	}
 }
 
@@ -216,8 +225,45 @@ func (e *engine) ExecuteTask(ctx context.Context, module, job string, taskIndex 
 		logging.String("task_desc", taskDesc),
 	)
 
-	// This is a basic implementation that marks the task as completed.
-	// In a full implementation, this would call the AI CLI through the TaskRunner.
+	// Build the prompt for this task
+	prompt, err := e.buildTaskPrompt(module, job, taskIndex, taskDesc)
+	if err != nil {
+		return fmt.Errorf("failed to build task prompt: %w", err)
+	}
+
+	// Execute the task using AI CLI (doing mode - non-interactive)
+	opts := callcli.Options{
+		Timeout:    0, // No timeout for task execution
+		Stdin:      prompt,
+		WorkingDir: e.config.WorkingDir,
+		Output: callcli.OutputConfig{
+			Mode: callcli.OutputStream, // Stream output to terminal
+		},
+	}
+
+	// Build args for non-interactive mode (doing)
+	// Use bypassPermissions mode for automated execution
+	baseArgs := e.cliCaller.BuildArgs()
+	args := append([]string{"--permission-mode", "bypassPermissions", "-p"}, baseArgs...)
+
+	// Execute the command
+	result, err := e.cliCaller.GetBaseCaller().CallWithOptions(ctx, e.cliCaller.GetCLIPath(), args, opts)
+
+	if err != nil {
+		e.logger.Error("Task execution failed",
+			logging.String("module", module),
+			logging.String("job", job),
+			logging.Int("task_index", taskIndex),
+			logging.String("error", err.Error()),
+		)
+		return fmt.Errorf("task execution failed: %w", err)
+	}
+
+	if result.ExitCode != 0 {
+		return fmt.Errorf("task execution failed with exit code %d: %s", result.ExitCode, result.Stderr)
+	}
+
+	// Mark task as completed
 	return e.markTaskCompleted(module, job, taskIndex)
 }
 
@@ -337,28 +383,26 @@ func (e *engine) executeTasks(ctx context.Context, module, job string) (int, err
 
 // markTaskCompleted marks a single task as completed.
 func (e *engine) markTaskCompleted(module, job string, taskIndex int) error {
-	// This would typically be implemented by accessing the state directly
-	// For now, we use the UpdateJobStatus which saves the state
-	// In a full implementation, this would update individual task status
 	e.logger.Debug("Task marked as completed",
 		logging.String("module", module),
 		logging.String("job", job),
 		logging.Int("task_index", taskIndex),
 	)
-	return nil
+
+	// Update the task status in state manager
+	return e.stateManager.UpdateTaskStatus(module, job, taskIndex, state.StatusCompleted)
 }
 
 // updateTasksCompleted updates the count of completed tasks for a job.
 func (e *engine) updateTasksCompleted(module, job string, count int) error {
-	// Note: In the current state.Manager, we don't have a direct method
-	// to update TasksCompleted. This would need to be added or we access
-	// the state directly. For now, we log the progress.
 	e.logger.Debug("Tasks completed updated",
 		logging.String("module", module),
 		logging.String("job", job),
 		logging.Int("completed", count),
 	)
-	return nil
+
+	// Update tasks_completed count in state
+	return e.stateManager.UpdateTasksCompleted(module, job, count)
 }
 
 // updateFailureReason updates the failure reason for a job.
@@ -441,6 +485,43 @@ func (e *engine) createGitCommitUsingCommitter(module, job string) error {
 	)
 
 	return nil
+}
+
+// buildTaskPrompt builds the prompt for executing a task.
+func (e *engine) buildTaskPrompt(module, job string, taskIndex int, taskDesc string) (string, error) {
+	// Load the doing prompt template
+	doingPromptPath := filepath.Join(e.config.PromptsDir, "doing.md")
+	promptTemplate, err := os.ReadFile(doingPromptPath)
+	if err != nil {
+		return "", fmt.Errorf("failed to read doing prompt: %w", err)
+	}
+
+	// Load the plan file for context
+	planFilePath := filepath.Join(e.config.PlanDir, module+".md")
+	planContent, err := os.ReadFile(planFilePath)
+	if err != nil {
+		return "", fmt.Errorf("failed to read plan file: %w", err)
+	}
+
+	// Build the full prompt
+	prompt := fmt.Sprintf(`%s
+
+# Current Task
+
+**Module**: %s
+**Job**: %s
+**Task %d**: %s
+
+# Plan Context
+
+%s
+
+# Instructions
+
+Please execute the task described above. Follow the doing prompt template and ensure all validation criteria are met.
+`, string(promptTemplate), module, job, taskIndex+1, taskDesc, string(planContent))
+
+	return prompt, nil
 }
 
 // Ensure engine implements Engine interface

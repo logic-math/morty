@@ -118,6 +118,10 @@ create_directories() {
 install_binary() {
     print_info "Installing Morty binary..."
 
+    # 获取脚本所在目录
+    local SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+    local PROJECT_ROOT="$(dirname "$SCRIPT_DIR")"
+
     if [ -n "$FROM_DIST" ]; then
         # 从预编译包安装
         if [ ! -f "$FROM_DIST" ]; then
@@ -126,34 +130,97 @@ install_binary() {
         fi
         cp "$FROM_DIST" "${BIN_DIR}/morty"
         print_success "Binary copied from ${FROM_DIST}"
-    elif [ -f "./bin/morty" ]; then
+    elif [ -f "${PROJECT_ROOT}/bin/morty" ]; then
         # 从项目 bin/ 目录复制
+        cp "${PROJECT_ROOT}/bin/morty" "${BIN_DIR}/morty"
+        print_success "Binary copied from ${PROJECT_ROOT}/bin/morty"
+    elif [ -f "./bin/morty" ]; then
+        # 从当前目录 bin/ 复制
         cp "./bin/morty" "${BIN_DIR}/morty"
         print_success "Binary copied from ./bin/morty"
-    elif [ -f "./scripts/build.sh" ]; then
+    elif [ -f "${PROJECT_ROOT}/scripts/build.sh" ]; then
         # 现场编译
+        print_info "Compiling from source..."
+        cd "$PROJECT_ROOT"
+        ./scripts/build.sh --output "${BIN_DIR}/morty"
+        print_success "Binary compiled successfully"
+    elif [ -f "./scripts/build.sh" ]; then
+        # 从当前目录编译
         print_info "Compiling from source..."
         ./scripts/build.sh --output "${BIN_DIR}/morty"
         print_success "Binary compiled successfully"
     else
         print_error "No binary found and no build script available"
+        print_error "Searched: ${PROJECT_ROOT}/bin/morty, ./bin/morty"
         exit 1
     fi
 
     chmod +x "${BIN_DIR}/morty"
 }
 
+# 复制 prompts 目录
+install_prompts() {
+    print_info "Installing prompt templates..."
+
+    local PROMPTS_DIR="${INSTALL_DIR}/prompts"
+    mkdir -p "${PROMPTS_DIR}"
+
+    # 获取脚本所在目录
+    local SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+    local PROJECT_ROOT="$(dirname "$SCRIPT_DIR")"
+
+    # 查找 prompts 源目录（优先使用项目根目录的 prompts）
+    local SOURCE_PROMPTS=""
+    if [ -d "${PROJECT_ROOT}/prompts" ]; then
+        SOURCE_PROMPTS="${PROJECT_ROOT}/prompts"
+    elif [ -d "./prompts" ]; then
+        SOURCE_PROMPTS="./prompts"
+    elif [ -d "../prompts" ]; then
+        SOURCE_PROMPTS="../prompts"
+    else
+        print_warning "Prompts directory not found, skipping..."
+        return 0
+    fi
+
+    # 复制所有 prompt 文件
+    if [ -d "$SOURCE_PROMPTS" ]; then
+        cp -r "$SOURCE_PROMPTS"/* "${PROMPTS_DIR}/" 2>/dev/null || true
+
+        # 验证关键 prompt 文件
+        local required_prompts=("research.md" "plan.md" "doing.md")
+        local missing_count=0
+
+        for prompt in "${required_prompts[@]}"; do
+            if [ ! -f "${PROMPTS_DIR}/${prompt}" ]; then
+                print_warning "Missing prompt file: ${prompt}"
+                ((missing_count++))
+            fi
+        done
+
+        if [ $missing_count -eq 0 ]; then
+            print_success "Prompt templates installed to ${PROMPTS_DIR}"
+        else
+            print_warning "Some prompt files are missing (${missing_count}/${#required_prompts[@]})"
+        fi
+    else
+        print_warning "No prompts to install"
+    fi
+}
+
 # 创建默认配置
 create_config() {
     print_info "Creating default configuration..."
 
-    cat > "${INSTALL_DIR}/config.json" << 'EOF'
+    cat > "${INSTALL_DIR}/config.json" << EOF
 {
   "version": "2.0",
   "ai_cli": {
     "command": "claude",
     "default_timeout": "10m",
     "enable_skip_permissions": true
+  },
+  "prompts": {
+    "dir": "${INSTALL_DIR}/prompts"
   },
   "logging": {
     "level": "info",
@@ -227,6 +294,7 @@ show_success_message() {
     echo "Installation directory: ${INSTALL_DIR}"
     echo "Binary location: ${BIN_DIR}/morty"
     echo "Configuration: ${INSTALL_DIR}/config.json"
+    echo "Prompts directory: ${INSTALL_DIR}/prompts"
     echo
     echo "Usage:"
     echo "  morty -version     Show version"
@@ -253,6 +321,7 @@ main() {
     check_existing
     create_directories
     install_binary
+    install_prompts
     create_config
     configure_path
     verify_installation

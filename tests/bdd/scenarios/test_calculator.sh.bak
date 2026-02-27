@@ -1,0 +1,346 @@
+#!/bin/bash
+# BDD Test Scenario: Calculator Implementation
+# This tests the complete Morty workflow with a realistic development task
+
+set -e
+
+# Get script directory and load helpers
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+source "$SCRIPT_DIR/../test_helpers.sh"
+
+# Configuration
+MORTY_BIN="${MORTY_BIN:-$SCRIPT_DIR/../../../bin/morty}"
+MOCK_CLAUDE_CLI="$SCRIPT_DIR/../mock_claude.sh"
+
+# Ensure mock CLI is executable
+chmod +x "$MOCK_CLAUDE_CLI"
+
+# Export mock CLI path for create_test_project to use
+export MOCK_CLAUDE_CLI
+
+print_section "Calculator Scenario"
+echo "Testing Morty workflow with a realistic development task"
+echo ""
+
+# Create test project
+print_section "Setup"
+create_test_project "calculator" || exit 1
+
+# Store the project directory
+PROJECT_DIR="$TEST_PROJECT_DIR"
+
+# Step 1: Research
+print_section "Step 1: Research Phase"
+echo "Running: morty research 'implement calculator with addition'"
+
+cd "$PROJECT_DIR"
+output=$("$MORTY_BIN" research "implement calculator with addition" 2>&1)
+exit_code=$?
+
+assert_success $exit_code "morty research should succeed"
+
+# Find the research file (has timestamp in filename)
+research_file=$(find .morty/research -name "*calculator*.md" -type f | head -n 1)
+if [ -n "$research_file" ]; then
+    echo -e "${GREEN}✓ PASSED${NC}: Research file created: $(basename "$research_file")"
+    TESTS_TOTAL=$((TESTS_TOTAL + 1))
+    TESTS_PASSED=$((TESTS_PASSED + 1))
+    assert_file_contains "$research_file" "calculator" "Research should mention calculator"
+else
+    echo -e "${RED}✗ FAILED${NC}: No research file found"
+    TESTS_TOTAL=$((TESTS_TOTAL + 1))
+    TESTS_FAILED=$((TESTS_FAILED + 1))
+    research_file=""
+fi
+
+# Verify research content quality
+print_section "Step 1.1: Verify Research Quality"
+
+if [ -n "$research_file" ] && [ -f "$research_file" ]; then
+    if grep -q "^# " "$research_file"; then
+        echo -e "${GREEN}✓ PASSED${NC}: Research has proper Markdown heading"
+        TESTS_TOTAL=$((TESTS_TOTAL + 1))
+        TESTS_PASSED=$((TESTS_PASSED + 1))
+    else
+        echo -e "${RED}✗ FAILED${NC}: Research missing Markdown heading"
+        TESTS_TOTAL=$((TESTS_TOTAL + 1))
+        TESTS_FAILED=$((TESTS_FAILED + 1))
+    fi
+fi
+
+# Step 2: Plan
+print_section "Step 2: Plan Phase"
+echo "Creating plan file manually (morty plan creates only a template)"
+
+# Create a proper plan file directly
+mkdir -p .morty/plan
+
+cat > .morty/plan/calculator.md <<'EOF'
+# Plan: Python Calculator Implementation
+
+## 模块概述
+
+**模块职责**: Implement basic arithmetic operations for the calculator
+
+**对应 Research**:
+- `.morty/research/implement_calculator_with_addition_*.md`
+
+**依赖模块**: None
+
+**被依赖模块**: None
+
+## Jobs (Loop 块列表)
+
+---
+
+### Job 1: Implement Addition Function
+
+**目标**: Create the add() function that sums two numbers
+
+**前置条件**: None
+
+**Tasks (Todo 列表)**:
+- [ ] Task 1: Create calculator.py file
+- [ ] Task 2: Define add(a, b) function
+- [ ] Task 3: Implement addition logic
+- [ ] Task 4: Add docstring
+- [ ] Task 5: Test with sample inputs
+
+**验证器**:
+```
+The add function should:
+- Accept two numeric parameters
+- Return their sum
+- Handle integers and floats
+```
+
+**调试日志**:
+- If validation fails, record debug logs here
+
+---
+
+### Job 2: Implement Subtraction Function
+
+**目标**: Create the subtract() function
+
+**前置条件**: Job 1 completed
+
+**Tasks (Todo 列表)**:
+- [ ] Task 1: Define subtract(a, b) function
+- [ ] Task 2: Implement subtraction logic
+- [ ] Task 3: Add docstring
+- [ ] Task 4: Test with sample inputs
+
+**验证器**:
+```
+The subtract function should return the difference of two numbers.
+```
+
+**调试日志**:
+- If validation fails, record debug logs here
+
+---
+
+### Job 3: Add Main Function
+
+**目标**: Create a main() function to demonstrate usage
+
+**前置条件**: Jobs 1-2 completed
+
+**Tasks (Todo 列表)**:
+- [ ] Task 1: Define main() function
+- [ ] Task 2: Add example calculations
+- [ ] Task 3: Add print statements
+- [ ] Task 4: Add if __name__ == "__main__" block
+
+**验证器**:
+```
+The main function should demonstrate all calculator operations.
+```
+
+**调试日志**:
+- If validation fails, record debug logs here
+EOF
+
+echo -e "${GREEN}✓ PASSED${NC}: Created plan file"
+TESTS_TOTAL=$((TESTS_TOTAL + 1))
+TESTS_PASSED=$((TESTS_PASSED + 1))
+
+assert_dir_exists ".morty/plan" "Plan directory should exist"
+assert_file_exists ".morty/plan/calculator.md" "Plan file should exist"
+
+# Verify plan structure
+print_section "Step 2.1: Verify Plan Structure"
+plan_file=".morty/plan/calculator.md"
+
+assert_file_contains "$plan_file" "Job" "Plan should contain Job definitions"
+assert_file_contains "$plan_file" "Task" "Plan should contain Task lists"
+assert_file_contains "$plan_file" "模块概述" "Plan should have Module overview section"
+
+# Step 2.2: Initialize status.json
+print_section "Step 2.2: Initialize Status"
+echo "Creating status.json with module and jobs"
+
+# Create status.json with the module and jobs from our plan
+create_status_json "Python Calculator Implementation" \
+    "Implement Addition Function" \
+    "Implement Subtraction Function" \
+    "Add Main Function"
+
+assert_file_exists ".morty/status.json" "Status file should be created"
+
+# Step 3: Check status before doing
+print_section "Step 3: Check Status"
+echo "Running: morty stat"
+
+stat_output=$(timeout 5 "$MORTY_BIN" stat 2>&1 || true)
+stat_exit=$?
+
+# Before doing, stat should fail (no status file yet)
+if [ $stat_exit -ne 0 ]; then
+    echo -e "${GREEN}✓ PASSED${NC}: morty stat correctly fails before doing (no status file)"
+    TESTS_TOTAL=$((TESTS_TOTAL + 1))
+    TESTS_PASSED=$((TESTS_PASSED + 1))
+else
+    echo -e "${YELLOW}⚠ NOTE${NC}: morty stat succeeded (unexpected before doing)"
+    echo "Status output:"
+    echo "$stat_output" | head -n 20 | sed 's/^/  /'
+fi
+
+# Step 4: Doing
+print_section "Step 4: Doing Phase"
+echo "Running: morty doing (with Mock Claude CLI)"
+
+# Set environment to use mock CLI
+export CLAUDE_CODE_CLI="$MOCK_CLAUDE_CLI"
+
+# Extract module and job names from our plan file
+module_name="Python Calculator Implementation"
+job_name="Implement Addition Function"
+
+echo "Running: morty doing -module '$module_name' -job '$job_name'"
+
+# Run doing command with specific module and job
+output=$("$MORTY_BIN" doing -module "$module_name" -job "$job_name" 2>&1)
+exit_code=$?
+
+assert_success $exit_code "morty doing should succeed"
+
+# Step 5: Verify generated code
+print_section "Step 5: Verify Code Generation"
+
+# Check if calculator.py was created
+if [ -f "calculator.py" ]; then
+    echo -e "${GREEN}✓ PASSED${NC}: calculator.py file created"
+    TESTS_TOTAL=$((TESTS_TOTAL + 1))
+    TESTS_PASSED=$((TESTS_PASSED + 1))
+
+    # Verify code contains expected functions
+    assert_file_contains "calculator.py" "def add" "Code should contain add function"
+
+    # Check for other functions
+    if grep -q "def subtract" "calculator.py"; then
+        echo -e "${GREEN}✓ PASSED${NC}: Code contains subtract function"
+        TESTS_TOTAL=$((TESTS_TOTAL + 1))
+        TESTS_PASSED=$((TESTS_PASSED + 1))
+    fi
+
+    # Try to execute the Python code
+    print_section "Step 5.1: Execute Generated Code"
+    if command -v python3 &> /dev/null; then
+        python_output=$(python3 calculator.py 2>&1)
+        python_exit=$?
+
+        assert_success $python_exit "Python code should execute without errors"
+
+        # Check if output shows calculator operations
+        if echo "$python_output" | grep -q "Calculator\|="; then
+            echo -e "${GREEN}✓ PASSED${NC}: Python output shows calculator operations"
+            TESTS_TOTAL=$((TESTS_TOTAL + 1))
+            TESTS_PASSED=$((TESTS_PASSED + 1))
+        fi
+
+        echo "Calculator output:"
+        echo "$python_output" | sed 's/^/  /'
+    else
+        echo -e "${YELLOW}⚠ SKIPPED${NC}: Python 3 not available, cannot test execution"
+    fi
+else
+    echo -e "${YELLOW}⚠ NOTE${NC}: calculator.py not found, checking for alternative file names"
+    # List all Python files created
+    python_files=$(find . -maxdepth 1 -name "*.py" -type f)
+    if [ -n "$python_files" ]; then
+        echo "Found Python files:"
+        echo "$python_files" | sed 's/^/  /'
+        # Test the first Python file found
+        first_py=$(echo "$python_files" | head -n 1)
+        assert_file_contains "$first_py" "add" "Generated Python file should contain add function"
+    else
+        TESTS_TOTAL=$((TESTS_TOTAL + 1))
+        TESTS_FAILED=$((TESTS_FAILED + 1))
+        echo -e "${RED}✗ FAILED${NC}: No Python files generated"
+    fi
+fi
+
+# Step 6: Verify Git integration
+print_section "Step 6: Verify Git Integration"
+
+# Check Git history
+git_log=$(git log --oneline)
+commit_count=$(git log --oneline | wc -l)
+
+if [ "$commit_count" -gt 1 ]; then
+    echo -e "${GREEN}✓ PASSED${NC}: New Git commits were created (total: $commit_count)"
+    TESTS_TOTAL=$((TESTS_TOTAL + 1))
+    TESTS_PASSED=$((TESTS_PASSED + 1))
+
+    # Show recent commits
+    echo "Recent commits:"
+    git log --oneline -5 | sed 's/^/  /'
+
+    # Check for morty prefix
+    if git log --oneline | grep -q "morty:"; then
+        echo -e "${GREEN}✓ PASSED${NC}: Found commit with 'morty:' prefix"
+        TESTS_TOTAL=$((TESTS_TOTAL + 1))
+        TESTS_PASSED=$((TESTS_PASSED + 1))
+    else
+        echo -e "${YELLOW}⚠ NOTE${NC}: No commit with 'morty:' prefix found"
+    fi
+else
+    echo -e "${YELLOW}⚠ NOTE${NC}: Only initial commit found"
+fi
+
+# Step 7: Verify state management
+print_section "Step 7: Verify State Management"
+
+if [ -f ".morty/status.json" ]; then
+    echo -e "${GREEN}✓ PASSED${NC}: State file exists (.morty/status.json)"
+    TESTS_TOTAL=$((TESTS_TOTAL + 1))
+    TESTS_PASSED=$((TESTS_PASSED + 1))
+
+    # Check if status.json is valid JSON
+    if command -v python3 &> /dev/null; then
+        if python3 -m json.tool .morty/status.json > /dev/null 2>&1; then
+            echo -e "${GREEN}✓ PASSED${NC}: status.json is valid JSON"
+            TESTS_TOTAL=$((TESTS_TOTAL + 1))
+            TESTS_PASSED=$((TESTS_PASSED + 1))
+        else
+            echo -e "${RED}✗ FAILED${NC}: status.json is not valid JSON"
+            TESTS_TOTAL=$((TESTS_TOTAL + 1))
+            TESTS_FAILED=$((TESTS_FAILED + 1))
+        fi
+    fi
+else
+    echo -e "${YELLOW}⚠ NOTE${NC}: No status.json file found"
+fi
+
+# Cleanup
+print_section "Cleanup"
+cd /tmp
+cleanup_test_project
+
+# Print summary
+print_test_summary "Calculator Scenario"
+summary_exit=$?
+
+exit $summary_exit

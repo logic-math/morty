@@ -6,6 +6,8 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"regexp"
+	"sort"
 	"strings"
 	"time"
 
@@ -42,11 +44,25 @@ type DoingHandler struct {
 
 // NewDoingHandler creates a new DoingHandler instance.
 func NewDoingHandler(cfg config.Manager, logger logging.Logger) *DoingHandler {
-	paths := config.NewPaths()
+	// Create paths with config loader if available
+	var paths *config.Paths
+	if loader, ok := cfg.(*config.Loader); ok {
+		paths = config.NewPathsWithLoader(loader)
+		if os.Getenv("MORTY_DEBUG") != "" {
+			fmt.Fprintf(os.Stderr, "DEBUG: NewDoingHandler using Loader\n")
+		}
+	} else {
+		paths = config.NewPaths()
+		if os.Getenv("MORTY_DEBUG") != "" {
+			fmt.Fprintf(os.Stderr, "DEBUG: NewDoingHandler using NewPaths (cfg type: %T)\n", cfg)
+		}
+	}
+
 	// Set workDir from config if available
 	if cfg != nil && cfg.GetWorkDir() != "" {
 		paths.SetWorkDir(cfg.GetWorkDir())
 	}
+
 	return &DoingHandler{
 		cfg:       cfg,
 		logger:    logger,
@@ -124,12 +140,70 @@ func (h *DoingHandler) Execute(ctx context.Context, args []string) (*DoingResult
 	// Step 3: Select target job
 	targetModule, targetJob, err := h.selectTargetJob(moduleName, jobName)
 	if err != nil {
+		// If module not found, try to sync from plan directory
+		if strings.Contains(err.Error(), "模块不存在") && moduleName != "" {
+			logger.Info("Module not found in state, attempting to sync from plan",
+				logging.String("module", moduleName),
+			)
+
+			// Try to sync this specific module from plan
+			if syncErr := h.stateManager.SyncModuleFromPlan(planDir, moduleName); syncErr != nil {
+				logger.Warn("Failed to sync module from plan",
+					logging.String("module", moduleName),
+					logging.String("error", syncErr.Error()),
+				)
+			} else {
+				logger.Info("Successfully synced module from plan",
+					logging.String("module", moduleName),
+				)
+
+				// Retry selecting target job
+				targetModule, targetJob, err = h.selectTargetJob(moduleName, jobName)
+				if err != nil {
+					result.Err = err
+					result.ExitCode = 1
+					result.Duration = time.Since(startTime)
+					logger.Error("Failed to select target job after sync", logging.String("error", err.Error()))
+					return result, result.Err
+				}
+				// Success! Continue with the synced module
+				goto jobSelected
+			}
+		}
+
+		// If no module specified, try to sync all modules from plan
+		if strings.Contains(err.Error(), "没有待执行的 Job") {
+			logger.Info("No pending jobs found, attempting to sync all modules from plan")
+
+			if syncErr := h.stateManager.SyncFromPlanDir(planDir); syncErr != nil {
+				logger.Warn("Failed to sync from plan directory",
+					logging.String("error", syncErr.Error()),
+				)
+			} else {
+				logger.Info("Successfully synced modules from plan directory")
+
+				// Retry selecting target job
+				targetModule, targetJob, err = h.selectTargetJob(moduleName, jobName)
+				if err != nil {
+					result.Err = err
+					result.ExitCode = 1
+					result.Duration = time.Since(startTime)
+					logger.Error("Failed to select target job after sync", logging.String("error", err.Error()))
+					return result, result.Err
+				}
+				// Success! Continue
+				goto jobSelected
+			}
+		}
+
 		result.Err = err
 		result.ExitCode = 1
 		result.Duration = time.Since(startTime)
 		logger.Error("Failed to select target job", logging.String("error", err.Error()))
 		return result, result.Err
 	}
+
+jobSelected:
 
 	result.ModuleName = targetModule
 	result.JobName = targetJob
@@ -484,8 +558,8 @@ func (h *DoingHandler) calculateModuleStatus(module *state.ModuleState) state.St
 
 // selectTargetJob selects the target job to execute.
 // Task 3: Implement selectTargetJob() to select target Job
-// - If no params: find first PENDING job across all modules
-// - If module specified: find first PENDING job in that module
+// - If no params: find first executable PENDING job (no unmet prerequisites) across all modules
+// - If module specified: find first executable PENDING job in that module
 // - If both module and job specified: use the specified job
 func (h *DoingHandler) selectTargetJob(moduleName, jobName string) (string, string, error) {
 	if h.stateManager == nil {
@@ -510,33 +584,138 @@ func (h *DoingHandler) selectTargetJob(moduleName, jobName string) (string, stri
 		return moduleName, jobName, nil
 	}
 
-	// Case 2: Only module specified - find first PENDING job in that module
+	// Case 2: Only module specified - find first executable PENDING job in that module
 	if moduleName != "" {
 		module, ok := stateData.Modules[moduleName]
 		if !ok {
 			return "", "", fmt.Errorf("模块不存在: %s", moduleName)
 		}
 
-		// Find first PENDING job in the module
-		for jobName, job := range module.Jobs {
-			if job.Status == state.StatusPending {
-				return moduleName, jobName, nil
-			}
+		// Find first PENDING job that has no unmet prerequisites
+		targetJob := h.findExecutableJob(moduleName, module)
+		if targetJob != "" {
+			return moduleName, targetJob, nil
 		}
 
 		return "", "", fmt.Errorf("模块 %s 没有待执行的 Job", moduleName)
 	}
 
-	// Case 3: No params - find first PENDING job across all modules
-	for moduleName, module := range stateData.Modules {
-		for jobName, job := range module.Jobs {
-			if job.Status == state.StatusPending {
-				return moduleName, jobName, nil
-			}
+	// Case 3: No params - find first executable PENDING job across all modules
+	// Sort module names for consistent ordering
+	var moduleNames []string
+	for name := range stateData.Modules {
+		if name != "" { // Skip empty module name
+			moduleNames = append(moduleNames, name)
+		}
+	}
+	sort.Strings(moduleNames)
+
+	for _, moduleName := range moduleNames {
+		module := stateData.Modules[moduleName]
+		targetJob := h.findExecutableJob(moduleName, module)
+		if targetJob != "" {
+			return moduleName, targetJob, nil
 		}
 	}
 
 	return "", "", fmt.Errorf("没有待执行的 Job")
+}
+
+// findExecutableJob finds the first PENDING job in a module that has all prerequisites met.
+// Returns empty string if no executable job is found.
+func (h *DoingHandler) findExecutableJob(moduleName string, module *state.ModuleState) string {
+	logger := h.logger
+
+	// Collect all PENDING jobs with their job index from plan
+	type jobWithIndex struct {
+		name  string
+		index int
+	}
+	var pendingJobs []jobWithIndex
+
+	// Load plan to get job indices for proper ordering
+	planFile := filepath.Join(h.getPlanDir(), moduleName+".md")
+	content, err := os.ReadFile(planFile)
+	jobIndexMap := make(map[string]int)
+
+	if err == nil {
+		// Parse plan to extract job indices
+		lines := strings.Split(string(content), "\n")
+		jobPattern := regexp.MustCompile(`(?i)^###\s*job\s*(\d+)[:：]\s*(.+)$`)
+		for _, line := range lines {
+			if matches := jobPattern.FindStringSubmatch(line); matches != nil && len(matches) >= 3 {
+				var index int
+				fmt.Sscanf(matches[1], "%d", &index)
+				jobName := strings.TrimSpace(matches[2])
+				jobIndexMap[jobName] = index
+			}
+		}
+	}
+
+	// Collect PENDING jobs
+	for jobName, job := range module.Jobs {
+		if job.Status == state.StatusPending {
+			index := jobIndexMap[jobName]
+			if index == 0 {
+				// If not found in plan, use a large number to put it at the end
+				index = 9999
+			}
+			pendingJobs = append(pendingJobs, jobWithIndex{name: jobName, index: index})
+		}
+	}
+
+	if os.Getenv("MORTY_DEBUG") != "" {
+		fmt.Fprintf(os.Stderr, "DEBUG: Finding executable job in module '%s', pending count: %d\n", moduleName, len(pendingJobs))
+		fmt.Fprintf(os.Stderr, "DEBUG: Pending jobs: %v\n", pendingJobs)
+	}
+
+	logger.Debug("Finding executable job",
+		logging.String("module", moduleName),
+		logging.Int("pending_count", len(pendingJobs)),
+	)
+
+	// Sort by job index (topological order)
+	sort.Slice(pendingJobs, func(i, j int) bool {
+		return pendingJobs[i].index < pendingJobs[j].index
+	})
+
+	// Find first job with all prerequisites met (in topological order)
+	for _, jobInfo := range pendingJobs {
+		jobName := jobInfo.name
+		// Check if this job's prerequisites are met
+		err := h.checkPrerequisites(moduleName, jobName)
+		if err == nil {
+			if os.Getenv("MORTY_DEBUG") != "" {
+				fmt.Fprintf(os.Stderr, "DEBUG: Found executable job: %s/%s (index: %d)\n", moduleName, jobName, jobInfo.index)
+			}
+			logger.Info("Found executable job",
+				logging.String("module", moduleName),
+				logging.String("job", jobName),
+				logging.Int("job_index", jobInfo.index),
+			)
+			return jobName
+		} else {
+			if os.Getenv("MORTY_DEBUG") != "" {
+				fmt.Fprintf(os.Stderr, "DEBUG: Job '%s/%s' (index: %d) has unmet prerequisites: %v\n", moduleName, jobName, jobInfo.index, err)
+			}
+			logger.Debug("Job has unmet prerequisites",
+				logging.String("module", moduleName),
+				logging.String("job", jobName),
+				logging.Int("job_index", jobInfo.index),
+				logging.String("error", err.Error()),
+			)
+		}
+	}
+
+	if os.Getenv("MORTY_DEBUG") != "" {
+		fmt.Fprintf(os.Stderr, "DEBUG: No executable job found in module '%s'\n", moduleName)
+	}
+
+	logger.Debug("No executable job found in module",
+		logging.String("module", moduleName),
+	)
+
+	return ""
 }
 
 // checkPrerequisites checks if all prerequisite jobs are completed.
@@ -545,11 +724,18 @@ func (h *DoingHandler) selectTargetJob(moduleName, jobName string) (string, stri
 // in the job's Prerequisites are in COMPLETED status.
 func (h *DoingHandler) checkPrerequisites(moduleName, jobName string) error {
 	// Load the plan file for this module
+	// First try the exact module name
 	planFile := filepath.Join(h.getPlanDir(), moduleName+".md")
 	content, err := os.ReadFile(planFile)
+
+	// If not found, search for any plan file containing this module
+	if err != nil && os.IsNotExist(err) {
+		planFile, content, err = h.findPlanFileForModule(moduleName)
+	}
+
 	if err != nil {
 		if os.IsNotExist(err) {
-			return fmt.Errorf("计划文件不存在: %s", planFile)
+			return fmt.Errorf("计划文件不存在: module=%s", moduleName)
 		}
 		return fmt.Errorf("读取计划文件失败: %w", err)
 	}
@@ -589,6 +775,9 @@ func (h *DoingHandler) checkPrerequisites(moduleName, jobName string) error {
 	var unmetPrereqs []string
 	for _, prereq := range targetJob.Prerequisites {
 		// Parse prerequisite format: "module/job" or just "job" (same module)
+		// If it doesn't match a known job, it's a descriptive prerequisite (e.g., "file exists")
+		// and we skip it (assume user will verify manually)
+
 		var prereqModule, prereqJob string
 		if strings.Contains(prereq, "/") {
 			parts := strings.SplitN(prereq, "/", 2)
@@ -599,7 +788,7 @@ func (h *DoingHandler) checkPrerequisites(moduleName, jobName string) error {
 			prereqJob = prereq
 		}
 
-		// Check if prerequisite job is completed
+		// Check if prerequisite job exists and is completed
 		var jobState *state.JobState
 		if prereqModule == moduleName {
 			jobState = module.Jobs[prereqJob]
@@ -611,7 +800,17 @@ func (h *DoingHandler) checkPrerequisites(moduleName, jobName string) error {
 			}
 		}
 
-		if jobState == nil || jobState.Status != state.StatusCompleted {
+		// If job doesn't exist, it's likely a descriptive prerequisite (not a job reference)
+		// Skip it and assume it will be verified manually
+		if jobState == nil {
+			if os.Getenv("MORTY_DEBUG") != "" {
+				fmt.Fprintf(os.Stderr, "DEBUG: Skipping non-job prerequisite: '%s'\n", prereq)
+			}
+			continue
+		}
+
+		// Job exists, check if it's completed
+		if jobState.Status != state.StatusCompleted {
 			unmetPrereqs = append(unmetPrereqs, prereq)
 		}
 	}
@@ -656,10 +855,12 @@ func (h *DoingHandler) initializeExecutor() error {
 		AutoCommit:   true,
 		CommitPrefix: "morty:",
 		WorkingDir:   h.getWorkDir(),
+		PromptsDir:   h.paths.GetPromptsDir(),
+		PlanDir:      h.getPlanDir(),
 	}
 
-	// Create the executor engine
-	h.executor = executor.NewEngine(h.stateManager, h.gitManager, h.logger, execConfig)
+	// Create the executor engine with CLI caller
+	h.executor = executor.NewEngine(h.stateManager, h.gitManager, h.logger, execConfig, h.cliCaller)
 
 	return nil
 }
@@ -1097,4 +1298,47 @@ func (h *DoingHandler) IsPlanNotFoundError(err error) bool {
 		return false
 	}
 	return os.IsNotExist(err) || strings.Contains(err.Error(), "计划文件不存在")
+}
+
+// findPlanFileForModule searches all plan files to find one containing the specified module.
+func (h *DoingHandler) findPlanFileForModule(moduleName string) (string, []byte, error) {
+	planDir := h.getPlanDir()
+
+	// Read all files in plan directory
+	entries, err := os.ReadDir(planDir)
+	if err != nil {
+		return "", nil, fmt.Errorf("failed to read plan directory: %w", err)
+	}
+
+	// Search for plan files
+	for _, entry := range entries {
+		if entry.IsDir() {
+			continue
+		}
+
+		name := entry.Name()
+		if !strings.HasSuffix(name, ".md") || strings.HasPrefix(name, "README") {
+			continue
+		}
+
+		// Read and parse the file
+		planPath := filepath.Join(planDir, name)
+		content, err := os.ReadFile(planPath)
+		if err != nil {
+			continue
+		}
+
+		// Parse to check if it contains the module
+		parsedPlan, err := plan.ParsePlan(string(content))
+		if err != nil {
+			continue
+		}
+
+		// Check if this plan is for the requested module
+		if parsedPlan.Name == moduleName {
+			return planPath, content, nil
+		}
+	}
+
+	return "", nil, os.ErrNotExist
 }

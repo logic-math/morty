@@ -38,11 +38,25 @@ type PlanHandler struct {
 
 // NewPlanHandler creates a new PlanHandler instance.
 func NewPlanHandler(cfg config.Manager, logger logging.Logger, parser interface{}) *PlanHandler {
-	paths := config.NewPaths()
+	// Create paths with config loader if available
+	var paths *config.Paths
+	if loader, ok := cfg.(*config.Loader); ok {
+		paths = config.NewPathsWithLoader(loader)
+		if os.Getenv("MORTY_DEBUG") != "" {
+			fmt.Fprintf(os.Stderr, "DEBUG: NewPlanHandler using Loader\n")
+		}
+	} else {
+		paths = config.NewPaths()
+		if os.Getenv("MORTY_DEBUG") != "" {
+			fmt.Fprintf(os.Stderr, "DEBUG: NewPlanHandler using NewPaths (cfg type: %T)\n", cfg)
+		}
+	}
+
 	// Set workDir from config if available
 	if cfg != nil && cfg.GetWorkDir() != "" {
 		paths.SetWorkDir(cfg.GetWorkDir())
 	}
+
 	return &PlanHandler{
 		cfg:       cfg,
 		logger:    logger,
@@ -63,7 +77,7 @@ func (h *PlanHandler) Execute(ctx context.Context, args []string) (*PlanResult, 
 	}
 
 	// Parse options from args
-	force, moduleName, remainingArgs := h.parseOptions(args)
+	force, moduleName, _ := h.parseOptions(args)
 
 	// Determine module name
 	if moduleName == "" {
@@ -119,12 +133,42 @@ func (h *PlanHandler) Execute(ctx context.Context, args []string) (*PlanResult, 
 	default:
 	}
 
-	// Create the plan file
-	if err := h.createPlanFile(planPath, moduleName, remainingArgs); err != nil {
-		logger.Error("Failed to create plan file", logging.String("error", err.Error()))
+	// Load plan prompt
+	prompt, err := h.loadPlanPrompt()
+	if err != nil {
+		logger.Error("Failed to load plan prompt", logging.String("error", err.Error()))
 		result.Err = err
 		result.Duration = time.Since(startTime)
-		return result, fmt.Errorf("failed to create plan file: %w", err)
+		return result, fmt.Errorf("failed to load plan prompt: %w", err)
+	}
+
+	logger.Info("Loaded plan prompt", logging.String("prompt_path", h.getPlanPromptPath()))
+
+	// Load research files
+	researchContent, err := h.loadResearchFiles()
+	if err != nil {
+		logger.Warn("Failed to load research files (continuing anyway)", logging.String("error", err.Error()))
+		researchContent = "No research files found."
+	}
+
+	// Execute Claude Code to generate plan
+	planContent, exitCode, err := h.executeClaudeCodeForPlan(ctx, moduleName, prompt, researchContent)
+	if err != nil {
+		logger.Error("Claude Code execution failed",
+			logging.String("error", err.Error()),
+			logging.Int("exit_code", exitCode),
+		)
+		result.Err = err
+		result.Duration = time.Since(startTime)
+		return result, fmt.Errorf("claude code execution failed: %w", err)
+	}
+
+	// Write the generated plan to file
+	if err := h.writePlanFile(planPath, planContent); err != nil {
+		logger.Error("Failed to write plan file", logging.String("error", err.Error()))
+		result.Err = err
+		result.Duration = time.Since(startTime)
+		return result, fmt.Errorf("failed to write plan file: %w", err)
 	}
 
 	result.Duration = time.Since(startTime)
@@ -276,7 +320,143 @@ func (h *PlanHandler) promptForOverwrite(moduleName string) (bool, error) {
 	return response == "y" || response == "yes", nil
 }
 
-// createPlanFile creates a new plan file with the given content.
+// loadPlanPrompt loads the plan prompt from prompts/plan.md.
+func (h *PlanHandler) loadPlanPrompt() (string, error) {
+	promptPath := h.getPlanPromptPath()
+
+	// Read the prompt file
+	content, err := os.ReadFile(promptPath)
+	if err != nil {
+		return "", fmt.Errorf("failed to read plan prompt file %s: %w", promptPath, err)
+	}
+
+	return string(content), nil
+}
+
+// getPlanPromptPath returns the path to the plan prompt file.
+func (h *PlanHandler) getPlanPromptPath() string {
+	// Get prompts directory first
+	promptsDir := h.paths.GetPromptsDir()
+
+	// Check if there's a specific plan prompt path configured
+	if h.cfg != nil {
+		if promptPath := h.cfg.GetString("prompts.plan"); promptPath != "" {
+			// If it's an absolute path, use it directly
+			if filepath.IsAbs(promptPath) {
+				return promptPath
+			}
+			// If it's a relative path, resolve it relative to prompts dir
+			return filepath.Join(promptsDir, filepath.Base(promptPath))
+		}
+	}
+
+	// Default to plan.md in prompts directory
+	return filepath.Join(promptsDir, "plan.md")
+}
+
+// loadResearchFiles loads all research files from .morty/research/ directory.
+func (h *PlanHandler) loadResearchFiles() (string, error) {
+	researchDir := h.paths.GetResearchDir()
+
+	// Check if research directory exists
+	if _, err := os.Stat(researchDir); os.IsNotExist(err) {
+		return "", fmt.Errorf("research directory does not exist: %s", researchDir)
+	}
+
+	// Read all .md files from research directory
+	files, err := filepath.Glob(filepath.Join(researchDir, "*.md"))
+	if err != nil {
+		return "", fmt.Errorf("failed to list research files: %w", err)
+	}
+
+	if len(files) == 0 {
+		return "", fmt.Errorf("no research files found in %s", researchDir)
+	}
+
+	// Sort files by name for consistent ordering
+	sort.Strings(files)
+
+	// Concatenate all research files
+	var content strings.Builder
+	content.WriteString("# Research Files\n\n")
+
+	for _, file := range files {
+		data, err := os.ReadFile(file)
+		if err != nil {
+			continue // Skip files that can't be read
+		}
+
+		content.WriteString(fmt.Sprintf("## File: %s\n\n", filepath.Base(file)))
+		content.WriteString(string(data))
+		content.WriteString("\n\n---\n\n")
+	}
+
+	return content.String(), nil
+}
+
+// executeClaudeCodeForPlan executes Claude Code to generate a plan.
+func (h *PlanHandler) executeClaudeCodeForPlan(ctx context.Context, moduleName, prompt, researchContent string) (string, int, error) {
+	logger := h.logger.WithContext(ctx)
+
+	// Build the full prompt with module name and research context
+	fullPrompt := fmt.Sprintf("# Plan Module: %s\n\n%s\n\n%s", moduleName, researchContent, prompt)
+
+	logger.Info("Executing Claude Code in interactive mode for plan generation",
+		logging.String("module", moduleName),
+		logging.String("cli_path", h.cliCaller.GetCLIPath()),
+	)
+
+	// Plan mode: use interactive mode (launch Claude Code UI)
+	// Pass prompt via stdin to avoid shell parsing issues
+	opts := callcli.Options{
+		Timeout: 0,
+		Stdin:   fullPrompt, // Pass via stdin
+		Output: callcli.OutputConfig{
+			Mode: callcli.OutputStream, // Stream to terminal for interactive mode
+		},
+	}
+
+	// Build args for interactive mode: just --permission-mode plan
+	// Don't use -p flag (that's for non-interactive mode)
+	baseArgs := h.cliCaller.BuildArgs()
+	args := append([]string{"--permission-mode", "plan"}, baseArgs...)
+
+	// Execute the command using the base caller
+	result, err := h.cliCaller.GetBaseCaller().CallWithOptions(ctx, h.cliCaller.GetCLIPath(), args, opts)
+
+	if err != nil {
+		// If result is nil, return error with exit code 1
+		if result == nil {
+			return "", 1, err
+		}
+		return "", result.ExitCode, err
+	}
+
+	if result.ExitCode != 0 {
+		return "", result.ExitCode, fmt.Errorf("claude code exited with code %d: %s", result.ExitCode, result.Stderr)
+	}
+
+	// In interactive mode, we don't capture stdout, return empty string
+	return "", result.ExitCode, nil
+}
+
+// writePlanFile writes the generated plan content to a file.
+func (h *PlanHandler) writePlanFile(planPath, content string) error {
+	// Ensure parent directory exists
+	dir := filepath.Dir(planPath)
+	if err := os.MkdirAll(dir, 0755); err != nil {
+		return fmt.Errorf("failed to create directory %s: %w", dir, err)
+	}
+
+	// Write to file
+	if err := os.WriteFile(planPath, []byte(content), 0644); err != nil {
+		return fmt.Errorf("failed to write plan file: %w", err)
+	}
+
+	return nil
+}
+
+// createPlanFile creates a new plan file with the given content (legacy template method).
 func (h *PlanHandler) createPlanFile(planPath, moduleName string, args []string) error {
 	// Ensure parent directory exists
 	dir := filepath.Dir(planPath)
@@ -405,32 +585,6 @@ func (h *PlanHandler) SetCLICaller(caller callcli.AICliCaller) {
 // SetPromptsDir sets a custom prompts directory (useful for testing).
 func (h *PlanHandler) SetPromptsDir(dir string) {
 	h.paths.SetPromptsDir(dir)
-}
-
-// loadPlanPrompt loads the plan prompt from prompts/plan.md.
-func (h *PlanHandler) loadPlanPrompt() (string, error) {
-	promptPath := h.getPlanPromptPath()
-
-	// Read the prompt file
-	content, err := os.ReadFile(promptPath)
-	if err != nil {
-		return "", fmt.Errorf("failed to read plan prompt file %s: %w", promptPath, err)
-	}
-
-	return string(content), nil
-}
-
-// getPlanPromptPath returns the path to the plan prompt file.
-func (h *PlanHandler) getPlanPromptPath() string {
-	// First check if there's a config override
-	if h.cfg != nil {
-		if promptPath := h.cfg.GetString("prompts.plan"); promptPath != "" {
-			return h.paths.GetAbsolutePath(promptPath)
-		}
-	}
-
-	// Default to prompts/plan.md relative to prompts dir
-	return filepath.Join(h.paths.GetPromptsDir(), "plan.md")
 }
 
 // buildClaudeCommand builds the Claude Code command arguments.
@@ -714,6 +868,10 @@ func (h *PlanHandler) executeClaudeCode(ctx context.Context, prompt string, fact
 	result, err := h.cliCaller.GetBaseCaller().CallWithOptions(ctx, h.cliCaller.GetCLIPath(), args, opts)
 
 	if err != nil {
+		// If result is nil, return error with exit code 1
+		if result == nil {
+			return 1, err
+		}
 		return result.ExitCode, err
 	}
 
