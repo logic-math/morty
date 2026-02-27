@@ -121,13 +121,31 @@ func (p *Plan) extractModuleOverview(sections []markdown.Section) {
 			content := sec.Content
 			p.Responsibility = extractField(content, "模块职责")
 			p.Research = extractListField(content, "对应 Research")
+			// Don't extract dependencies here, will be extracted from "## 依赖模块" section
+		}
+	}
+
+	// Find the "依赖模块" (Dependencies) section
+	for _, sec := range sections {
+		if isMatchingTitle(sec.Title, "依赖模块", "Dependencies") {
+			content := sec.Content
 			p.Dependencies = extractListField(content, "依赖模块")
 			p.Dependents = extractListField(content, "被依赖模块")
 			return
 		}
 	}
 
-	// If not found as a section, look in the first section content
+	// If not found as separate section, try to find in module overview
+	for _, sec := range sections {
+		if isModuleOverviewTitle(sec.Title) {
+			content := sec.Content
+			p.Dependencies = extractListField(content, "依赖模块")
+			p.Dependents = extractListField(content, "被依赖模块")
+			return
+		}
+	}
+
+	// If still not found, look in the first section content
 	if len(sections) > 0 {
 		content := sections[0].Content
 		p.Responsibility = extractField(content, "模块职责")
@@ -278,20 +296,13 @@ func extractJobFromSection(sec markdown.Section) *Job {
 
 	content := sec.Content
 
-	// Extract goal
-	job.Goal = extractField(content, "目标")
-
-	// Extract prerequisites
-	job.Prerequisites = extractListField(content, "前置条件")
-
-	// Extract tasks
-	job.Tasks = extractTasksFromContent(content)
-
-	// Extract validators
-	job.Validators = extractValidators(content)
-
-	// Extract debug logs
-	job.DebugLogs = extractDebugLogs(content)
+	// Try to extract from #### subsections first (new format)
+	// If not found, fall back to ** field format (old format)
+	job.Goal = extractFromSubsectionOrField(sec, "目标", "Goal")
+	job.Prerequisites = extractListFromSubsectionOrField(sec, "前置条件", "Prerequisites")
+	job.Tasks = extractTasksFromSubsectionOrContent(sec, content)
+	job.Validators = extractValidatorsFromSubsectionOrContent(sec, content)
+	job.DebugLogs = extractDebugLogsFromSubsectionOrContent(sec, content)
 
 	return job
 }
@@ -519,4 +530,200 @@ func (p *Plan) GetPendingTasks() []TaskItem {
 		}
 	}
 	return pending
+}
+
+// extractFromSubsectionOrField extracts content from #### subsection or ** field.
+// Tries subsection first (new format), falls back to field (old format).
+func extractFromSubsectionOrField(sec markdown.Section, subsectionTitle, fieldName string) string {
+	// Try to find #### subsection first
+	for _, child := range sec.Children {
+		if child.Level == 4 && isMatchingTitle(child.Title, subsectionTitle) {
+			// Found subsection, return its content
+			return strings.TrimSpace(child.Content)
+		}
+	}
+	// Fall back to ** field format
+	return extractField(sec.Content, subsectionTitle)
+}
+
+// extractListFromSubsectionOrField extracts list from #### subsection or ** field.
+func extractListFromSubsectionOrField(sec markdown.Section, subsectionTitle, fieldName string) []string {
+	// Try to find #### subsection first
+	for _, child := range sec.Children {
+		if child.Level == 4 && isMatchingTitle(child.Title, subsectionTitle) {
+			// Found subsection, parse its content as list
+			return parseListContent(child.Content)
+		}
+	}
+	// Fall back to ** field format
+	return extractListField(sec.Content, subsectionTitle)
+}
+
+// extractTasksFromSubsectionOrContent extracts tasks from #### subsection or content.
+func extractTasksFromSubsectionOrContent(sec markdown.Section, content string) []TaskItem {
+	// Try to find #### Tasks subsection first
+	for _, child := range sec.Children {
+		if child.Level == 4 && isMatchingTitle(child.Title, "Tasks", "Todo 列表", "任务列表") {
+			// Found Tasks subsection, extract tasks from its content
+			return extractTasksFromContent(child.Content)
+		}
+	}
+	// Fall back to extracting from full content
+	return extractTasksFromContent(content)
+}
+
+// extractValidatorsFromSubsectionOrContent extracts validators from #### subsection or content.
+func extractValidatorsFromSubsectionOrContent(sec markdown.Section, content string) []string {
+	// Try to find #### Validators subsection first
+	for _, child := range sec.Children {
+		if child.Level == 4 && isMatchingTitle(child.Title, "验证器", "Validator") {
+			// Found Validators subsection, parse its content
+			return parseValidatorContent(child.Content)
+		}
+	}
+	// Fall back to extracting from full content
+	return extractValidators(content)
+}
+
+// extractDebugLogsFromSubsectionOrContent extracts debug logs from #### subsection or content.
+func extractDebugLogsFromSubsectionOrContent(sec markdown.Section, content string) []DebugLog {
+	// Try to find #### Debug Logs subsection first
+	for _, child := range sec.Children {
+		if child.Level == 4 && isMatchingTitle(child.Title, "调试日志", "Debug", "Debug Logs") {
+			// Found Debug Logs subsection, parse its content
+			return parseDebugLogContent(child.Content)
+		}
+	}
+	// Fall back to extracting from full content
+	return extractDebugLogs(content)
+}
+
+// isMatchingTitle checks if a title matches any of the given keywords (case-insensitive).
+func isMatchingTitle(title string, keywords ...string) bool {
+	lower := strings.ToLower(strings.TrimSpace(title))
+	for _, keyword := range keywords {
+		if strings.Contains(lower, strings.ToLower(keyword)) {
+			return true
+		}
+	}
+	return false
+}
+
+// parseListContent parses list content into a string slice.
+// Supports both:
+// - "- item1\n- item2" format
+// - "job_1, job_2" comma-separated format
+// - "job_1 - description" format (extracts job_N)
+func parseListContent(content string) []string {
+	var result []string
+	lines := strings.Split(content, "\n")
+
+	for _, line := range lines {
+		line = strings.TrimSpace(line)
+		if line == "" || line == "无" {
+			continue
+		}
+
+		// Check if it's a list item
+		if strings.HasPrefix(line, "-") || strings.HasPrefix(line, "*") {
+			// Extract content after "-" or "*"
+			item := strings.TrimSpace(strings.TrimPrefix(strings.TrimPrefix(line, "-"), "*"))
+			item = strings.TrimSpace(strings.TrimPrefix(item, "*"))
+
+			// Extract job_N from "job_1 - description" format
+			if strings.Contains(item, " - ") {
+				parts := strings.SplitN(item, " - ", 2)
+				item = strings.TrimSpace(parts[0])
+			}
+
+			if item != "" && item != "无" {
+				result = append(result, item)
+			}
+		} else if strings.Contains(line, ",") {
+			// Comma-separated format
+			items := strings.Split(line, ",")
+			for _, item := range items {
+				item = strings.TrimSpace(item)
+				if item != "" && item != "无" {
+					result = append(result, item)
+				}
+			}
+		} else if line != "" {
+			// Single item
+			result = append(result, line)
+		}
+	}
+
+	return result
+}
+
+// parseValidatorContent parses validator content from subsection.
+func parseValidatorContent(content string) []string {
+	var validators []string
+	lines := strings.Split(content, "\n")
+
+	for _, line := range lines {
+		line = strings.TrimSpace(line)
+		if line == "" {
+			continue
+		}
+
+		// Skip debug log entries
+		if regexp.MustCompile(`^(debug|explore)\d+[:：]`).MatchString(line) {
+			continue
+		}
+
+		// Check if it's a list item
+		if strings.HasPrefix(line, "-") || strings.HasPrefix(line, "*") {
+			item := strings.TrimSpace(strings.TrimPrefix(strings.TrimPrefix(line, "-"), "*"))
+			item = strings.TrimSpace(strings.TrimPrefix(item, "*"))
+			if item != "" {
+				validators = append(validators, item)
+			}
+		} else if line != "" {
+			// Non-list item, add as-is
+			validators = append(validators, line)
+		}
+	}
+
+	return validators
+}
+
+// parseDebugLogContent parses debug log content from subsection.
+func parseDebugLogContent(content string) []DebugLog {
+	var logs []DebugLog
+
+	// Check if it says "无" (none) or is empty
+	trimmed := strings.TrimSpace(content)
+	if trimmed == "无" || trimmed == "" || trimmed == "- 无" {
+		return logs
+	}
+
+	// Extract debug entries: "- debug1: phenomenon, reproduction, hypothesis, verification, fix, progress"
+	entryPattern := regexp.MustCompile(`(?m)^\s*[-*]\s*(debug\d+|explore\d+)[:：]\s*(.+)$`)
+	entries := entryPattern.FindAllStringSubmatch(content, -1)
+
+	for _, entry := range entries {
+		if len(entry) > 2 {
+			logID := entry[1]
+			fields := strings.Split(entry[2], ",")
+
+			// Pad fields to ensure we have all 6 fields
+			for len(fields) < 6 {
+				fields = append(fields, "")
+			}
+
+			logs = append(logs, DebugLog{
+				ID:           logID,
+				Phenomenon:   strings.TrimSpace(fields[0]),
+				Reproduction: strings.TrimSpace(fields[1]),
+				Hypothesis:   strings.TrimSpace(fields[2]),
+				Verification: strings.TrimSpace(fields[3]),
+				Fix:          strings.TrimSpace(fields[4]),
+				Progress:     strings.TrimSpace(fields[5]),
+			})
+		}
+	}
+
+	return logs
 }

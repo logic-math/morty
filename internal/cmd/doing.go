@@ -601,14 +601,21 @@ func (h *DoingHandler) selectTargetJob(moduleName, jobName string) (string, stri
 	}
 
 	// Case 3: No params - find first executable PENDING job across all modules
-	// Sort module names for consistent ordering
-	var moduleNames []string
-	for name := range stateData.Modules {
-		if name != "" { // Skip empty module name
-			moduleNames = append(moduleNames, name)
+	// Sort modules by topological order (based on module dependencies)
+	moduleNames, err := h.sortModulesByTopology(stateData)
+	if err != nil {
+		h.logger.Warn("Failed to sort modules by topology, falling back to alphabetical order",
+			logging.String("error", err.Error()),
+		)
+		// Fall back to alphabetical order
+		moduleNames = make([]string, 0, len(stateData.Modules))
+		for name := range stateData.Modules {
+			if name != "" { // Skip empty module name
+				moduleNames = append(moduleNames, name)
+			}
 		}
+		sort.Strings(moduleNames)
 	}
-	sort.Strings(moduleNames)
 
 	for _, moduleName := range moduleNames {
 		module := stateData.Modules[moduleName]
@@ -1341,4 +1348,117 @@ func (h *DoingHandler) findPlanFileForModule(moduleName string) (string, []byte,
 	}
 
 	return "", nil, os.ErrNotExist
+}
+
+// sortModulesByTopology sorts modules by their dependency relationships.
+// Returns modules in topological order (dependencies first).
+// Modules with no dependencies come first, followed by modules that depend on them.
+func (h *DoingHandler) sortModulesByTopology(stateData *state.StatusJSON) ([]string, error) {
+	// Build dependency graph from plan files
+	moduleDeps := make(map[string][]string) // module -> list of modules it depends on
+	allModules := make(map[string]bool)
+
+	planDir := h.getPlanDir()
+
+	// Read all plan files to extract module dependencies
+	for moduleName := range stateData.Modules {
+		if moduleName == "" {
+			continue
+		}
+
+		allModules[moduleName] = true
+
+		planFile := filepath.Join(planDir, moduleName+".md")
+		content, err := os.ReadFile(planFile)
+		if err != nil {
+			// If plan file doesn't exist, assume no dependencies
+			moduleDeps[moduleName] = []string{}
+			continue
+		}
+
+		// Parse plan to extract dependencies
+		planData, err := plan.ParsePlan(string(content))
+		if err != nil {
+			// If parsing fails, assume no dependencies
+			moduleDeps[moduleName] = []string{}
+			continue
+		}
+
+		// Extract module dependencies
+		if len(planData.Dependencies) > 0 {
+			moduleDeps[moduleName] = planData.Dependencies
+		} else {
+			moduleDeps[moduleName] = []string{}
+		}
+	}
+
+	// Perform topological sort using Kahn's algorithm
+	result := make([]string, 0, len(allModules))
+	inDegree := make(map[string]int)
+
+	// Calculate in-degree for each module
+	for module := range allModules {
+		inDegree[module] = 0
+	}
+	for _, deps := range moduleDeps {
+		for _, dep := range deps {
+			if allModules[dep] {
+				inDegree[dep]++
+			}
+		}
+	}
+
+	// Queue of modules with no dependencies
+	queue := make([]string, 0)
+	for module := range allModules {
+		if inDegree[module] == 0 {
+			queue = append(queue, module)
+		}
+	}
+
+	// Sort queue alphabetically for consistent ordering
+	sort.Strings(queue)
+
+	// Process modules in topological order
+	for len(queue) > 0 {
+		// Take first module from queue
+		current := queue[0]
+		queue = queue[1:]
+		result = append(result, current)
+
+		// For each module that depends on current
+		for module, deps := range moduleDeps {
+			for _, dep := range deps {
+				if dep == current {
+					inDegree[module]--
+					if inDegree[module] == 0 {
+						queue = append(queue, module)
+						// Keep queue sorted for consistent ordering
+						sort.Strings(queue)
+					}
+				}
+			}
+		}
+	}
+
+	// Check for cycles
+	if len(result) < len(allModules) {
+		// There's a cycle, return error with details
+		remaining := make([]string, 0)
+		for module := range allModules {
+			found := false
+			for _, r := range result {
+				if r == module {
+					found = true
+					break
+				}
+			}
+			if !found {
+				remaining = append(remaining, module)
+			}
+		}
+		return nil, fmt.Errorf("circular dependency detected among modules: %v", remaining)
+	}
+
+	return result, nil
 }
