@@ -140,9 +140,20 @@ func (h *DoingHandler) Execute(ctx context.Context, args []string) (*DoingResult
 	// Step 3: Select next job (simple array traversal, topologically sorted)
 	moduleIndex, jobIndex, targetModule, targetJob, err := h.selectNextJob()
 	if err != nil {
-		// If no pending jobs, suggest running init-status
+		// If no pending jobs, check if all jobs are completed
 		if strings.Contains(err.Error(), "no pending jobs") {
-			result.Err = fmt.Errorf("no pending jobs found. Run 'morty init-status' to generate status.json")
+			status := h.stateManager.GetStatus()
+			if status != nil && status.Global.Status == state.StatusCompleted {
+				// All jobs completed successfully
+				result.ExitCode = 0
+				result.Duration = time.Since(startTime)
+				logger.Info("All jobs completed successfully")
+				fmt.Println("\n✅ All jobs completed successfully!")
+				return result, nil
+			}
+
+			// No pending jobs but not all completed (might be blocked or failed)
+			result.Err = fmt.Errorf("no pending jobs found. Run 'morty stat' to check status")
 			result.ExitCode = 1
 			result.Duration = time.Since(startTime)
 			logger.Error("No pending jobs", logging.String("error", result.Err.Error()))
