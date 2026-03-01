@@ -90,6 +90,9 @@ type DebugLogEntry struct {
 type ModuleState struct {
 	// Name is the module identifier.
 	Name string `json:"name"`
+	// PlanFile is the actual plan file name (e.g., "test_hello_world.md").
+	// This may differ from Name when the module has a Chinese name.
+	PlanFile string `json:"plan_file,omitempty"`
 	// Status is the overall module status.
 	Status Status `json:"status"`
 	// Jobs contains the states of jobs within this module.

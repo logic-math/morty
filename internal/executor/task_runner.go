@@ -17,9 +17,11 @@ const DefaultTaskTimeout = 10 * time.Minute
 // TaskRunner handles the execution of a single task.
 // It manages the AI CLI call, timeout control, output capture, and exit code handling.
 type TaskRunner struct {
-	logger      logging.Logger
-	timeout     time.Duration
-	aiCliCaller callcli.AICliCaller
+	logger             logging.Logger
+	timeout            time.Duration
+	aiCliCaller        callcli.AICliCaller
+	conversationParser *callcli.ConversationParser
+	logsDir            string
 }
 
 // TaskResult represents the outcome of executing a task.
@@ -38,6 +40,10 @@ type TaskResult struct {
 	TimedOut bool
 	// Error contains any execution error
 	Error error
+	// ConversationJSON contains the raw conversation JSON from AI CLI (if available)
+	ConversationJSON string
+	// ConversationLogPath is the path to the saved conversation log file
+	ConversationLogPath string
 }
 
 // NewTaskRunner creates a new TaskRunner with the given dependencies.
@@ -53,10 +59,13 @@ func NewTaskRunner(logger logging.Logger, aiCliCaller callcli.AICliCaller) *Task
 		aiCliCaller = callcli.NewAICliCaller()
 	}
 
+	logsDir := ".morty/logs"
 	return &TaskRunner{
-		logger:      logger,
-		timeout:     DefaultTaskTimeout,
-		aiCliCaller: aiCliCaller,
+		logger:             logger,
+		timeout:            DefaultTaskTimeout,
+		aiCliCaller:        aiCliCaller,
+		conversationParser: callcli.NewConversationParser(logsDir),
+		logsDir:            logsDir,
 	}
 }
 
@@ -73,6 +82,34 @@ func NewTaskRunnerWithTimeout(logger logging.Logger, aiCliCaller callcli.AICliCa
 	tr := NewTaskRunner(logger, aiCliCaller)
 	tr.timeout = timeout
 	return tr
+}
+
+// NewTaskRunnerWithConfig creates a new TaskRunner with custom configuration.
+//
+// Parameters:
+//   - logger: The logger for recording execution progress
+//   - aiCliCaller: Optional AI CLI caller. If nil, a new one is created.
+//   - timeout: The timeout duration for task execution
+//   - logsDir: The directory for storing conversation logs
+//
+// Returns:
+//   - A pointer to a new TaskRunner instance
+func NewTaskRunnerWithConfig(logger logging.Logger, aiCliCaller callcli.AICliCaller, timeout time.Duration, logsDir string) *TaskRunner {
+	if aiCliCaller == nil {
+		aiCliCaller = callcli.NewAICliCaller()
+	}
+
+	if logsDir == "" {
+		logsDir = ".morty/logs"
+	}
+
+	return &TaskRunner{
+		logger:             logger,
+		timeout:            timeout,
+		aiCliCaller:        aiCliCaller,
+		conversationParser: callcli.NewConversationParser(logsDir),
+		logsDir:            logsDir,
+	}
 }
 
 // Run executes a single task with the given description and prompt.
@@ -223,4 +260,126 @@ func stringContainsSubstring(s, substr string) bool {
 		}
 	}
 	return false
+}
+
+// RunWithLogging executes a task and automatically parses/saves conversation logs.
+//
+// Parameters:
+//   - ctx: The context for cancellation and timeout
+//   - module: The module name (for organizing logs)
+//   - job: The job name (for organizing logs)
+//   - taskDesc: Description of the task being executed
+//   - prompt: The prompt content to pass to the AI CLI
+//
+// Returns:
+//   - A TaskResult containing execution details and log paths
+//   - An error if the task fails to execute
+func (tr *TaskRunner) RunWithLogging(ctx context.Context, module, job, taskDesc string, prompt string) (*TaskResult, error) {
+	// Execute the task normally
+	result, err := tr.Run(ctx, taskDesc, prompt)
+
+	// Try to parse conversation logs from stdout
+	// Claude Code may return JSON conversation data in stdout
+	if result != nil && result.Stdout != "" {
+		tr.parseAndSaveConversationLog(result, module, job)
+	}
+
+	return result, err
+}
+
+// parseAndSaveConversationLog attempts to parse and save conversation logs from task output.
+func (tr *TaskRunner) parseAndSaveConversationLog(result *TaskResult, module, job string) {
+	if tr.conversationParser == nil {
+		return
+	}
+
+	// Try to extract JSON from stdout
+	// Claude Code might output JSON in various formats
+	jsonData := tr.extractConversationJSON(result.Stdout)
+	if jsonData == "" {
+		tr.logger.Debug("No conversation JSON found in output")
+		return
+	}
+
+	result.ConversationJSON = jsonData
+
+	// Parse and save the conversation log
+	logPath, err := tr.conversationParser.ParseAndSave(jsonData, module, job)
+	if err != nil {
+		tr.logger.Warn("Failed to parse and save conversation log",
+			logging.String("error", err.Error()))
+		return
+	}
+
+	result.ConversationLogPath = logPath
+	tr.logger.Info("Conversation log saved",
+		logging.String("log_path", logPath))
+}
+
+// extractConversationJSON attempts to extract conversation JSON from output.
+// It looks for JSON blocks that contain conversation structure.
+func (tr *TaskRunner) extractConversationJSON(output string) string {
+	// Look for JSON that starts with { and contains "messages" field
+	// This is a simple heuristic - you may need to adjust based on actual format
+
+	// Try to find JSON block with messages array
+	startIdx := -1
+	braceCount := 0
+	inString := false
+	escapeNext := false
+
+	for i := 0; i < len(output); i++ {
+		ch := output[i]
+
+		if escapeNext {
+			escapeNext = false
+			continue
+		}
+
+		if ch == '\\' {
+			escapeNext = true
+			continue
+		}
+
+		if ch == '"' {
+			inString = !inString
+			continue
+		}
+
+		if inString {
+			continue
+		}
+
+		if ch == '{' {
+			if braceCount == 0 {
+				startIdx = i
+			}
+			braceCount++
+		} else if ch == '}' {
+			braceCount--
+			if braceCount == 0 && startIdx != -1 {
+				// Found a complete JSON block
+				jsonBlock := output[startIdx : i+1]
+				// Check if it looks like a conversation JSON
+				if stringContains(jsonBlock, "\"messages\"") ||
+					stringContains(jsonBlock, "\"role\"") {
+					return jsonBlock
+				}
+				startIdx = -1
+			}
+		}
+	}
+
+	return ""
+}
+
+// SetLogsDir updates the logs directory for conversation logs.
+func (tr *TaskRunner) SetLogsDir(logsDir string) {
+	tr.logsDir = logsDir
+	tr.conversationParser = callcli.NewConversationParser(logsDir)
+}
+
+// GetLogsDir returns the current logs directory.
+func (tr *TaskRunner) GetLogsDir() string {
+	return tr.logsDir
 }

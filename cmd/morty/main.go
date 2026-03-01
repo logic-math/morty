@@ -94,11 +94,19 @@ func main() {
 	}
 
 	// Setup logging
-	logger, _, err := logging.NewLoggerFromConfig(&config.LoggingConfig{
-		Level:  "info",
-		Format: "console",
-		Output: "stdout",
-	})
+	var logConfig *config.LoggingConfig
+	if cfgLoader != nil && cfgLoader.Config() != nil {
+		// Use logging config from loaded configuration
+		logConfig = &cfgLoader.Config().Logging
+	} else {
+		// Use default logging config
+		logConfig = &config.LoggingConfig{
+			Level:  "info",
+			Format: "text",
+			Output: "stdout",
+		}
+	}
+	logger, _, err := logging.NewLoggerFromConfig(logConfig)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Failed to create logger: %v\n", err)
 		os.Exit(1)
@@ -203,15 +211,24 @@ func handleResearch(cfg *config.Paths, cfgLoader *config.Loader, logger logging.
 }
 
 func handlePlan(cfg *config.Paths, cfgLoader *config.Loader, logger logging.Logger, args []string) {
+	// Check for subcommands
+	if len(args) > 0 && args[0] == "validate" {
+		handlePlanValidate(cfg, cfgLoader, logger, args[1:])
+		return
+	}
+
 	fs := flag.NewFlagSet("plan", flag.ExitOnError)
 	help := fs.Bool("help", false, "Show help")
 	_ = fs.String("module", "", "Target module name") // reserved for future use
 	fs.Parse(args)
 
 	if *help {
-		fmt.Println("Usage: morty plan [options] [research-topic]")
+		fmt.Println("Usage: morty plan [subcommand] [options]")
 		fmt.Println()
 		fmt.Println("Create a development plan based on research.")
+		fmt.Println()
+		fmt.Println("Subcommands:")
+		fmt.Println("  validate    Validate plan file format")
 		fmt.Println()
 		fmt.Println("Options:")
 		fmt.Println("  -module string    Target module name")
@@ -459,4 +476,74 @@ func (p *pathsConfigManager) GetPromptsDir() string {
 
 func (p *pathsConfigManager) GetAll() map[string]interface{} {
 	return nil
+}
+
+// handlePlanValidate handles the 'morty plan validate' subcommand.
+func handlePlanValidate(cfg *config.Paths, cfgLoader *config.Loader, logger logging.Logger, args []string) {
+	fs := flag.NewFlagSet("plan validate", flag.ExitOnError)
+	help := fs.Bool("help", false, "Show help")
+	verbose := fs.Bool("verbose", false, "Show verbose output")
+	verboseShort := fs.Bool("v", false, "Show verbose output (shorthand)")
+	fix := fs.Bool("fix", false, "Auto-fix format issues if possible")
+	fixShort := fs.Bool("f", false, "Auto-fix format issues (shorthand)")
+	fs.Parse(args)
+
+	if *help {
+		fmt.Println("Usage: morty plan validate [options] [file]")
+		fmt.Println()
+		fmt.Println("Validate plan file format against specification.")
+		fmt.Println()
+		fmt.Println("Options:")
+		fmt.Println("  -v, --verbose    Show detailed error information")
+		fmt.Println("  -f, --fix        Auto-fix format issues if possible")
+		fmt.Println()
+		fmt.Println("Arguments:")
+		fmt.Println("  file            Validate single file (optional)")
+		fmt.Println("                  If not specified, validates all files in plan directory")
+		fmt.Println()
+		fmt.Println("Examples:")
+		fmt.Println("  morty plan validate                  # Validate all plan files")
+		fmt.Println("  morty plan validate user_auth.md     # Validate single file")
+		fmt.Println("  morty plan validate --verbose        # Show detailed errors")
+		fmt.Println("  morty plan validate --fix            # Auto-fix issues")
+		os.Exit(0)
+	}
+
+	// Combine verbose flags
+	isVerbose := *verbose || *verboseShort
+	isFix := *fix || *fixShort
+
+	// Use loader if available, otherwise use paths wrapper
+	var cfgMgr config.Manager
+	if cfgLoader != nil {
+		cfgMgr = cfgLoader
+	} else {
+		cfgMgr = &pathsConfigManager{paths: cfg}
+	}
+
+	handler := cmd.NewPlanHandler(cfgMgr, logger, nil)
+	ctx := context.Background()
+
+	// Build args for Validate method
+	validateArgs := fs.Args()
+	if isVerbose {
+		validateArgs = append(validateArgs, "--verbose")
+	}
+	if isFix {
+		validateArgs = append(validateArgs, "--fix")
+	}
+
+	result, err := handler.Validate(ctx, validateArgs)
+	if err != nil {
+		logger.Error("Validation failed", logging.String("error", err.Error()))
+		os.Exit(1)
+	}
+
+	// Print result
+	fmt.Print(result.Message)
+
+	// Exit with appropriate code
+	if !result.Success {
+		os.Exit(1)
+	}
 }

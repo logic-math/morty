@@ -132,7 +132,7 @@ func (h *StatHandler) Execute(ctx context.Context, args []string) (*StatResult, 
 		return result, result.Err
 	}
 
-	// Load state
+	// Load state (V2)
 	stateManager := state.NewManager(statusFile)
 	if err := stateManager.Load(); err != nil {
 		logger.Error("Failed to load state", logging.String("error", err.Error()))
@@ -142,36 +142,30 @@ func (h *StatHandler) Execute(ctx context.Context, args []string) (*StatResult, 
 		return result, result.Err
 	}
 
-	// Get current job
-	currentJob, err := stateManager.GetCurrent()
-	if err != nil {
-		logger.Warn("Failed to get current job", logging.String("error", err.Error()))
-	}
-	result.CurrentJob = currentJob
-
-	// Get summary
-	summary, err := stateManager.GetSummary()
-	if err != nil {
-		logger.Warn("Failed to get summary", logging.String("error", err.Error()))
-	} else {
-		result.Summary = summary
-	}
-
-	// Collect comprehensive status info
-	statusInfo, err := h.collectStatus(stateManager)
-	if err != nil {
-		logger.Warn("Failed to collect status info", logging.String("error", err.Error()))
-	} else {
-		result.StatusInfo = statusInfo
+	// Get V2 status
+	statusV2 := stateManager.GetStatusV2()
+	if statusV2 == nil {
+		logger.Error("Failed to get V2 status")
+		result.Err = fmt.Errorf("failed to get status")
+		result.ExitCode = 1
+		result.Duration = time.Since(startTime)
+		return result, result.Err
 	}
 
 	result.Duration = time.Since(startTime)
 
-	// Output results
+	// Output results using V2 format
 	if jsonOutput {
-		h.outputJSON(result)
+		jsonStr, err := h.FormatStatusV2AsJSON(statusV2)
+		if err != nil {
+			logger.Error("Failed to format JSON", logging.String("error", err.Error()))
+			result.Err = err
+			result.ExitCode = 1
+			return result, result.Err
+		}
+		fmt.Println(jsonStr)
 	} else {
-		h.outputText(result)
+		h.DisplayStatusV2(statusV2)
 	}
 
 	// Handle watch mode
@@ -750,11 +744,100 @@ func (f *TableFormatter) formatSectionHeader(header string) string {
 func (f *TableFormatter) formatContentLine(content string, indent int) string {
 	prefix := strings.Repeat("  ", indent)
 	fullContent := prefix + content
-	if len(fullContent) > contentWidth {
-		fullContent = fullContent[:contentWidth-3] + "..."
+
+	// Calculate display width considering CJK characters
+	displayWidth := f.displayWidth(fullContent)
+
+	if displayWidth > contentWidth {
+		// Truncate to fit
+		fullContent = f.truncateToWidth(fullContent, contentWidth-3) + "..."
+		displayWidth = contentWidth
 	}
-	line := fullContent + strings.Repeat(" ", contentWidth-len(fullContent))
+
+	// Pad with spaces to fill the remaining width
+	padding := contentWidth - displayWidth
+	if padding < 0 {
+		padding = 0
+	}
+	line := fullContent + strings.Repeat(" ", padding)
 	return "│ " + line + " │"
+}
+
+// displayWidth calculates the display width of a string, accounting for CJK characters
+func (f *TableFormatter) displayWidth(s string) int {
+	width := 0
+	inEscape := false
+
+	for _, r := range s {
+		// Skip ANSI escape sequences
+		if r == '\033' {
+			inEscape = true
+			continue
+		}
+		if inEscape {
+			if r == 'm' {
+				inEscape = false
+			}
+			continue
+		}
+
+		// CJK characters (Chinese, Japanese, Korean) typically occupy 2 cells
+		if r >= 0x4E00 && r <= 0x9FFF || // CJK Unified Ideographs
+			r >= 0x3400 && r <= 0x4DBF || // CJK Extension A
+			r >= 0xF900 && r <= 0xFAFF || // CJK Compatibility Ideographs
+			r >= 0x3040 && r <= 0x309F || // Hiragana
+			r >= 0x30A0 && r <= 0x30FF || // Katakana
+			r >= 0xAC00 && r <= 0xD7AF { // Hangul Syllables
+			width += 2
+		} else {
+			width += 1
+		}
+	}
+
+	return width
+}
+
+// truncateToWidth truncates a string to fit within the specified display width
+func (f *TableFormatter) truncateToWidth(s string, maxWidth int) string {
+	width := 0
+	result := []rune{}
+	inEscape := false
+	escapeSeq := []rune{}
+
+	for _, r := range s {
+		// Handle ANSI escape sequences
+		if r == '\033' {
+			inEscape = true
+			escapeSeq = []rune{r}
+			continue
+		}
+		if inEscape {
+			escapeSeq = append(escapeSeq, r)
+			if r == 'm' {
+				inEscape = false
+				result = append(result, escapeSeq...)
+				escapeSeq = nil
+			}
+			continue
+		}
+
+		// Calculate character width
+		charWidth := 1
+		if r >= 0x4E00 && r <= 0x9FFF || r >= 0x3400 && r <= 0x4DBF ||
+			r >= 0xF900 && r <= 0xFAFF || r >= 0x3040 && r <= 0x309F ||
+			r >= 0x30A0 && r <= 0x30FF || r >= 0xAC00 && r <= 0xD7AF {
+			charWidth = 2
+		}
+
+		if width+charWidth > maxWidth {
+			break
+		}
+
+		result = append(result, r)
+		width += charWidth
+	}
+
+	return string(result)
 }
 
 // formatDurationLine formats the duration line outside the table
@@ -1046,10 +1129,11 @@ func (h *StatHandler) runWatchMode(ctx context.Context, initialResult *StatResul
 			// Display refresh header
 			h.displayWatchHeader(lastRefresh)
 
-			// Re-execute stat to collect fresh data
+			// Re-execute stat to collect fresh data (no json output in watch mode)
 			freshResult, err := h.Execute(watchCtx, []string{})
 			if err != nil {
 				h.logger.Error("Watch mode error", logging.String("error", err.Error()))
+				// Continue watching even on error
 			} else {
 				result = freshResult
 			}

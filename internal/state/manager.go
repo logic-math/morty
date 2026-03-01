@@ -94,7 +94,36 @@ func (m *Manager) UpdateJobStatus(module, job string, status Status) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
+	// V2 Compatible: If V1 state is nil, try V2
 	if m.state == nil {
+		// Find module and job indices in V2 status
+		statusV2Mu.RLock()
+		if statusV2 != nil {
+			moduleIndex := -1
+			jobIndex := -1
+			for i, mod := range statusV2.Modules {
+				if mod.Name == module {
+					moduleIndex = i
+					for j, j2 := range mod.Jobs {
+						if j2.Name == job {
+							jobIndex = j
+							break
+						}
+					}
+					break
+				}
+			}
+			statusV2Mu.RUnlock()
+
+			if moduleIndex >= 0 && jobIndex >= 0 {
+				m.mu.Unlock()
+				err := m.UpdateJobStatusV2(moduleIndex, jobIndex, status)
+				m.mu.Lock()
+				return err
+			}
+		} else {
+			statusV2Mu.RUnlock()
+		}
 		return errors.New("M2003", "state not loaded")
 	}
 
@@ -166,11 +195,24 @@ func (m *Manager) GetCurrent() (*CurrentJob, error) {
 
 // SetCurrent sets the currently executing job.
 // Updates the global state with the current module and job information.
+// Pass empty strings for module and job to clear the current job.
 func (m *Manager) SetCurrent(module, job string, status Status) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
+	// V2 Compatible: If V1 state is nil, try V2
 	if m.state == nil {
+		// For V2, we update the global state in the status file
+		statusV2Mu.Lock()
+		if statusV2 != nil {
+			// V2 doesn't have CurrentModule/CurrentJob in global state
+			// The current job is tracked by the job with StatusRunning
+			// So we don't need to do anything here for V2
+			statusV2Mu.Unlock()
+			// Just return success - V2 tracks current job via status
+			return nil
+		}
+		statusV2Mu.Unlock()
 		return errors.New("M2003", "state not loaded")
 	}
 
@@ -178,15 +220,18 @@ func (m *Manager) SetCurrent(module, job string, status Status) error {
 		return errors.New("M2003", "invalid status: "+string(status))
 	}
 
-	// Validate that the module and job exist
-	moduleState, ok := m.state.Modules[module]
-	if !ok {
-		return errors.New("M2003", "module not found: "+module)
-	}
+	// If both module and job are empty, this is a clear operation - skip validation
+	if module != "" || job != "" {
+		// Validate that the module and job exist
+		moduleState, ok := m.state.Modules[module]
+		if !ok {
+			return errors.New("M2003", "module not found: "+module)
+		}
 
-	_, ok = moduleState.Jobs[job]
-	if !ok {
-		return errors.New("M2003", "job not found: "+job+" in module "+module)
+		_, ok = moduleState.Jobs[job]
+		if !ok {
+			return errors.New("M2003", "job not found: "+job+" in module "+module)
+		}
 	}
 
 	// Update global state
@@ -277,12 +322,47 @@ func (m *Manager) GetPendingJobs() []JobRef {
 	return pending
 }
 
+// ClearCurrent clears the currently executing job.
+// This is a convenience method that calls SetCurrent with empty strings.
+func (m *Manager) ClearCurrent() error {
+	return m.SetCurrent("", "", StatusPending)
+}
+
 // UpdateTaskStatus updates the status of a specific task within a job.
 func (m *Manager) UpdateTaskStatus(module, job string, taskIndex int, status Status) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
+	// V2 Compatible: If V1 state is nil, try V2
 	if m.state == nil {
+		// Find module and job indices in V2 status
+		statusV2Mu.RLock()
+		if statusV2 != nil {
+			moduleIndex := -1
+			jobIndex := -1
+			for i, mod := range statusV2.Modules {
+				if mod.Name == module {
+					moduleIndex = i
+					for j, j2 := range mod.Jobs {
+						if j2.Name == job {
+							jobIndex = j
+							break
+						}
+					}
+					break
+				}
+			}
+			statusV2Mu.RUnlock()
+
+			if moduleIndex >= 0 && jobIndex >= 0 {
+				m.mu.Unlock()
+				err := m.UpdateTaskStatusV2(moduleIndex, jobIndex, taskIndex, status)
+				m.mu.Lock()
+				return err
+			}
+		} else {
+			statusV2Mu.RUnlock()
+		}
 		return errors.New("M2001", "state not loaded")
 	}
 
@@ -330,7 +410,44 @@ func (m *Manager) UpdateTasksCompleted(module, job string, count int) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
+	// V2 Compatible: If V1 state is nil, try V2
 	if m.state == nil {
+		// Find module and job indices in V2 status
+		statusV2Mu.RLock()
+		if statusV2 != nil {
+			moduleIndex := -1
+			jobIndex := -1
+			for i, mod := range statusV2.Modules {
+				if mod.Name == module {
+					moduleIndex = i
+					for j, j2 := range mod.Jobs {
+						if j2.Name == job {
+							jobIndex = j
+							break
+						}
+					}
+					break
+				}
+			}
+			statusV2Mu.RUnlock()
+
+			if moduleIndex >= 0 && jobIndex >= 0 {
+				// For V2, TasksCompleted is automatically calculated in UpdateTaskStatusV2
+				// So we don't need to update it separately - just return success
+				m.mu.Unlock()
+				// Update the job status to trigger recalculation
+				statusV2Mu.Lock()
+				if moduleIndex < len(statusV2.Modules) && jobIndex < len(statusV2.Modules[moduleIndex].Jobs) {
+					statusV2.Modules[moduleIndex].Jobs[jobIndex].TasksCompleted = count
+				}
+				statusV2Mu.Unlock()
+				err := m.SaveV2(statusV2)
+				m.mu.Lock()
+				return err
+			}
+		} else {
+			statusV2Mu.RUnlock()
+		}
 		return errors.New("M2001", "state not loaded")
 	}
 

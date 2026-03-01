@@ -224,7 +224,7 @@ create_config() {
   },
   "logging": {
     "level": "info",
-    "format": "json"
+    "format": "text"
   },
   "defaults": {
     "max_retry_count": 3,

@@ -35,6 +35,7 @@ func (m *Manager) SyncFromPlanDir(planDir string) error {
 
 	now := time.Now()
 	modulesAdded := 0
+	modulesUpdated := 0
 
 	for _, entry := range entries {
 		if entry.IsDir() {
@@ -59,14 +60,21 @@ func (m *Manager) SyncFromPlanDir(planDir string) error {
 			continue // Skip files that can't be parsed
 		}
 
-		// Skip if module already exists
-		if _, exists := m.state.Modules[parsedPlan.Name]; exists {
+		// Check if module already exists
+		if existingModule, exists := m.state.Modules[parsedPlan.Name]; exists {
+			// Update PlanFile if not set
+			if existingModule.PlanFile == "" {
+				existingModule.PlanFile = name
+				existingModule.UpdatedAt = now
+				modulesUpdated++
+			}
 			continue
 		}
 
 		// Create module state
 		moduleState := &ModuleState{
 			Name:      parsedPlan.Name,
+			PlanFile:  name, // Store the actual file name
 			Status:    StatusPending,
 			Jobs:      make(map[string]*JobState),
 			CreatedAt: now,
@@ -107,7 +115,7 @@ func (m *Manager) SyncFromPlanDir(planDir string) error {
 		modulesAdded++
 	}
 
-	if modulesAdded > 0 {
+	if modulesAdded > 0 || modulesUpdated > 0 {
 		// Save the updated state
 		m.mu.Unlock()
 		err := m.Save()

@@ -16,7 +16,8 @@ func FormatConfigFromLoggingConfig(cfg *config.LoggingConfig) *FormatConfig {
 
 	format := FormatFromString(cfg.Format)
 	if format == "" {
-		format = env.DefaultFormat()
+		// Default to text format for better readability
+		format = FormatText
 	}
 
 	output := OutputTargetFromString(cfg.Output)
@@ -32,7 +33,7 @@ func FormatConfigFromLoggingConfig(cfg *config.LoggingConfig) *FormatConfig {
 		Level:        level,
 		Environment:  env,
 		TimeFormat:   "2006-01-02T15:04:05.000Z07:00",
-		EnableColors: env == EnvDevelopment && output == OutputStdout,
+		EnableColors: output == OutputStdout || output == OutputBoth, // Enable colors for stdout
 		EnableSource: env == EnvDevelopment,
 	}
 }

@@ -137,97 +137,43 @@ func (h *DoingHandler) Execute(ctx context.Context, args []string) (*DoingResult
 		)
 	}
 
-	// Step 3: Select target job
-	targetModule, targetJob, err := h.selectTargetJob(moduleName, jobName)
+	// Step 3: Select next job (V2 - simple array traversal)
+	moduleIndex, jobIndex, targetModule, targetJob, err := h.selectNextJobV2()
 	if err != nil {
-		// If module not found, try to sync from plan directory
-		if strings.Contains(err.Error(), "模块不存在") && moduleName != "" {
-			logger.Info("Module not found in state, attempting to sync from plan",
-				logging.String("module", moduleName),
-			)
-
-			// Try to sync this specific module from plan
-			if syncErr := h.stateManager.SyncModuleFromPlan(planDir, moduleName); syncErr != nil {
-				logger.Warn("Failed to sync module from plan",
-					logging.String("module", moduleName),
-					logging.String("error", syncErr.Error()),
-				)
-			} else {
-				logger.Info("Successfully synced module from plan",
-					logging.String("module", moduleName),
-				)
-
-				// Retry selecting target job
-				targetModule, targetJob, err = h.selectTargetJob(moduleName, jobName)
-				if err != nil {
-					result.Err = err
-					result.ExitCode = 1
-					result.Duration = time.Since(startTime)
-					logger.Error("Failed to select target job after sync", logging.String("error", err.Error()))
-					return result, result.Err
-				}
-				// Success! Continue with the synced module
-				goto jobSelected
-			}
-		}
-
-		// If no module specified, try to sync all modules from plan
-		if strings.Contains(err.Error(), "没有待执行的 Job") {
-			logger.Info("No pending jobs found, attempting to sync all modules from plan")
-
-			if syncErr := h.stateManager.SyncFromPlanDir(planDir); syncErr != nil {
-				logger.Warn("Failed to sync from plan directory",
-					logging.String("error", syncErr.Error()),
-				)
-			} else {
-				logger.Info("Successfully synced modules from plan directory")
-
-				// Retry selecting target job
-				targetModule, targetJob, err = h.selectTargetJob(moduleName, jobName)
-				if err != nil {
-					result.Err = err
-					result.ExitCode = 1
-					result.Duration = time.Since(startTime)
-					logger.Error("Failed to select target job after sync", logging.String("error", err.Error()))
-					return result, result.Err
-				}
-				// Success! Continue
-				goto jobSelected
-			}
+		// If no pending jobs, suggest running init-status
+		if strings.Contains(err.Error(), "no pending jobs") {
+			result.Err = fmt.Errorf("no pending jobs found. Run 'morty init-status' to generate status.json")
+			result.ExitCode = 1
+			result.Duration = time.Since(startTime)
+			logger.Error("No pending jobs", logging.String("error", result.Err.Error()))
+			return result, result.Err
 		}
 
 		result.Err = err
 		result.ExitCode = 1
 		result.Duration = time.Since(startTime)
-		logger.Error("Failed to select target job", logging.String("error", err.Error()))
+		logger.Error("Failed to select next job", logging.String("error", err.Error()))
 		return result, result.Err
 	}
-
-jobSelected:
 
 	result.ModuleName = targetModule
 	result.JobName = targetJob
 
 	logger.Info("Target job selected",
+		logging.Int("module_index", moduleIndex),
+		logging.Int("job_index", jobIndex),
 		logging.String("module", targetModule),
 		logging.String("job", targetJob),
 	)
 
-	// Step 4: Check prerequisites
-	if err := h.checkPrerequisites(targetModule, targetJob); err != nil {
-		result.Err = err
-		result.ExitCode = 1
-		result.Duration = time.Since(startTime)
-		logger.Error("Prerequisites check failed", logging.String("error", err.Error()))
-		return result, result.Err
-	}
+	// Step 4: V2 doesn't need prerequisite checking (order is guaranteed by topological sort)
 
 	// Log remaining args (for future use)
 	if len(remainingArgs) > 0 {
 		logger.Info("Additional arguments", logging.Any("args", remainingArgs))
 	}
 
-	// Step 5: Initialize Executor and execute the job
+	// Step 5: Initialize Executor
 	if err := h.initializeExecutor(); err != nil {
 		result.Err = fmt.Errorf("初始化执行器失败: %w", err)
 		result.ExitCode = 1
@@ -236,29 +182,86 @@ jobSelected:
 		return result, result.Err
 	}
 
-	// Step 6: Execute the job with timeout control
-	execResult, err := h.executeJob(ctx, targetModule, targetJob)
-	if err != nil {
-		result.Err = err
-		result.ExitCode = 1
-		result.Duration = time.Since(startTime)
-		logger.Error("Job execution failed",
-			logging.String("module", targetModule),
-			logging.String("job", targetJob),
-			logging.String("error", err.Error()),
+	// Step 6: Execute jobs in continuous mode
+	// If a specific job is requested, execute only that job
+	// Otherwise, execute all pending jobs in sequence
+	continuousMode := (moduleName == "" && jobName == "")
+
+	jobsCompleted := 0
+	currentModule := targetModule
+	currentJob := targetJob
+
+	for {
+		logger.Info("Executing job",
+			logging.String("module", currentModule),
+			logging.String("job", currentJob),
+			logging.Int("jobs_completed", jobsCompleted),
 		)
-		return result, result.Err
+
+		// Execute the current job
+		execResult, err := h.executeJob(ctx, currentModule, currentJob)
+		if err != nil {
+			result.Err = err
+			result.ExitCode = 1
+			result.Duration = time.Since(startTime)
+			logger.Error("Job execution failed",
+				logging.String("module", currentModule),
+				logging.String("job", currentJob),
+				logging.String("error", err.Error()),
+			)
+			return result, result.Err
+		}
+
+		jobsCompleted++
+		result.ModuleName = currentModule
+		result.JobName = currentJob
+
+		logger.Success("Job completed",
+			logging.String("module", currentModule),
+			logging.String("job", currentJob),
+			logging.String("exec_status", string(execResult.Status)),
+		)
+
+		// If not in continuous mode, stop after first job
+		if !continuousMode {
+			break
+		}
+
+		// In continuous mode, find next pending job
+		nextModule, nextJob, err := h.selectTargetJob("", "")
+		if err != nil {
+			// No more pending jobs - this is a success condition
+			if strings.Contains(err.Error(), "没有待执行的 Job") {
+				logger.Info("All jobs completed",
+					logging.Int("total_jobs_completed", jobsCompleted),
+				)
+				break
+			}
+			// Other errors should stop execution
+			result.Err = err
+			result.ExitCode = 1
+			result.Duration = time.Since(startTime)
+			logger.Error("Failed to find next job", logging.String("error", err.Error()))
+			return result, result.Err
+		}
+
+		// Update current job for next iteration
+		currentModule = nextModule
+		currentJob = nextJob
+
+		logger.Info("Scheduling next job",
+			logging.String("next_module", nextModule),
+			logging.String("next_job", nextJob),
+		)
 	}
 
 	result.Duration = time.Since(startTime)
 	result.ExitCode = 0
 
 	logger.Info("Doing command completed",
-		logging.String("module", targetModule),
-		logging.String("job", targetJob),
+		logging.Int("jobs_completed", jobsCompleted),
 		logging.Int("exit_code", result.ExitCode),
 		logging.Any("duration", result.Duration),
-		logging.String("exec_status", string(execResult.Status)),
 	)
 
 	return result, nil
@@ -420,6 +423,24 @@ func (h *DoingHandler) loadStatus() error {
 	statusFile := h.getStatusFilePath()
 	h.stateManager = state.NewManager(statusFile)
 
+	// Check if status file exists
+	if _, err := os.Stat(statusFile); os.IsNotExist(err) {
+		// Status file doesn't exist, auto-generate it
+		h.logger.Info("Status file not found, generating from plan files",
+			logging.String("status_file", statusFile),
+		)
+
+		planDir := h.getPlanDir()
+		if err := h.stateManager.InitializeV2(planDir); err != nil {
+			return fmt.Errorf("failed to auto-generate status.json: %w", err)
+		}
+
+		h.logger.Info("Status file generated successfully",
+			logging.String("status_file", statusFile),
+		)
+	}
+
+	// Load the status file (either existing or newly generated)
 	if err := h.stateManager.Load(); err != nil {
 		return fmt.Errorf("failed to load state from %s: %w", statusFile, err)
 	}
@@ -568,6 +589,18 @@ func (h *DoingHandler) selectTargetJob(moduleName, jobName string) (string, stri
 
 	stateData := h.stateManager.GetState()
 	if stateData == nil {
+		// V2 Compatible: If V1 state is nil, try V2
+		if statusV2 := h.stateManager.GetStatusV2(); statusV2 != nil {
+			// For V2, we only support auto-selection (no module/job params)
+			// because V2 already has topological ordering
+			if moduleName != "" || jobName != "" {
+				return "", "", fmt.Errorf("V2 format does not support module/job selection - use auto-selection")
+			}
+
+			// Use V2 selection logic
+			_, _, module, job, err := h.selectNextJobV2()
+			return module, job, err
+		}
 		return "", "", fmt.Errorf("state not loaded")
 	}
 
@@ -641,7 +674,12 @@ func (h *DoingHandler) findExecutableJob(moduleName string, module *state.Module
 	var pendingJobs []jobWithIndex
 
 	// Load plan to get job indices for proper ordering
-	planFile := filepath.Join(h.getPlanDir(), moduleName+".md")
+	// Use module.PlanFile if available, otherwise fall back to moduleName+".md"
+	planFileName := module.PlanFile
+	if planFileName == "" {
+		planFileName = moduleName + ".md"
+	}
+	planFile := filepath.Join(h.getPlanDir(), planFileName)
 	content, err := os.ReadFile(planFile)
 	jobIndexMap := make(map[string]int)
 
@@ -781,29 +819,144 @@ func (h *DoingHandler) checkPrerequisites(moduleName, jobName string) error {
 
 	var unmetPrereqs []string
 	for _, prereq := range targetJob.Prerequisites {
-		// Parse prerequisite format: "module/job" or just "job" (same module)
-		// If it doesn't match a known job, it's a descriptive prerequisite (e.g., "file exists")
-		// and we skip it (assume user will verify manually)
+		// Parse prerequisite format:
+		// 1. "job_N" or "job_N - description" -> reference to Job N in same module
+		// 2. "module/job" -> reference to job in another module
+		// 3. Other text -> descriptive prerequisite (skip)
 
+		prereq = strings.TrimSpace(prereq)
+
+		// Extract job_N reference if present
+		jobRefPattern := regexp.MustCompile(`^job_(\d+)(?:\s*-\s*.*)?$`)
+		if matches := jobRefPattern.FindStringSubmatch(prereq); matches != nil {
+			// This is a job_N reference
+			var jobIndex int
+			fmt.Sscanf(matches[1], "%d", &jobIndex)
+
+			// Find the job with this index in the plan
+			var prereqJobName string
+			for _, j := range planData.Jobs {
+				if j.Index == jobIndex {
+					prereqJobName = j.Name
+					break
+				}
+			}
+
+			if prereqJobName == "" {
+				if os.Getenv("MORTY_DEBUG") != "" {
+					fmt.Fprintf(os.Stderr, "DEBUG: Job index %d not found in plan\n", jobIndex)
+				}
+				continue
+			}
+
+			// Check if this job is completed
+			jobState := module.Jobs[prereqJobName]
+			if jobState == nil {
+				if os.Getenv("MORTY_DEBUG") != "" {
+					fmt.Fprintf(os.Stderr, "DEBUG: Job '%s' not found in state\n", prereqJobName)
+				}
+				continue
+			}
+
+			if jobState.Status != state.StatusCompleted {
+				unmetPrereqs = append(unmetPrereqs, fmt.Sprintf("job_%d (%s)", jobIndex, prereqJobName))
+			}
+			continue
+		}
+
+		// Parse module:job_N format (cross-module dependency)
+		// Format: "module_name:job_N" or "module_name:job_N - description"
 		var prereqModule, prereqJob string
-		if strings.Contains(prereq, "/") {
-			parts := strings.SplitN(prereq, "/", 2)
-			prereqModule = parts[0]
-			prereqJob = parts[1]
+		if strings.Contains(prereq, ":job_") {
+			// This is a cross-module dependency
+			parts := strings.SplitN(prereq, ":", 2)
+			prereqModule = strings.TrimSpace(parts[0])
+			// Extract job_N part (may have " - description" suffix)
+			jobPart := strings.TrimSpace(parts[1])
+			if dashIdx := strings.Index(jobPart, " - "); dashIdx > 0 {
+				jobPart = strings.TrimSpace(jobPart[:dashIdx])
+			}
+			prereqJob = jobPart
 		} else {
+			// Same module dependency (should have been handled by job_N pattern above)
 			prereqModule = moduleName
 			prereqJob = prereq
+		}
+
+		// Resolve job_N to actual job name if needed
+		actualJobName := prereqJob
+		if strings.HasPrefix(prereqJob, "job_") {
+			// Need to resolve job_N to actual job name
+			var jobIndex int
+			fmt.Sscanf(prereqJob, "job_%d", &jobIndex)
+
+			// Load the prerequisite module's plan file to find the job name
+			var prereqPlanData *plan.Plan
+			if prereqModule == moduleName {
+				prereqPlanData = planData
+			} else {
+				// Need to load the other module's plan file
+				otherModule, ok := stateData.Modules[prereqModule]
+				if !ok {
+					if os.Getenv("MORTY_DEBUG") != "" {
+						fmt.Fprintf(os.Stderr, "DEBUG: Prerequisite module '%s' not found in state\n", prereqModule)
+					}
+					unmetPrereqs = append(unmetPrereqs, fmt.Sprintf("%s:job_%d (模块不存在)", prereqModule, jobIndex))
+					continue
+				}
+
+				// Use otherModule.PlanFile if available
+				otherPlanFileName := otherModule.PlanFile
+				if otherPlanFileName == "" {
+					otherPlanFileName = prereqModule + ".md"
+				}
+				otherPlanFile := filepath.Join(h.getPlanDir(), otherPlanFileName)
+				otherContent, err := os.ReadFile(otherPlanFile)
+				if err != nil {
+					if os.Getenv("MORTY_DEBUG") != "" {
+						fmt.Fprintf(os.Stderr, "DEBUG: Failed to read plan file for module '%s': %v\n", prereqModule, err)
+					}
+					unmetPrereqs = append(unmetPrereqs, fmt.Sprintf("%s:job_%d (无法读取计划文件)", prereqModule, jobIndex))
+					continue
+				}
+
+				prereqPlanData, err = plan.ParsePlan(string(otherContent))
+				if err != nil {
+					if os.Getenv("MORTY_DEBUG") != "" {
+						fmt.Fprintf(os.Stderr, "DEBUG: Failed to parse plan file for module '%s': %v\n", prereqModule, err)
+					}
+					unmetPrereqs = append(unmetPrereqs, fmt.Sprintf("%s:job_%d (无法解析计划文件)", prereqModule, jobIndex))
+					continue
+				}
+			}
+
+			// Find the job with this index
+			for _, j := range prereqPlanData.Jobs {
+				if j.Index == jobIndex {
+					actualJobName = j.Name
+					break
+				}
+			}
+
+			if actualJobName == prereqJob {
+				// Job index not found
+				if os.Getenv("MORTY_DEBUG") != "" {
+					fmt.Fprintf(os.Stderr, "DEBUG: Job index %d not found in module '%s'\n", jobIndex, prereqModule)
+				}
+				unmetPrereqs = append(unmetPrereqs, fmt.Sprintf("%s:job_%d (Job索引不存在)", prereqModule, jobIndex))
+				continue
+			}
 		}
 
 		// Check if prerequisite job exists and is completed
 		var jobState *state.JobState
 		if prereqModule == moduleName {
-			jobState = module.Jobs[prereqJob]
+			jobState = module.Jobs[actualJobName]
 		} else {
 			// Check in another module
 			otherModule, ok := stateData.Modules[prereqModule]
 			if ok {
-				jobState = otherModule.Jobs[prereqJob]
+				jobState = otherModule.Jobs[actualJobName]
 			}
 		}
 
@@ -811,14 +964,14 @@ func (h *DoingHandler) checkPrerequisites(moduleName, jobName string) error {
 		// Skip it and assume it will be verified manually
 		if jobState == nil {
 			if os.Getenv("MORTY_DEBUG") != "" {
-				fmt.Fprintf(os.Stderr, "DEBUG: Skipping non-job prerequisite: '%s'\n", prereq)
+				fmt.Fprintf(os.Stderr, "DEBUG: Skipping non-job prerequisite: '%s' (resolved to '%s')\n", prereq, actualJobName)
 			}
 			continue
 		}
 
 		// Job exists, check if it's completed
 		if jobState.Status != state.StatusCompleted {
-			unmetPrereqs = append(unmetPrereqs, prereq)
+			unmetPrereqs = append(unmetPrereqs, fmt.Sprintf("%s (%s未完成)", prereq, actualJobName))
 		}
 	}
 
@@ -1197,8 +1350,16 @@ func (h *DoingHandler) createGitCommit(summary *CommitSummary) (string, error) {
 
 	workDir := h.getWorkDir()
 
+	// Task 2.5: Initialize git repository if needed
+	// Git should be initialized at project root, not in .morty directory
+	projectRoot := "." // Current directory is the project root
+	if err := h.gitManager.InitIfNeeded(projectRoot); err != nil {
+		return "", fmt.Errorf("failed to initialize git repository: %w", err)
+	}
+
 	// Task 3: Check if there are changes to commit
-	hasChanges, err := h.gitManager.HasUncommittedChanges(workDir)
+	// Check for changes at project root level
+	hasChanges, err := h.gitManager.HasUncommittedChanges(projectRoot)
 	if err != nil {
 		return "", fmt.Errorf("failed to check for uncommitted changes: %w", err)
 	}
@@ -1209,18 +1370,18 @@ func (h *DoingHandler) createGitCommit(summary *CommitSummary) (string, error) {
 	}
 
 	// Task 4: Stage all changes
-	if _, err := h.gitManager.RunGitCommand(workDir, "add", "-A"); err != nil {
+	if _, err := h.gitManager.RunGitCommand(projectRoot, "add", "-A"); err != nil {
 		return "", fmt.Errorf("failed to stage changes: %w", err)
 	}
 
 	// Task 5: Create commit
-	if _, err := h.gitManager.RunGitCommand(workDir, "commit", "-m", commitMsg); err != nil {
+	if _, err := h.gitManager.RunGitCommand(projectRoot, "commit", "-m", commitMsg); err != nil {
 		// Task 6: Handle commit errors
 		return "", fmt.Errorf("failed to create commit: %w", err)
 	}
 
 	// Get the commit hash
-	commitHash, err := h.gitManager.RunGitCommand(workDir, "rev-parse", "HEAD")
+	commitHash, err := h.gitManager.RunGitCommand(projectRoot, "rev-parse", "HEAD")
 	if err != nil {
 		return "", fmt.Errorf("failed to get commit hash: %w", err)
 	}
@@ -1353,6 +1514,79 @@ func (h *DoingHandler) findPlanFileForModule(moduleName string) (string, []byte,
 // sortModulesByTopology sorts modules by their dependency relationships.
 // Returns modules in topological order (dependencies first).
 // Modules with no dependencies come first, followed by modules that depend on them.
+// extractDepsFromReadme extracts module dependencies from README.md table
+func (h *DoingHandler) extractDepsFromReadme(planDir string) map[string][]string {
+	result := make(map[string][]string)
+
+	readmePath := filepath.Join(planDir, "README.md")
+	content, err := os.ReadFile(readmePath)
+	if err != nil {
+		return result
+	}
+
+	text := string(content)
+	lines := strings.Split(text, "\n")
+
+	// Find the module list table
+	// Format: | 模块名称 | 文件 | Jobs 数量 | 依赖模块 | 状态 |
+	inTable := false
+	for _, line := range lines {
+		line = strings.TrimSpace(line)
+
+		// Check if this is the table header
+		if strings.Contains(line, "模块名称") && strings.Contains(line, "依赖模块") {
+			inTable = true
+			continue
+		}
+
+		// Skip separator line
+		if inTable && strings.HasPrefix(line, "|---") {
+			continue
+		}
+
+		// Parse table row
+		if inTable && strings.HasPrefix(line, "|") {
+			parts := strings.Split(line, "|")
+			if len(parts) >= 5 {
+				moduleName := strings.TrimSpace(parts[1])
+				depsStr := strings.TrimSpace(parts[4])
+
+				if moduleName == "" || moduleName == "模块名称" {
+					continue
+				}
+
+				// Parse dependencies
+				var deps []string
+				if depsStr != "" && depsStr != "无" {
+					if depsStr == "所有模块" {
+						// Special case: depends on all other modules
+						// We'll handle this after collecting all module names
+						result[moduleName] = []string{"__ALL__"}
+					} else {
+						// Split by comma
+						for _, dep := range strings.Split(depsStr, ",") {
+							dep = strings.TrimSpace(dep)
+							if dep != "" && dep != "无" {
+								deps = append(deps, dep)
+							}
+						}
+						if len(deps) > 0 {
+							result[moduleName] = deps
+						}
+					}
+				}
+			}
+		}
+
+		// Stop if we hit another section
+		if inTable && line != "" && !strings.HasPrefix(line, "|") {
+			break
+		}
+	}
+
+	return result
+}
+
 func (h *DoingHandler) sortModulesByTopology(stateData *state.StatusJSON) ([]string, error) {
 	// Build dependency graph from plan files
 	moduleDeps := make(map[string][]string) // module -> list of modules it depends on
@@ -1360,13 +1594,72 @@ func (h *DoingHandler) sortModulesByTopology(stateData *state.StatusJSON) ([]str
 
 	planDir := h.getPlanDir()
 
+	// First, try to read dependencies from README.md
+	readmeDeps := h.extractDepsFromReadme(planDir)
+
+	// Collect all module names first (needed for "__ALL__" expansion)
+	for moduleName := range stateData.Modules {
+		if moduleName != "" {
+			allModules[moduleName] = true
+		}
+	}
+
+	// Normalize module names in readmeDeps (handle [模块名] vs 模块名 mismatch)
+	normalizedReadmeDeps := make(map[string][]string)
+	for readmeModName, deps := range readmeDeps {
+		// Try to find matching module in allModules
+		matched := false
+		for actualModName := range allModules {
+			// Check if they match (with or without brackets)
+			if readmeModName == actualModName ||
+				"["+readmeModName+"]" == actualModName ||
+				readmeModName == strings.Trim(actualModName, "[]") {
+				normalizedReadmeDeps[actualModName] = deps
+				matched = true
+				if os.Getenv("MORTY_DEBUG") != "" && readmeModName != actualModName {
+					fmt.Fprintf(os.Stderr, "DEBUG: Normalized module name '%s' -> '%s'\n", readmeModName, actualModName)
+				}
+				break
+			}
+		}
+		if !matched {
+			// Keep original name if no match found
+			normalizedReadmeDeps[readmeModName] = deps
+		}
+	}
+	readmeDeps = normalizedReadmeDeps
+
+	// Expand "__ALL__" dependencies
+	for moduleName, deps := range readmeDeps {
+		if len(deps) == 1 && deps[0] == "__ALL__" {
+			// Depend on all other modules
+			expanded := make([]string, 0)
+			for otherModule := range allModules {
+				if otherModule != moduleName {
+					expanded = append(expanded, otherModule)
+				}
+			}
+			readmeDeps[moduleName] = expanded
+			if os.Getenv("MORTY_DEBUG") != "" {
+				fmt.Fprintf(os.Stderr, "DEBUG: Expanded '__ALL__' for '%s' to: %v\n", moduleName, expanded)
+			}
+		}
+	}
+
 	// Read all plan files to extract module dependencies
 	for moduleName := range stateData.Modules {
 		if moduleName == "" {
 			continue
 		}
 
-		allModules[moduleName] = true
+		// Check if README.md has dependency info for this module
+		if deps, ok := readmeDeps[moduleName]; ok && len(deps) > 0 {
+			moduleDeps[moduleName] = deps
+			if os.Getenv("MORTY_DEBUG") != "" {
+				fmt.Fprintf(os.Stderr, "DEBUG: Module '%s' dependencies from README: %v\n", moduleName, deps)
+			}
+			continue
+		}
 
 		planFile := filepath.Join(planDir, moduleName+".md")
 		content, err := os.ReadFile(planFile)
@@ -1380,6 +1673,9 @@ func (h *DoingHandler) sortModulesByTopology(stateData *state.StatusJSON) ([]str
 		planData, err := plan.ParsePlan(string(content))
 		if err != nil {
 			// If parsing fails, assume no dependencies
+			if os.Getenv("MORTY_DEBUG") != "" {
+				fmt.Fprintf(os.Stderr, "DEBUG: Failed to parse plan for '%s': %v\n", moduleName, err)
+			}
 			moduleDeps[moduleName] = []string{}
 			continue
 		}
@@ -1387,6 +1683,9 @@ func (h *DoingHandler) sortModulesByTopology(stateData *state.StatusJSON) ([]str
 		// Extract module dependencies
 		if len(planData.Dependencies) > 0 {
 			moduleDeps[moduleName] = planData.Dependencies
+			if os.Getenv("MORTY_DEBUG") != "" {
+				fmt.Fprintf(os.Stderr, "DEBUG: Module '%s' has dependencies from plan file: %v\n", moduleName, planData.Dependencies)
+			}
 		} else {
 			moduleDeps[moduleName] = []string{}
 		}
@@ -1397,14 +1696,15 @@ func (h *DoingHandler) sortModulesByTopology(stateData *state.StatusJSON) ([]str
 	inDegree := make(map[string]int)
 
 	// Calculate in-degree for each module
+	// In-degree = number of modules this module depends on
 	for module := range allModules {
 		inDegree[module] = 0
 	}
-	for _, deps := range moduleDeps {
-		for _, dep := range deps {
-			if allModules[dep] {
-				inDegree[dep]++
-			}
+	for module, deps := range moduleDeps {
+		// module depends on deps, so module's in-degree = len(deps)
+		inDegree[module] = len(deps)
+		if os.Getenv("MORTY_DEBUG") != "" {
+			fmt.Fprintf(os.Stderr, "DEBUG: Module '%s' depends on %v, in-degree=%d\n", module, deps, len(deps))
 		}
 	}
 
@@ -1458,6 +1758,10 @@ func (h *DoingHandler) sortModulesByTopology(stateData *state.StatusJSON) ([]str
 			}
 		}
 		return nil, fmt.Errorf("circular dependency detected among modules: %v", remaining)
+	}
+
+	if os.Getenv("MORTY_DEBUG") != "" {
+		fmt.Fprintf(os.Stderr, "DEBUG: Topological order: %v\n", result)
 	}
 
 	return result, nil

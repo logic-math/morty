@@ -15,6 +15,7 @@ import (
 	"github.com/morty/morty/internal/config"
 	"github.com/morty/morty/internal/logging"
 	"github.com/morty/morty/internal/parser/plan"
+	"github.com/morty/morty/internal/validator"
 )
 
 // PlanResult represents the result of a plan operation.
@@ -34,6 +35,13 @@ type PlanHandler struct {
 	logger    logging.Logger
 	paths     *config.Paths
 	cliCaller callcli.AICliCaller
+}
+
+// ValidateResult represents the result of plan validation.
+type ValidateResult struct {
+	Success bool
+	Message string
+	Err     error
 }
 
 // NewPlanHandler creates a new PlanHandler instance.
@@ -880,4 +888,81 @@ func (h *PlanHandler) executeClaudeCode(ctx context.Context, prompt string, fact
 	}
 
 	return result.ExitCode, nil
+}
+
+// Validate validates all plan files in the plan directory.
+func (h *PlanHandler) Validate(ctx context.Context, args []string) (*ValidateResult, error) {
+	logger := h.logger.WithContext(ctx)
+
+	// Parse options
+	verbose := false
+	fix := false
+	targetFile := ""
+
+	for i, arg := range args {
+		switch arg {
+		case "--verbose", "-v":
+			verbose = true
+		case "--fix", "-f":
+			fix = true
+		default:
+			if !strings.HasPrefix(arg, "-") && i == 0 {
+				targetFile = arg
+			}
+		}
+	}
+
+	planDir := h.getPlanDir()
+
+	// Create validator
+	v := validator.NewPlanValidator(planDir, verbose)
+
+	var results []*validator.ValidationResult
+	var err error
+
+	if targetFile != "" {
+		// Validate single file
+		filePath := targetFile
+		if !filepath.IsAbs(targetFile) {
+			filePath = filepath.Join(planDir, targetFile)
+		}
+		result := v.ValidateFile(filePath)
+		results = []*validator.ValidationResult{result}
+	} else {
+		// Validate all files
+		results, err = v.ValidateAll()
+		if err != nil {
+			logger.Error("Failed to validate plan files", logging.String("error", err.Error()))
+			return &ValidateResult{
+				Success: false,
+				Message: fmt.Sprintf("Failed to validate: %v", err),
+				Err:     err,
+			}, err
+		}
+	}
+
+	// Format results
+	message := validator.FormatResults(results, verbose)
+
+	// Check if validation passed
+	success := true
+	for _, result := range results {
+		if !result.Passed {
+			success = false
+			break
+		}
+	}
+
+	// Auto-fix if requested and validation failed
+	if fix && !success {
+		logger.Info("Attempting to auto-fix format issues")
+		// TODO: Implement auto-fix logic
+		message += "\n\n⚠️  Auto-fix is not yet implemented. Please fix errors manually."
+	}
+
+	return &ValidateResult{
+		Success: success,
+		Message: message,
+		Err:     nil,
+	}, nil
 }

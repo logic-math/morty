@@ -18,43 +18,11 @@ const backupSuffix = ".backup"
 const backupTimeFormat = "20060102_150405"
 
 // Load loads the state from the state file.
-// If the file does not exist, it initializes a default state.
-// Returns an error if the file exists but cannot be parsed.
+// V2 format is now the default. V1 format is no longer supported.
+// If the file does not exist, returns an error asking to run init-status.
 func (m *Manager) Load() error {
-	m.mu.Lock()
-	defer m.mu.Unlock()
-
-	// Check if file exists
-	_, err := os.Stat(m.filePath)
-	if err != nil {
-		if os.IsNotExist(err) {
-			// File doesn't exist, initialize default state
-			m.state = m.createDefaultState()
-			return nil
-		}
-		// Other stat error
-		return errors.Wrap(err, "M2001", "failed to stat state file")
-	}
-
-	// Read file content
-	data, err := os.ReadFile(m.filePath)
-	if err != nil {
-		return errors.Wrap(err, "M2001", "failed to read state file")
-	}
-
-	// Parse JSON
-	var state StatusJSON
-	if err := json.Unmarshal(data, &state); err != nil {
-		return errors.Wrap(err, "M2002", "failed to parse state file")
-	}
-
-	// Validate state structure
-	if err := validateState(&state); err != nil {
-		return err
-	}
-
-	m.state = &state
-	return nil
+	// Use V2 load directly
+	return m.LoadV2()
 }
 
 // Save saves the current state to the state file.
@@ -324,17 +292,22 @@ func (m *Manager) GetModule(name string) *ModuleState {
 
 // GetJob returns the state for a specific job within a module.
 // Returns nil if the module or job does not exist.
+// V2 Compatible: If V1 state is nil, tries to get from V2 status.
 func (m *Manager) GetJob(moduleName, jobName string) *JobState {
 	m.mu.RLock()
 	defer m.mu.RUnlock()
-	if m.state == nil {
+
+	// Try V1 format first
+	if m.state != nil {
+		module, ok := m.state.Modules[moduleName]
+		if ok {
+			return module.Jobs[jobName]
+		}
 		return nil
 	}
-	module, ok := m.state.Modules[moduleName]
-	if !ok {
-		return nil
-	}
-	return module.Jobs[jobName]
+
+	// Fall back to V2 format
+	return m.GetJobV2Compatible(moduleName, jobName)
 }
 
 // SetModule creates or updates a module state.

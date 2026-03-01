@@ -3,6 +3,7 @@ package plan
 
 import (
 	"fmt"
+	"os"
 	"regexp"
 	"strings"
 
@@ -29,6 +30,8 @@ type Job struct {
 	Tasks        []TaskItem   `json:"tasks"`         // List of tasks
 	Validators   []string     `json:"validators"`    // Validation criteria
 	DebugLogs    []DebugLog   `json:"debug_logs"`    // Debug log entries
+	CompletionStatus string   `json:"completion_status"` // Completion status marker from plan file
+	IsCompleted  bool         `json:"is_completed"`  // Whether job is marked as completed in plan
 }
 
 // TaskItem represents a single task within a Job.
@@ -115,43 +118,131 @@ func extractModuleName(title string) string {
 
 // extractModuleOverview extracts module overview information.
 func (p *Plan) extractModuleOverview(sections []markdown.Section) {
+	debug := os.Getenv("MORTY_DEBUG") != ""
+
+	if debug {
+		fmt.Fprintf(os.Stderr, "DEBUG: extractModuleOverview called for module: %s\n", p.Name)
+		fmt.Fprintf(os.Stderr, "DEBUG: Total sections: %d\n", len(sections))
+	}
+
+	// Helper function to search recursively
+	var findOverviewSection func(secs []markdown.Section) *markdown.Section
+	findOverviewSection = func(secs []markdown.Section) *markdown.Section {
+		for _, sec := range secs {
+			if debug {
+				fmt.Fprintf(os.Stderr, "DEBUG:   Checking section level=%d title=%s\n", sec.Level, sec.Title)
+			}
+			if isModuleOverviewTitle(sec.Title) {
+				return &sec
+			}
+			// Search in children
+			if len(sec.Children) > 0 {
+				if found := findOverviewSection(sec.Children); found != nil {
+					return found
+				}
+			}
+		}
+		return nil
+	}
+
 	// Find the "模块概述" (Module Overview) section
-	for _, sec := range sections {
-		if isModuleOverviewTitle(sec.Title) {
-			content := sec.Content
-			p.Responsibility = extractField(content, "模块职责")
-			p.Research = extractListField(content, "对应 Research")
-			// Don't extract dependencies here, will be extracted from "## 依赖模块" section
+	overviewSec := findOverviewSection(sections)
+	if overviewSec != nil {
+		content := overviewSec.Content
+		if debug {
+			fmt.Fprintf(os.Stderr, "DEBUG: Found module overview section: %s\n", overviewSec.Title)
+			fmt.Fprintf(os.Stderr, "DEBUG: Content length: %d bytes\n", len(content))
 		}
-	}
-
-	// Find the "依赖模块" (Dependencies) section
-	for _, sec := range sections {
-		if isMatchingTitle(sec.Title, "依赖模块", "Dependencies") {
-			content := sec.Content
-			p.Dependencies = extractListField(content, "依赖模块")
-			p.Dependents = extractListField(content, "被依赖模块")
-			return
-		}
-	}
-
-	// If not found as separate section, try to find in module overview
-	for _, sec := range sections {
-		if isModuleOverviewTitle(sec.Title) {
-			content := sec.Content
-			p.Dependencies = extractListField(content, "依赖模块")
-			p.Dependents = extractListField(content, "被依赖模块")
-			return
-		}
-	}
-
-	// If still not found, look in the first section content
-	if len(sections) > 0 {
-		content := sections[0].Content
 		p.Responsibility = extractField(content, "模块职责")
 		p.Research = extractListField(content, "对应 Research")
+		// Extract dependencies from module overview content
 		p.Dependencies = extractListField(content, "依赖模块")
 		p.Dependents = extractListField(content, "被依赖模块")
+		if debug {
+			fmt.Fprintf(os.Stderr, "DEBUG: Extracted dependencies: %v\n", p.Dependencies)
+			fmt.Fprintf(os.Stderr, "DEBUG: Extracted dependents: %v\n", p.Dependents)
+		}
+		return // Found and extracted, we're done
+	}
+
+	// Find the "依赖模块" (Dependencies) section (if exists as separate section)
+	var findDepsSection func(secs []markdown.Section) *markdown.Section
+	findDepsSection = func(secs []markdown.Section) *markdown.Section {
+		for _, sec := range secs {
+			if isMatchingTitle(sec.Title, "依赖模块", "Dependencies") {
+				return &sec
+			}
+			if len(sec.Children) > 0 {
+				if found := findDepsSection(sec.Children); found != nil {
+					return found
+				}
+			}
+		}
+		return nil
+	}
+
+	depsSec := findDepsSection(sections)
+	if depsSec != nil {
+		content := depsSec.Content
+		p.Dependencies = extractListField(content, "依赖模块")
+		p.Dependents = extractListField(content, "被依赖模块")
+		if debug {
+			fmt.Fprintf(os.Stderr, "DEBUG: Found separate dependencies section\n")
+			fmt.Fprintf(os.Stderr, "DEBUG: Dependencies: %v\n", p.Dependencies)
+		}
+		return
+	}
+
+	// If dependencies still not found, search in all section contents
+	if len(p.Dependencies) == 0 {
+		for _, sec := range sections {
+			deps := extractListField(sec.Content, "依赖模块")
+			if len(deps) > 0 {
+				p.Dependencies = deps
+				p.Dependents = extractListField(sec.Content, "被依赖模块")
+				if debug {
+					fmt.Fprintf(os.Stderr, "DEBUG: Extracted from section '%s': deps=%v\n", sec.Title, deps)
+				}
+				break
+			}
+			// Also search in children
+			var searchChildren func(children []markdown.Section) bool
+			searchChildren = func(children []markdown.Section) bool {
+				for _, child := range children {
+					deps := extractListField(child.Content, "依赖模块")
+					if len(deps) > 0 {
+						p.Dependencies = deps
+						p.Dependents = extractListField(child.Content, "被依赖模块")
+						if debug {
+							fmt.Fprintf(os.Stderr, "DEBUG: Extracted from child section '%s': deps=%v\n", child.Title, deps)
+						}
+						return true
+					}
+					if len(child.Children) > 0 {
+						if searchChildren(child.Children) {
+							return true
+						}
+					}
+				}
+				return false
+			}
+			if len(sec.Children) > 0 && searchChildren(sec.Children) {
+				break
+			}
+		}
+	}
+
+	// Last resort: search in raw content
+	if len(p.Dependencies) == 0 && p.RawContent != "" {
+		p.Dependencies = extractListField(p.RawContent, "依赖模块")
+		p.Dependents = extractListField(p.RawContent, "被依赖模块")
+		if debug && len(p.Dependencies) > 0 {
+			fmt.Fprintf(os.Stderr, "DEBUG: Extracted from raw content: deps=%v\n", p.Dependencies)
+		}
+	}
+
+	if debug {
+		fmt.Fprintf(os.Stderr, "DEBUG: extractModuleOverview finished for %s: deps=%v\n", p.Name, p.Dependencies)
 	}
 }
 
@@ -303,6 +394,10 @@ func extractJobFromSection(sec markdown.Section) *Job {
 	job.Tasks = extractTasksFromSubsectionOrContent(sec, content)
 	job.Validators = extractValidatorsFromSubsectionOrContent(sec, content)
 	job.DebugLogs = extractDebugLogsFromSubsectionOrContent(sec, content)
+
+	// Extract completion status
+	job.CompletionStatus = extractFromSubsectionOrField(sec, "完成状态", "Completion Status")
+	job.IsCompleted = isJobMarkedCompleted(job.CompletionStatus)
 
 	return job
 }
@@ -726,4 +821,32 @@ func parseDebugLogContent(content string) []DebugLog {
 	}
 
 	return logs
+}
+
+// isJobMarkedCompleted checks if the completion status indicates the job is completed.
+// Returns true if the status contains completion markers like "✅", "已完成", "completed", etc.
+func isJobMarkedCompleted(completionStatus string) bool {
+	if completionStatus == "" {
+		return false
+	}
+
+	lower := strings.ToLower(completionStatus)
+
+	// Check for completion markers
+	markers := []string{
+		"✅",
+		"已完成",
+		"完成",
+		"completed",
+		"done",
+		"finished",
+	}
+
+	for _, marker := range markers {
+		if strings.Contains(lower, marker) {
+			return true
+		}
+	}
+
+	return false
 }

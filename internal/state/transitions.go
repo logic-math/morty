@@ -80,7 +80,37 @@ func (m *Manager) TransitionJobStatus(module, job string, toStatus Status, logge
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
+	// V2 Compatible: If V1 state is nil, try V2
 	if m.state == nil {
+		// Find module and job indices in V2 status
+		statusV2Mu.RLock()
+		if statusV2 != nil {
+			moduleIndex := -1
+			jobIndex := -1
+			for i, mod := range statusV2.Modules {
+				if mod.Name == module {
+					moduleIndex = i
+					for j, j2 := range mod.Jobs {
+						if j2.Name == job {
+							jobIndex = j
+							break
+						}
+					}
+					break
+				}
+			}
+			statusV2Mu.RUnlock()
+
+			if moduleIndex >= 0 && jobIndex >= 0 {
+				// For V2, we don't validate transitions - just update status
+				// Note: UpdateJobStatusV2 will handle the lock itself
+				m.mu.Unlock() // Release the lock before calling UpdateJobStatusV2
+				defer m.mu.Lock() // Re-acquire after return
+				return m.UpdateJobStatusV2(moduleIndex, jobIndex, toStatus)
+			}
+		} else {
+			statusV2Mu.RUnlock()
+		}
 		return errors.New("M2003", "state not loaded")
 	}
 

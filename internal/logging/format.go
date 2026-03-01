@@ -175,12 +175,12 @@ type FormatConfig struct {
 func DefaultFormatConfig() *FormatConfig {
 	env := DetectEnvironment()
 	return &FormatConfig{
-		Format:       env.DefaultFormat(),
+		Format:       FormatText, // Always use text format for better readability
 		Output:       OutputStdout,
 		Level:        env.DefaultLevel(),
 		Environment:  env,
 		TimeFormat:   time.RFC3339,
-		EnableColors: env == EnvDevelopment,
+		EnableColors: true, // Always enable colors for better visual distinction
 		EnableSource: env == EnvDevelopment,
 	}
 }
@@ -296,6 +296,19 @@ func (f *TextFormatter) Format(w io.Writer, entry *LogEntry) error {
 
 	var parts []string
 
+	// Check if this is a success message
+	isSuccess := false
+	filteredAttrs := []Attr{}
+	for _, attr := range entry.Attributes {
+		if attr.Key == "success" {
+			if val, ok := attr.Value.(bool); ok && val {
+				isSuccess = true
+			}
+		} else {
+			filteredAttrs = append(filteredAttrs, attr)
+		}
+	}
+
 	// Time
 	timeStr := entry.Time.Format(f.TimeFormat)
 	if f.EnableColors {
@@ -304,13 +317,21 @@ func (f *TextFormatter) Format(w io.Writer, entry *LogEntry) error {
 		parts = append(parts, fmt.Sprintf("[%s]", timeStr))
 	}
 
-	// Level
+	// Level (with special handling for success)
 	levelStr := entry.Level.String()
+	if isSuccess {
+		levelStr = "SUCCESS"
+	}
 	if f.EnableColors {
-		color := levelColor(entry.Level)
-		parts = append(parts, fmt.Sprintf("%s%-5s%s", color, levelStr, colorReset))
+		var color string
+		if isSuccess {
+			color = colorGreen
+		} else {
+			color = levelColor(entry.Level)
+		}
+		parts = append(parts, fmt.Sprintf("%s%-7s%s", color, levelStr, colorReset))
 	} else {
-		parts = append(parts, fmt.Sprintf("%-5s", levelStr))
+		parts = append(parts, fmt.Sprintf("%-7s", levelStr))
 	}
 
 	// Module and Job
@@ -329,13 +350,23 @@ func (f *TextFormatter) Format(w io.Writer, entry *LogEntry) error {
 		}
 	}
 
-	// Message
-	parts = append(parts, entry.Message)
+	// Message (with color for success/error)
+	if f.EnableColors && (isSuccess || entry.Level == ErrorLevel) {
+		msgColor := colorReset
+		if isSuccess {
+			msgColor = colorGreen
+		} else if entry.Level == ErrorLevel {
+			msgColor = colorRed
+		}
+		parts = append(parts, fmt.Sprintf("%s%s%s", msgColor, entry.Message, colorReset))
+	} else {
+		parts = append(parts, entry.Message)
+	}
 
 	// Attributes
-	if len(entry.Attributes) > 0 {
+	if len(filteredAttrs) > 0 {
 		attrParts := []string{}
-		for _, attr := range entry.Attributes {
+		for _, attr := range filteredAttrs {
 			attrParts = append(attrParts, fmt.Sprintf("%s=%v", attr.Key, attr.Value))
 		}
 		if f.EnableColors {
@@ -482,7 +513,8 @@ func (l *FormatterLogger) Error(msg string, attrs ...Attr) {
 
 // Success logs a success message.
 func (l *FormatterLogger) Success(msg string, attrs ...Attr) {
-	l.log(InfoLevel, msg, append([]Attr{{Key: "status", Value: "success"}}, attrs...)...)
+	// Mark this as a success message for special formatting
+	l.log(InfoLevel, msg, append([]Attr{{Key: "success", Value: true}}, attrs...)...)
 }
 
 // Loop logs a loop iteration message.
