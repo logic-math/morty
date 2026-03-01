@@ -159,15 +159,8 @@ func (pb *promptBuilder) BuildCompactContext(module, job string) (map[string]int
 		return nil, fmt.Errorf("job not found: %s in module %s", job, module)
 	}
 
-	// Get global state for current execution info
-	statePtr := pb.stateManager.GetState()
-	loopCount := 1
-	if statePtr != nil {
-		loopCount = statePtr.Global.TotalLoops
-	}
-	if loopCount == 0 {
-		loopCount = jobState.LoopCount
-	}
+	// Get loop count from job state
+	loopCount := jobState.LoopCount
 	if loopCount == 0 {
 		loopCount = 1
 	}
@@ -227,15 +220,23 @@ func (pb *promptBuilder) buildCompletedJobsSummary(module string) []string {
 		return summaries
 	}
 
-	moduleState, ok := statePtr.Modules[module]
-	if !ok {
+	// Find module by name
+	var moduleState *state.ModuleState
+	for i := range statePtr.Modules {
+		if statePtr.Modules[i].Name == module {
+			moduleState = &statePtr.Modules[i]
+			break
+		}
+	}
+
+	if moduleState == nil {
 		return summaries
 	}
 
-	for jobName, jobState := range moduleState.Jobs {
+	for _, jobState := range moduleState.Jobs {
 		if jobState.Status == state.StatusCompleted {
 			summary := fmt.Sprintf("%s/%s: 完成 (%d tasks)",
-				module, jobName, len(jobState.Tasks))
+				module, jobState.Name, len(jobState.Tasks))
 			summaries = append(summaries, summary)
 		}
 	}

@@ -499,7 +499,7 @@ func (e *engine) markTaskCompleted(module, job string, taskIndex int) error {
 	)
 
 	// Update the task status in state manager
-	return e.stateManager.UpdateTaskStatus(module, job, taskIndex, state.StatusCompleted)
+	return e.stateManager.UpdateTaskStatusByName(module, job, taskIndex, state.StatusCompleted)
 }
 
 // updateTasksCompleted updates the count of completed tasks for a job.
@@ -609,14 +609,10 @@ func (e *engine) buildJobPrompt(module, job string) (string, error) {
 	// Get the plan file name from module state
 	planFileName := module + ".md"
 
-	// V2 Compatible: Try V1 first, then V2
-	if state := e.stateManager.GetState(); state != nil {
-		if moduleState := state.Modules[module]; moduleState != nil && moduleState.PlanFile != "" {
-			planFileName = moduleState.PlanFile
-		}
-	} else if statusV2 := e.stateManager.GetStatusV2(); statusV2 != nil {
-		// V2 format: find module by name
-		for _, mod := range statusV2.Modules {
+	// Get status and find module
+	if execStatus := e.stateManager.GetStatus(); execStatus != nil {
+		// Find module by name
+		for _, mod := range execStatus.Modules {
 			if mod.Name == module && mod.PlanFile != "" {
 				planFileName = mod.PlanFile
 				break
@@ -696,10 +692,15 @@ func (e *engine) buildTaskPrompt(module, job string, taskIndex int, taskDesc str
 	}
 
 	// Get the plan file name from module state
-	// If PlanFile is set, use it; otherwise fall back to module+".md"
 	planFileName := module + ".md"
-	if moduleState := e.stateManager.GetState().Modules[module]; moduleState != nil && moduleState.PlanFile != "" {
-		planFileName = moduleState.PlanFile
+	if execStatus := e.stateManager.GetState(); execStatus != nil {
+		// Find module by name
+		for _, mod := range execStatus.Modules {
+			if mod.Name == module && mod.PlanFile != "" {
+				planFileName = mod.PlanFile
+				break
+			}
+		}
 	}
 
 	// Load the plan file for context
@@ -803,14 +804,10 @@ func (e *engine) verifyJobCompletionInPlan(module, job string) (bool, error) {
 	// Get the plan file name
 	planFileName := module + ".md"
 
-	// V2 Compatible: Try V1 first, then V2
-	if state := e.stateManager.GetState(); state != nil {
-		if moduleState := state.Modules[module]; moduleState != nil && moduleState.PlanFile != "" {
-			planFileName = moduleState.PlanFile
-		}
-	} else if statusV2 := e.stateManager.GetStatusV2(); statusV2 != nil {
-		// V2 format: find module by name
-		for _, mod := range statusV2.Modules {
+	// Get status and find module
+	if execStatus := e.stateManager.GetState(); execStatus != nil {
+		// Find module by name
+		for _, mod := range execStatus.Modules {
 			if mod.Name == module && mod.PlanFile != "" {
 				planFileName = mod.PlanFile
 				break

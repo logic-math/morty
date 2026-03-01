@@ -475,8 +475,10 @@ func (h *DoingHandler) handleRestart(moduleName, jobName string) error {
 
 	// Case 1: No module specified - reset all jobs
 	if moduleName == "" {
-		for _, module := range stateData.Modules {
-			for _, job := range module.Jobs {
+		for i := range stateData.Modules {
+			module := &stateData.Modules[i]
+			for j := range module.Jobs {
+				job := &module.Jobs[j]
 				job.Status = state.StatusPending
 				job.LoopCount = 0
 				job.RetryCount = 0
@@ -487,22 +489,30 @@ func (h *DoingHandler) handleRestart(moduleName, jobName string) error {
 			module.UpdatedAt = now
 		}
 		stateData.Global.Status = state.StatusPending
-		stateData.Global.CurrentModule = ""
-		stateData.Global.CurrentJob = ""
+		stateData.Global.CurrentModuleIndex = 0
+		stateData.Global.CurrentJobIndex = 0
 		stateData.Global.LastUpdate = now
-		return h.stateManager.Save()
+		return h.stateManager.Save(stateData)
 	}
 
-	// Case 2: Module specified
-	module, ok := stateData.Modules[moduleName]
-	if !ok {
+	// Case 2: Module specified - find module by name
+	var module *state.ModuleState
+	for i := range stateData.Modules {
+		if stateData.Modules[i].Name == moduleName {
+			module = &stateData.Modules[i]
+			break
+		}
+	}
+
+	if module == nil {
 		// Module doesn't exist yet, nothing to reset
 		return nil
 	}
 
 	// Case 2a: Only module specified - reset all jobs in this module
 	if jobName == "" {
-		for _, job := range module.Jobs {
+		for j := range module.Jobs {
+			job := &module.Jobs[j]
 			job.Status = state.StatusPending
 			job.LoopCount = 0
 			job.RetryCount = 0
@@ -513,16 +523,24 @@ func (h *DoingHandler) handleRestart(moduleName, jobName string) error {
 		module.UpdatedAt = now
 	} else {
 		// Case 2b: Both module and job specified - reset only this job
-		job, ok := module.Jobs[jobName]
-		if !ok {
+		var jobFound = false
+		for j := range module.Jobs {
+			if module.Jobs[j].Name == jobName {
+				job := &module.Jobs[j]
+				job.Status = state.StatusPending
+				job.LoopCount = 0
+				job.RetryCount = 0
+				job.TasksCompleted = 0
+				job.UpdatedAt = now
+				jobFound = true
+				break
+			}
+		}
+
+		if !jobFound {
 			// Job doesn't exist yet, nothing to reset
 			return nil
 		}
-		job.Status = state.StatusPending
-		job.LoopCount = 0
-		job.RetryCount = 0
-		job.TasksCompleted = 0
-		job.UpdatedAt = now
 
 		// Recalculate module status
 		module.Status = h.calculateModuleStatus(module)
@@ -530,7 +548,7 @@ func (h *DoingHandler) handleRestart(moduleName, jobName string) error {
 	}
 
 	stateData.Global.LastUpdate = now
-	return h.stateManager.Save()
+	return h.stateManager.Save(stateData)
 }
 
 // calculateModuleStatus calculates the overall module status based on its jobs.
@@ -641,14 +659,14 @@ func (h *DoingHandler) findExecutableJob(moduleName string, module *state.Module
 	}
 
 	// Collect PENDING jobs
-	for jobName, job := range module.Jobs {
+	for _, job := range module.Jobs {
 		if job.Status == state.StatusPending {
-			index := jobIndexMap[jobName]
+			index := jobIndexMap[job.Name]
 			if index == 0 {
 				// If not found in plan, use a large number to put it at the end
 				index = 9999
 			}
-			pendingJobs = append(pendingJobs, jobWithIndex{name: jobName, index: index})
+			pendingJobs = append(pendingJobs, jobWithIndex{name: job.Name, index: index})
 		}
 	}
 
@@ -755,8 +773,17 @@ func (h *DoingHandler) checkPrerequisites(moduleName, jobName string) error {
 	}
 
 	stateData := h.stateManager.GetState()
-	module, ok := stateData.Modules[moduleName]
-	if !ok {
+
+	// Find module by name
+	var module *state.ModuleState
+	for i := range stateData.Modules {
+		if stateData.Modules[i].Name == moduleName {
+			module = &stateData.Modules[i]
+			break
+		}
+	}
+
+	if module == nil {
 		return fmt.Errorf("模块不存在: %s", moduleName)
 	}
 
@@ -793,7 +820,14 @@ func (h *DoingHandler) checkPrerequisites(moduleName, jobName string) error {
 			}
 
 			// Check if this job is completed
-			jobState := module.Jobs[prereqJobName]
+			var jobState *state.JobState
+			for j := range module.Jobs {
+				if module.Jobs[j].Name == prereqJobName {
+					jobState = &module.Jobs[j]
+					break
+				}
+			}
+
 			if jobState == nil {
 				if os.Getenv("MORTY_DEBUG") != "" {
 					fmt.Fprintf(os.Stderr, "DEBUG: Job '%s' not found in state\n", prereqJobName)
@@ -839,8 +873,15 @@ func (h *DoingHandler) checkPrerequisites(moduleName, jobName string) error {
 				prereqPlanData = planData
 			} else {
 				// Need to load the other module's plan file
-				otherModule, ok := stateData.Modules[prereqModule]
-				if !ok {
+				var otherModule *state.ModuleState
+				for i := range stateData.Modules {
+					if stateData.Modules[i].Name == prereqModule {
+						otherModule = &stateData.Modules[i]
+						break
+					}
+				}
+
+				if otherModule == nil {
 					if os.Getenv("MORTY_DEBUG") != "" {
 						fmt.Fprintf(os.Stderr, "DEBUG: Prerequisite module '%s' not found in state\n", prereqModule)
 					}
@@ -894,12 +935,30 @@ func (h *DoingHandler) checkPrerequisites(moduleName, jobName string) error {
 		// Check if prerequisite job exists and is completed
 		var jobState *state.JobState
 		if prereqModule == moduleName {
-			jobState = module.Jobs[actualJobName]
+			// Find job in current module
+			for j := range module.Jobs {
+				if module.Jobs[j].Name == actualJobName {
+					jobState = &module.Jobs[j]
+					break
+				}
+			}
 		} else {
 			// Check in another module
-			otherModule, ok := stateData.Modules[prereqModule]
-			if ok {
-				jobState = otherModule.Jobs[actualJobName]
+			var otherModule *state.ModuleState
+			for i := range stateData.Modules {
+				if stateData.Modules[i].Name == prereqModule {
+					otherModule = &stateData.Modules[i]
+					break
+				}
+			}
+
+			if otherModule != nil {
+				for j := range otherModule.Jobs {
+					if otherModule.Jobs[j].Name == actualJobName {
+						jobState = &otherModule.Jobs[j]
+						break
+					}
+				}
 			}
 		}
 
@@ -932,7 +991,7 @@ func (h *DoingHandler) updateStatus(moduleName, jobName string, status state.Sta
 		return fmt.Errorf("state manager not initialized")
 	}
 
-	return h.stateManager.UpdateJobStatus(moduleName, jobName, status)
+	return h.stateManager.UpdateJobStatusByName(moduleName, jobName, status)
 }
 
 // GetStateManager returns the state manager (useful for testing).
@@ -1291,8 +1350,6 @@ func (h *DoingHandler) createGitCommit(summary *CommitSummary) (string, error) {
 		h.gitManager = git.NewManager()
 	}
 
-	workDir := h.getWorkDir()
-
 	// Task 2.5: Initialize git repository if needed
 	// Git should be initialized at project root, not in .morty directory
 	projectRoot := "." // Current directory is the project root
@@ -1530,7 +1587,7 @@ func (h *DoingHandler) extractDepsFromReadme(planDir string) map[string][]string
 	return result
 }
 
-func (h *DoingHandler) sortModulesByTopology(stateData *state.StatusJSON) ([]string, error) {
+func (h *DoingHandler) sortModulesByTopology(stateData *state.ExecutionStatus) ([]string, error) {
 	// Build dependency graph from plan files
 	moduleDeps := make(map[string][]string) // module -> list of modules it depends on
 	allModules := make(map[string]bool)
@@ -1541,9 +1598,9 @@ func (h *DoingHandler) sortModulesByTopology(stateData *state.StatusJSON) ([]str
 	readmeDeps := h.extractDepsFromReadme(planDir)
 
 	// Collect all module names first (needed for "__ALL__" expansion)
-	for moduleName := range stateData.Modules {
-		if moduleName != "" {
-			allModules[moduleName] = true
+	for _, module := range stateData.Modules {
+		if module.Name != "" {
+			allModules[module.Name] = true
 		}
 	}
 
@@ -1590,7 +1647,8 @@ func (h *DoingHandler) sortModulesByTopology(stateData *state.StatusJSON) ([]str
 	}
 
 	// Read all plan files to extract module dependencies
-	for moduleName := range stateData.Modules {
+	for _, module := range stateData.Modules {
+		moduleName := module.Name
 		if moduleName == "" {
 			continue
 		}

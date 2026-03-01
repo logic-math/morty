@@ -925,9 +925,11 @@ func (h *ResetHandler) syncStateAfterReset(sm *state.Manager, targetCommit *Comm
 	preservedCount := 0
 
 	// Task 3 & 5: Reset subsequent jobs to PENDING, keep previous jobs COMPLETED
-	for moduleName, module := range currentState.Modules {
-		for jobName, job := range module.Jobs {
-			if moduleName == targetModule && jobName == targetJob {
+	for i := range currentState.Modules {
+		module := &currentState.Modules[i]
+		for j := range module.Jobs {
+			job := &module.Jobs[j]
+			if module.Name == targetModule && job.Name == targetJob {
 				// Target job: reset to PENDING for re-execution
 				job.Status = state.StatusPending
 				job.LoopCount = 0
@@ -935,7 +937,7 @@ func (h *ResetHandler) syncStateAfterReset(sm *state.Manager, targetCommit *Comm
 				job.TasksCompleted = 0
 				job.UpdatedAt = time.Now()
 				resetCount++
-			} else if shouldResetJob(moduleName, jobName, targetModule, targetJob) {
+			} else if shouldResetJob(module.Name, job.Name, targetModule, targetJob) {
 				// Subsequent jobs: reset to PENDING
 				job.Status = state.StatusPending
 				job.LoopCount = 0
@@ -957,12 +959,12 @@ func (h *ResetHandler) syncStateAfterReset(sm *state.Manager, targetCommit *Comm
 
 	// Update global status
 	currentState.Global.Status = state.StatusRunning
-	currentState.Global.CurrentModule = targetModule
-	currentState.Global.CurrentJob = targetJob
+	currentState.Global.CurrentModuleIndex = 0  // Reset to start
+	currentState.Global.CurrentJobIndex = 0      // Reset to start
 	currentState.Global.LastUpdate = time.Now()
 
 	// Task 4: Update status.json
-	if err := sm.Save(); err != nil {
+	if err := sm.Save(currentState); err != nil {
 		return fmt.Errorf("保存状态失败: %w", err)
 	}
 

@@ -1,15 +1,63 @@
 package cmd
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"strings"
 
+	"github.com/morty/morty/internal/config"
+	"github.com/morty/morty/internal/logging"
 	"github.com/morty/morty/internal/state"
 )
 
+// StatHandler handles status display commands.
+type StatHandler struct {
+	configManager config.Manager
+	logger        logging.Logger
+	stateManager  *state.Manager
+}
+
+// StatResult represents the result of stat command execution.
+type StatResult struct {
+	Status *state.ExecutionStatus
+}
+
+// NewStatHandler creates a new StatHandler.
+func NewStatHandler(configManager config.Manager, logger logging.Logger) *StatHandler {
+	return &StatHandler{
+		configManager: configManager,
+		logger:        logger,
+	}
+}
+
+// Execute executes the stat command.
+func (h *StatHandler) Execute(ctx context.Context, args []string) (*StatResult, error) {
+	// Initialize state manager if not already done
+	if h.stateManager == nil {
+		statusFile := h.configManager.GetStatusFile()
+		h.stateManager = state.NewManager(statusFile)
+
+		// Load status
+		if err := h.stateManager.Load(); err != nil {
+			return nil, fmt.Errorf("failed to load status: %w", err)
+		}
+	}
+
+	// Get current status
+	status := h.stateManager.GetStatus()
+	if status == nil {
+		return nil, fmt.Errorf("no status available")
+	}
+
+	// Display status
+	h.DisplayStatus(status)
+
+	return &StatResult{Status: status}, nil
+}
+
 // DisplayStatus displays status in human-readable format.
-func (h *StatHandler) DisplayStatus(status *state.Status) {
+func (h *StatHandler) DisplayStatus(status *state.ExecutionStatus) {
 	// Calculate statistics
 	completedJobs := status.CountCompletedJobs()
 	completedModules := status.CountCompletedModules()
@@ -128,7 +176,7 @@ func (h *StatHandler) DisplayStatus(status *state.Status) {
 }
 
 // FormatStatusAsJSON formats status as JSON string.
-func (h *StatHandler) FormatStatusAsJSON(status *state.Status) (string, error) {
+func (h *StatHandler) FormatStatusAsJSON(status *state.ExecutionStatus) (string, error) {
 	// The status is already in the correct format for JSON
 	// We can use the standard JSON marshaling
 	data, err := json.MarshalIndent(status, "", "  ")

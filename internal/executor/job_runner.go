@@ -4,7 +4,6 @@ package executor
 import (
 	"context"
 	"fmt"
-	"time"
 
 	"github.com/morty/morty/internal/logging"
 	"github.com/morty/morty/internal/state"
@@ -208,34 +207,9 @@ func (jr *JobRunner) getJobState(module, job string) (*state.JobState, error) {
 
 // markTaskCompleted marks a single task as completed.
 func (jr *JobRunner) markTaskCompleted(module, job string, taskIndex int) error {
-	jr.stateManager.Load()
-	statePtr := jr.stateManager.GetState()
-	if statePtr == nil {
-		return fmt.Errorf("state not loaded")
-	}
-
-	moduleState, ok := statePtr.Modules[module]
-	if !ok {
-		return fmt.Errorf("module not found: %s", module)
-	}
-
-	jobState, ok := moduleState.Jobs[job]
-	if !ok {
-		return fmt.Errorf("job not found: %s in module %s", job, module)
-	}
-
-	// Update task status
-	now := time.Now()
-	if taskIndex >= 0 && taskIndex < len(jobState.Tasks) {
-		jobState.Tasks[taskIndex].Status = state.StatusCompleted
-		jobState.Tasks[taskIndex].UpdatedAt = now
-	} else {
-		return fmt.Errorf("invalid task index: %d", taskIndex)
-	}
-
-	// Save state
-	if err := jr.stateManager.Save(); err != nil {
-		return fmt.Errorf("failed to save state: %w", err)
+	// Use the state manager's UpdateTaskStatusByName method
+	if err := jr.stateManager.UpdateTaskStatusByName(module, job, taskIndex, state.StatusCompleted); err != nil {
+		return fmt.Errorf("failed to mark task as completed: %w", err)
 	}
 
 	jr.logger.Debug("Task marked as completed",
@@ -249,63 +223,19 @@ func (jr *JobRunner) markTaskCompleted(module, job string, taskIndex int) error 
 
 // updateTasksCompleted updates the count of completed tasks for a job.
 func (jr *JobRunner) updateTasksCompleted(module, job string, count int) error {
-	jr.stateManager.Load()
-	statePtr := jr.stateManager.GetState()
-	if statePtr == nil {
-		return fmt.Errorf("state not loaded")
+	// Use the state manager's UpdateTasksCompleted method
+	if err := jr.stateManager.UpdateTasksCompleted(module, job, count); err != nil {
+		return fmt.Errorf("failed to update tasks completed: %w", err)
 	}
-
-	moduleState, ok := statePtr.Modules[module]
-	if !ok {
-		return fmt.Errorf("module not found: %s", module)
-	}
-
-	jobState, ok := moduleState.Jobs[job]
-	if !ok {
-		return fmt.Errorf("job not found: %s in module %s", job, module)
-	}
-
-	// Update tasks completed count
-	now := time.Now()
-	jobState.TasksCompleted = count
-	jobState.UpdatedAt = now
-
-	// Save state
-	if err := jr.stateManager.Save(); err != nil {
-		return fmt.Errorf("failed to save state: %w", err)
-	}
-
 	return nil
 }
 
 // updateFailureReason updates the failure reason for a job.
 func (jr *JobRunner) updateFailureReason(module, job, reason string) error {
-	jr.stateManager.Load()
-	statePtr := jr.stateManager.GetState()
-	if statePtr == nil {
-		return fmt.Errorf("state not loaded")
+	// Use the state manager's UpdateFailureReason method
+	if err := jr.stateManager.UpdateFailureReason(module, job, reason); err != nil {
+		return fmt.Errorf("failed to update failure reason: %w", err)
 	}
-
-	moduleState, ok := statePtr.Modules[module]
-	if !ok {
-		return fmt.Errorf("module not found: %s", module)
-	}
-
-	jobState, ok := moduleState.Jobs[job]
-	if !ok {
-		return fmt.Errorf("job not found: %s in module %s", job, module)
-	}
-
-	// Update failure reason
-	now := time.Now()
-	jobState.FailureReason = reason
-	jobState.UpdatedAt = now
-
-	// Save state
-	if err := jr.stateManager.Save(); err != nil {
-		return fmt.Errorf("failed to save state: %w", err)
-	}
-
 	return nil
 }
 
