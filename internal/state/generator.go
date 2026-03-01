@@ -36,8 +36,8 @@ type TaskInfo struct {
 	Completed   bool
 }
 
-// GenerateStatusV2 generates a V2 status.json from plan files.
-func GenerateStatusV2(planDir string) (*StatusV2, error) {
+// GenerateStatus generates a V2 status.json from plan files.
+func GenerateStatus(planDir string) (*ExecutionStatus, error) {
 	// Step 1: Scan and parse all plan files
 	plans, err := scanPlanFiles(planDir)
 	if err != nil {
@@ -61,7 +61,7 @@ func GenerateStatusV2(planDir string) (*StatusV2, error) {
 	}
 
 	// Step 4: Generate module states
-	modules := []ModuleStateV2{}
+	modules := []ModuleState{}
 	globalJobIndex := 0
 	now := time.Now()
 
@@ -73,7 +73,7 @@ func GenerateStatusV2(planDir string) (*StatusV2, error) {
 		}
 
 		// Create job states
-		jobs := []JobStateV2{}
+		jobs := []JobState{}
 		for jobIndex, jobInfo := range sortedJobs {
 			tasks := []TaskState{}
 			for _, taskInfo := range jobInfo.Tasks {
@@ -85,7 +85,7 @@ func GenerateStatusV2(planDir string) (*StatusV2, error) {
 				})
 			}
 
-			job := JobStateV2{
+			job := JobState{
 				Index:          jobIndex,
 				GlobalIndex:    globalJobIndex,
 				Name:           jobInfo.Name,
@@ -105,7 +105,7 @@ func GenerateStatusV2(planDir string) (*StatusV2, error) {
 		}
 
 		// Create module state
-		module := ModuleStateV2{
+		module := ModuleState{
 			Index:        moduleIndex,
 			Name:         planInfo.Name,
 			DisplayName:  planInfo.DisplayName,
@@ -120,9 +120,9 @@ func GenerateStatusV2(planDir string) (*StatusV2, error) {
 	}
 
 	// Step 5: Create status
-	status := &StatusV2{
+	status := &ExecutionStatus{
 		Version: "2.0",
-		Global: GlobalStateV2{
+		Global: GlobalState{
 			Status:             StatusPending,
 			StartTime:          now,
 			LastUpdate:         now,

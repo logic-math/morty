@@ -61,8 +61,8 @@ func (h *InitStatusHandler) Execute(ctx context.Context, args []string) error {
 		logging.String("status_file", statusFile),
 	)
 
-	// Generate V2 status
-	if err := h.stateManager.InitializeV2(planDir); err != nil {
+	// Generate status
+	if err := h.stateManager.Initialize(planDir); err != nil {
 		logger.Error("Failed to generate status.json",
 			logging.String("error", err.Error()),
 		)
@@ -70,14 +70,14 @@ func (h *InitStatusHandler) Execute(ctx context.Context, args []string) error {
 	}
 
 	// Load and display summary
-	if err := h.stateManager.LoadV2(); err != nil {
+	if err := h.stateManager.Load(); err != nil {
 		logger.Error("Failed to load generated status",
 			logging.String("error", err.Error()),
 		)
 		return err
 	}
 
-	status := h.stateManager.GetStatusV2()
+	status := h.stateManager.GetStatus()
 	if status == nil {
 		return fmt.Errorf("status is nil after generation")
 	}

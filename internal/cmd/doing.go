@@ -137,8 +137,8 @@ func (h *DoingHandler) Execute(ctx context.Context, args []string) (*DoingResult
 		)
 	}
 
-	// Step 3: Select next job (V2 - simple array traversal)
-	moduleIndex, jobIndex, targetModule, targetJob, err := h.selectNextJobV2()
+	// Step 3: Select next job (simple array traversal, topologically sorted)
+	moduleIndex, jobIndex, targetModule, targetJob, err := h.selectNextJob()
 	if err != nil {
 		// If no pending jobs, suggest running init-status
 		if strings.Contains(err.Error(), "no pending jobs") {
@@ -166,7 +166,7 @@ func (h *DoingHandler) Execute(ctx context.Context, args []string) (*DoingResult
 		logging.String("job", targetJob),
 	)
 
-	// Step 4: V2 doesn't need prerequisite checking (order is guaranteed by topological sort)
+	// Step 4: No prerequisite checking needed (order is guaranteed by topological sort at generation time)
 
 	// Log remaining args (for future use)
 	if len(remainingArgs) > 0 {
@@ -431,7 +431,7 @@ func (h *DoingHandler) loadStatus() error {
 		)
 
 		planDir := h.getPlanDir()
-		if err := h.stateManager.InitializeV2(planDir); err != nil {
+		if err := h.stateManager.Initialize(planDir); err != nil {
 			return fmt.Errorf("failed to auto-generate status.json: %w", err)
 		}
 
@@ -587,78 +587,21 @@ func (h *DoingHandler) selectTargetJob(moduleName, jobName string) (string, stri
 		return "", "", fmt.Errorf("state manager not initialized")
 	}
 
-	stateData := h.stateManager.GetState()
-	if stateData == nil {
-		// V2 Compatible: If V1 state is nil, try V2
-		if statusV2 := h.stateManager.GetStatusV2(); statusV2 != nil {
-			// For V2, we only support auto-selection (no module/job params)
-			// because V2 already has topological ordering
-			if moduleName != "" || jobName != "" {
-				return "", "", fmt.Errorf("V2 format does not support module/job selection - use auto-selection")
-			}
-
-			// Use V2 selection logic
-			_, _, module, job, err := h.selectNextJobV2()
-			return module, job, err
-		}
+	status := h.stateManager.GetStatus()
+	if status == nil {
 		return "", "", fmt.Errorf("state not loaded")
 	}
 
-	// Case 1: Both module and job specified - use them directly
-	if moduleName != "" && jobName != "" {
-		// Validate that the module and job exist
-		module, ok := stateData.Modules[moduleName]
-		if !ok {
-			return "", "", fmt.Errorf("模块不存在: %s", moduleName)
-		}
-		if _, ok := module.Jobs[jobName]; !ok {
-			return "", "", fmt.Errorf("Job 不存在: %s/%s", moduleName, jobName)
-		}
-		return moduleName, jobName, nil
+	// If module/job params are provided, we need to validate they exist
+	// Otherwise use auto-selection
+	if moduleName != "" || jobName != "" {
+		// Manual selection not supported - status is topologically sorted
+		return "", "", fmt.Errorf("manual module/job selection not supported - use auto-selection")
 	}
 
-	// Case 2: Only module specified - find first executable PENDING job in that module
-	if moduleName != "" {
-		module, ok := stateData.Modules[moduleName]
-		if !ok {
-			return "", "", fmt.Errorf("模块不存在: %s", moduleName)
-		}
-
-		// Find first PENDING job that has no unmet prerequisites
-		targetJob := h.findExecutableJob(moduleName, module)
-		if targetJob != "" {
-			return moduleName, targetJob, nil
-		}
-
-		return "", "", fmt.Errorf("模块 %s 没有待执行的 Job", moduleName)
-	}
-
-	// Case 3: No params - find first executable PENDING job across all modules
-	// Sort modules by topological order (based on module dependencies)
-	moduleNames, err := h.sortModulesByTopology(stateData)
-	if err != nil {
-		h.logger.Warn("Failed to sort modules by topology, falling back to alphabetical order",
-			logging.String("error", err.Error()),
-		)
-		// Fall back to alphabetical order
-		moduleNames = make([]string, 0, len(stateData.Modules))
-		for name := range stateData.Modules {
-			if name != "" { // Skip empty module name
-				moduleNames = append(moduleNames, name)
-			}
-		}
-		sort.Strings(moduleNames)
-	}
-
-	for _, moduleName := range moduleNames {
-		module := stateData.Modules[moduleName]
-		targetJob := h.findExecutableJob(moduleName, module)
-		if targetJob != "" {
-			return moduleName, targetJob, nil
-		}
-	}
-
-	return "", "", fmt.Errorf("没有待执行的 Job")
+	// Use auto-selection logic
+	_, _, module, job, err := h.selectNextJob()
+	return module, job, err
 }
 
 // findExecutableJob finds the first PENDING job in a module that has all prerequisites met.
@@ -1765,4 +1708,31 @@ func (h *DoingHandler) sortModulesByTopology(stateData *state.StatusJSON) ([]str
 	}
 
 	return result, nil
+}
+
+// selectNextJob selects the next pending job from status.
+// Returns module index, job index, module name, job name, or error.
+func (h *DoingHandler) selectNextJob() (int, int, string, string, error) {
+	status := h.stateManager.GetStatus()
+	if status == nil {
+		return -1, -1, "", "", fmt.Errorf("status not loaded")
+	}
+
+	// Simply find the first PENDING job in the array
+	moduleIndex, jobIndex := status.GetNextPendingJob()
+	if moduleIndex == -1 {
+		return -1, -1, "", "", fmt.Errorf("no pending jobs found")
+	}
+
+	module := &status.Modules[moduleIndex]
+	job := &module.Jobs[jobIndex]
+
+	h.logger.Info("Next job selected",
+		logging.Int("module_index", moduleIndex),
+		logging.Int("job_index", jobIndex),
+		logging.String("module", module.DisplayName),
+		logging.String("job", job.Name),
+	)
+
+	return moduleIndex, jobIndex, module.Name, job.Name, nil
 }
